@@ -261,10 +261,41 @@ app.post('/api/upload-excel', authenticateSession, upload.single('file'), async 
             headers.forEach((header, index) => {
                 if (row[index] !== undefined) {
                     const key = header.toLowerCase().replace(/\s+/g, '_');
-                    flight[key] = row[index];
+                    // 데이터 타입 변환 및 검증
+                    let value = row[index];
+                    
+                    // null, undefined, 빈 문자열 처리
+                    if (value === null || value === undefined || value === '') {
+                        value = '';
+                    }
+                    
+                    // 숫자 필드 처리
+                    if (typeof value === 'number') {
+                        value = value.toString();
+                    }
+                    
+                    // 날짜 필드 처리
+                    if (value instanceof Date) {
+                        value = value.toISOString().slice(0, 10);
+                    }
+                    
+                    // 문자열로 변환
+                    value = String(value).trim();
+                    
+                    flight[key] = value;
                 }
             });
-            return flight;
+            
+            // 필수 필드가 없으면 기본값 설정
+            return {
+                flight_number: flight.flight_number || flight.flightnumber || '',
+                std: flight.std || flight.departure_time || flight.departuretime || '',
+                sta: flight.sta || flight.arrival_time || flight.arrivaltime || '',
+                departure_airport: flight.departure_airport || flight.departureairport || '',
+                arrival_airport: flight.arrival_airport || flight.arrivalairport || '',
+                hlno: flight.hlno || flight.aircraft_type || flight.aircrafttype || '',
+                ...flight
+            };
         });
 
         // 월별 데이터 저장

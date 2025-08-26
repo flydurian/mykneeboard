@@ -385,6 +385,16 @@ class TursoDatabase {
 
             // 새 데이터 삽입
             for (const flight of flightData) {
+                // 데이터 타입 검증 및 변환
+                const safeFlight = {
+                    flight_number: this.sanitizeValue(flight.flight_number || flight.flightNumber || ''),
+                    std: this.sanitizeValue(flight.std || flight.departure_time || flight.departuretime || ''),
+                    sta: this.sanitizeValue(flight.sta || flight.arrival_time || flight.arrivaltime || ''),
+                    departure_airport: this.sanitizeValue(flight.departure_airport || flight.departureairport || ''),
+                    arrival_airport: this.sanitizeValue(flight.arrival_airport || flight.arrivalairport || ''),
+                    hlno: this.sanitizeValue(flight.hlno || flight.aircraft_type || flight.aircrafttype || '')
+                };
+
                 // 항공편 정보 저장
                 const flightResult = await this.client.execute({
                     sql: `
@@ -393,12 +403,12 @@ class TursoDatabase {
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     `,
                     args: [
-                        flight.flightNumber,
-                        flight.std,
-                        flight.sta,
-                        flight.departure_airport,
-                        flight.arrival_airport,
-                        flight.hlno,
+                        safeFlight.flight_number,
+                        safeFlight.std,
+                        safeFlight.sta,
+                        safeFlight.departure_airport,
+                        safeFlight.arrival_airport,
+                        safeFlight.hlno,
                         monthYear,
                         userId
                     ]
@@ -406,9 +416,9 @@ class TursoDatabase {
                 
                 const flightId = flightResult.lastInsertRowid;
                 
-                // Flight Crew List 저장
-                if (flight.flightCrew && flight.flightCrew.length > 0) {
-                    for (const crewMember of flight.flightCrew) {
+                // Flight Crew List 저장 (현재는 단순화)
+                if (flight.pilot_in_command || flight.first_officer) {
+                    if (flight.pilot_in_command) {
                         await this.client.execute({
                             sql: `
                                 INSERT INTO flight_crew 
@@ -417,10 +427,29 @@ class TursoDatabase {
                             `,
                             args: [
                                 flightId,
-                                crewMember.name || '',
-                                crewMember.position || '',
-                                crewMember.rank || '',
-                                crewMember.employeeId || '',
+                                this.sanitizeValue(flight.pilot_in_command),
+                                'PIC',
+                                '',
+                                '',
+                                monthYear,
+                                userId
+                            ]
+                        });
+                    }
+                    
+                    if (flight.first_officer) {
+                        await this.client.execute({
+                            sql: `
+                                INSERT INTO flight_crew 
+                                (flight_id, crew_member_name, crew_position, crew_rank, crew_employee_id, month_year, user_id)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            `,
+                            args: [
+                                flightId,
+                                this.sanitizeValue(flight.first_officer),
+                                'FO',
+                                '',
+                                '',
                                 monthYear,
                                 userId
                             ]
@@ -428,9 +457,11 @@ class TursoDatabase {
                     }
                 }
                 
-                // Cabin Crew List 저장
-                if (flight.cabinCrew && flight.cabinCrew.length > 0) {
-                    for (const crewMember of flight.cabinCrew) {
+                // Cabin Crew List 저장 (현재는 단순화)
+                const cabinCrewFields = ['cabin_crew_1', 'cabin_crew_2', 'cabin_crew_3', 'cabin_crew_4'];
+                for (let i = 0; i < cabinCrewFields.length; i++) {
+                    const crewMember = flight[cabinCrewFields[i]];
+                    if (crewMember) {
                         await this.client.execute({
                             sql: `
                                 INSERT INTO cabin_crew 
@@ -439,10 +470,10 @@ class TursoDatabase {
                             `,
                             args: [
                                 flightId,
-                                crewMember.name || '',
-                                crewMember.position || '',
-                                crewMember.rank || '',
-                                crewMember.employeeId || '',
+                                this.sanitizeValue(crewMember),
+                                'CC',
+                                '',
+                                '',
                                 monthYear,
                                 userId
                             ]
@@ -457,6 +488,26 @@ class TursoDatabase {
             console.error('데이터 저장 오류:', error);
             throw error;
         }
+    }
+
+    // 데이터 타입 검증 및 변환 헬퍼 메서드
+    sanitizeValue(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        
+        // 숫자 타입을 문자열로 변환
+        if (typeof value === 'number') {
+            return value.toString();
+        }
+        
+        // 날짜 객체를 문자열로 변환
+        if (value instanceof Date) {
+            return value.toISOString().slice(0, 10);
+        }
+        
+        // 문자열로 변환하고 공백 제거
+        return String(value).trim();
     }
 
     async getFlightsByMonth(monthYear, userId) {
