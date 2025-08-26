@@ -61,11 +61,11 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
               crew: []
             };
 
-            // 헤더에 따라 데이터 매핑 (안전한 처리)
+            // 헤더에 따라 데이터 매핑
             headers.forEach((header, colIndex) => {
               const value = row[colIndex];
-              if (value !== null && value !== undefined && header) {
-                const headerUpper = header.toString().toUpperCase();
+              if (value !== null && value !== undefined) {
+                const headerUpper = header.toUpperCase();
                 
                 if (headerUpper === 'DATE') {
                   defaultFlight.date = formatDate(value);
@@ -135,11 +135,9 @@ const autoDownloadFile = (originalFile: File, workbook: XLSX.WorkBook) => {
   }
 };
 
-// 헤더에 따라 값을 가져오는 헬퍼 함수 (안전한 처리)
+// 헤더에 따라 값을 가져오는 헬퍼 함수
 const getValueByHeader = (headers: string[], row: any[], targetHeader: string): string => {
-  const index = headers.findIndex(header => 
-    header && header.toString().toUpperCase() === targetHeader.toUpperCase()
-  );
+  const index = headers.findIndex(header => header.toUpperCase() === targetHeader.toUpperCase());
   if (index !== -1 && row[index] !== null && row[index] !== undefined) {
     return String(row[index]);
   }
@@ -194,3 +192,5 @@ const formatDate = (value: any): string => {
   // 기본값: 오늘 날짜
   return new Date().toISOString().split('T')[0];
 };
+
+
