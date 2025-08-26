@@ -138,6 +138,18 @@ export const deleteFlight = async (flightId: string, date: string, userId: strin
   return await deleteData(`${monthPath}/${flightId}`);
 };
 
+// 여러 비행 데이터 일괄 추가
+export const addMultipleFlights = async (flights: any[], userId: string) => {
+  try {
+    const promises = flights.map(flight => addFlight(flight, userId));
+    const results = await Promise.all(promises);
+    return results;
+  } catch (error) {
+    console.error('Error adding multiple flights:', error);
+    throw error;
+  }
+};
+
 // 사용자의 모든 월의 실시간 구독
 export const subscribeToAllFlights = (callback: (flights: any[]) => void, userId: string) => {
   const allFlightsRef = ref(database, `users/${userId}/flights`);

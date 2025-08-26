@@ -10,8 +10,9 @@ import BlockTimeCard from './components/BlockTimeCard';
 import FlightDetailModal from './components/modals/FlightDetailModal';
 import CurrencyDetailModal from './components/modals/CurrencyDetailModal';
 import MonthlyScheduleModal from './components/modals/MonthlyScheduleModal';
-import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights } from './src/firebase/database';
+import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights, addMultipleFlights } from './src/firebase/database';
 import { loginUser, logoutUser, registerUser, onAuthStateChange, getCurrentUser } from './src/firebase/auth';
+import { parseExcelFile, generateExcelTemplate } from './utils/excelParser';
 import LoginModal from './components/LoginModal';
 import RegisterModal from './components/RegisterModal';
 
@@ -29,6 +30,8 @@ export default function App() {
   const [loginError, setLoginError] = useState<string>('');
   const [registerError, setRegisterError] = useState<string>('');
   const [user, setUser] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadMessage, setUploadMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchInitialData = useCallback(async () => {
@@ -108,12 +111,66 @@ export default function App() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      console.log("Uploading file:", file.name);
-      // Here you would typically process the file
+    if (!file) return;
+
+    if (!user) {
+      alert('로그인이 필요합니다.');
+      return;
     }
+
+    // 파일 확장자 확인
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    if (!['xls', 'xlsx'].includes(fileExtension || '')) {
+      alert('Excel 파일(.xls, .xlsx)만 업로드 가능합니다.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadMessage('파일을 처리하는 중...');
+
+    try {
+      // Excel 파일 파싱
+      const flights = await parseExcelFile(file);
+      
+      if (flights.length === 0) {
+        setUploadMessage('파일에서 비행 데이터를 찾을 수 없습니다.');
+        return;
+      }
+
+      setUploadMessage(`${flights.length}개의 비행 데이터를 Firebase에 저장하는 중...`);
+
+      // Firebase에 일괄 저장
+      await addMultipleFlights(flights, user.uid);
+
+      setUploadMessage(`${flights.length}개의 비행 데이터가 성공적으로 저장되었습니다!`);
+      
+      // 파일 입력 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // 3초 후 메시지 제거
+      setTimeout(() => {
+        setUploadMessage('');
+      }, 3000);
+
+    } catch (error) {
+      console.error('File upload error:', error);
+      setUploadMessage(`파일 업로드 실패: ${error}`);
+      
+      // 5초 후 에러 메시지 제거
+      setTimeout(() => {
+        setUploadMessage('');
+      }, 5000);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    generateExcelTemplate();
   };
 
   const handleUpdateFlightStatus = async (flightId: number, statusToToggle: 'departed' | 'landed') => {
@@ -327,8 +384,29 @@ export default function App() {
             </div>
             <div className="flex-1 flex justify-end items-center gap-2">
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xls,.xlsx"/>
-                <button onClick={handleUploadClick} title="Upload Schedule" className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition-colors"><UploadCloudIcon className="w-6 h-6" /></button>
-                <button onClick={handleUpdate} disabled={isUpdating} title="Refresh Data" className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><RefreshCwIcon className={`w-6 h-6 ${isUpdating ? 'animate-spin' : ''}`} /></button>
+                <button 
+                  onClick={handleDownloadTemplate} 
+                  title="Download Excel Template" 
+                  className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition-colors"
+                >
+                  📄
+                </button>
+                <button 
+                  onClick={handleUploadClick} 
+                  disabled={isUploading} 
+                  title="Upload Excel Schedule" 
+                  className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <UploadCloudIcon className={`w-6 h-6 ${isUploading ? 'animate-spin' : ''}`} />
+                </button>
+                <button 
+                  onClick={handleUpdate} 
+                  disabled={isUpdating} 
+                  title="Refresh Data" 
+                  className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCwIcon className={`w-6 h-6 ${isUpdating ? 'animate-spin' : ''}`} />
+                </button>
             </div>
         </header>
         
