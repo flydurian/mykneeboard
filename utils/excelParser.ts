@@ -18,12 +18,15 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
         // JSON으로 변환
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
-        console.log('Excel 헤더:', jsonData[1]); // 2번째 행이 헤더
+        console.log('전체 Excel 데이터:', jsonData);
         console.log('총 행 수:', jsonData.length);
         
-        // 헤더는 2번째 행 (인덱스 1), 데이터는 3번째 행부터 (인덱스 2부터)
-        const headers = jsonData[1] as string[];
-        const rows = jsonData.slice(2) as any[][];
+        // 헤더는 4번째 행 (인덱스 3), 데이터는 5번째 행부터 (인덱스 4부터)
+        const headers = jsonData[3] as string[];
+        const rows = jsonData.slice(4) as any[][];
+        
+        console.log('Excel 헤더 (4번째 행):', headers);
+        console.log('데이터 시작 행 (5번째 행부터):', rows.length, '개');
         
         // DUTY 정보 찾기 (월별 총 BLOCK 시간)
         let monthlyTotalBlock = 0;
@@ -51,7 +54,7 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
             return !row.some(cell => cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY'));
           })
           .map((row, index) => {
-            console.log(`행 ${index + 3} 처리:`, row); // 실제 행 번호는 3부터 시작
+            console.log(`행 ${index + 5} 처리:`, row); // 실제 행 번호는 5부터 시작
             
             // 기본값 설정
             const defaultFlight: Flight = {
