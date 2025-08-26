@@ -13,11 +13,9 @@
 ## 🚀 주요 기능
 
 - **Google OAuth 로그인**: Google 계정으로 간편한 로그인
-- **온라인 데이터 업데이트**: 크루월드에서 실시간 항공편 정보 스크래핑
+- **Excel 파일 업로드**: 월간 스케줄 Excel 파일 업로드 및 파싱
 - **클라우드 저장**: Turso 데이터베이스에 안전한 데이터 저장
-- **데이터 내보내기**: JSON 형태로 데이터 다운로드
 - **월별 조회**: 저장된 데이터를 월별로 조회
-- **실시간 상태 모니터링**: 업데이트 진행 상황 실시간 확인
 - **개인별 데이터 관리**: 본인의 데이터만 접근 및 관리
 
 ## 🛠️ 기술 스택
@@ -25,7 +23,7 @@
 - **Backend**: Node.js, Express
 - **Database**: Turso (SQLite 기반 클라우드 DB)
 - **Authentication**: Google OAuth 2.0, Passport.js, JWT
-- **Web Scraping**: Puppeteer
+- **File Processing**: Multer (파일 업로드), XLSX (Excel 파싱)
 - **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
 - **Deployment**: Render
 
@@ -146,33 +144,23 @@ GitHub에 푸시하면 자동으로 배포됩니다.
 - `created_at`: 계정 생성 시간
 - `last_login`: 마지막 로그인 시간
 
-### 항공편 테이블 (flights)
+### 월간 스케줄 테이블 (monthly_schedule)
 - `id`: 고유 식별자
-- `flight_number`: 항공편 번호 (예: OZ123)
-- `std`: Scheduled Time of Departure
-- `sta`: Scheduled Time of Arrival
-- `departure_airport`: 출발 공항 (IATA 코드)
-- `arrival_airport`: 도착 공항 (IATA 코드)
-- `hlno`: HLNO 정보
+- `date`: 스케줄 날짜 (예: 09/01(월))
+- `flight`: 항공편 번호 또는 업무 유형 (예: 561, A350 B-TY, DAY OFF)
+- `show_up`: 쇼업 시간 (예: 04 11:00)
+- `sector`: 노선 (예: ICN/FCO)
+- `std`: Scheduled Time of Departure (예: 04 12:20)
+- `sta`: Scheduled Time of Arrival (예: 04 18:30)
+- `empl`: 직원 번호 (예: 123456)
+- `name`: 직원 이름
+- `rank`: 직급 (예: CAP, F/O)
+- `posn_type`: 포지션 타입 (예: TL, CR)
+- `posn`: 포지션 (예: F, F2, C, C2)
 - `month_year`: 월별 구분 (YYYY-MM)
 - `user_id`: 사용자 ID (외래키)
 - `created_at`: 생성 시간
 - `updated_at`: 업데이트 시간
-
-### 승무원 테이블 (crew_members)
-- `id`: 고유 식별자
-- `name`: 승무원 이름
-- `crew_type`: 승무원 유형 (flight/cabin)
-- `month_year`: 월별 구분
-- `user_id`: 사용자 ID (외래키)
-- `created_at`: 생성 시간
-
-### 항공편-승무원 관계 테이블 (flight_crew)
-- `id`: 고유 식별자
-- `flight_id`: 항공편 ID (외래키)
-- `crew_id`: 승무원 ID (외래키)
-- `user_id`: 사용자 ID (외래키)
-- `created_at`: 생성 시간
 
 ## 🔧 API 엔드포인트
 
@@ -182,23 +170,11 @@ GitHub에 푸시하면 자동으로 배포됩니다.
 - `POST /api/logout`: 로그아웃
 - `GET /api/auth/status`: 인증 상태 확인
 
-### 데이터 업데이트 (인증 필요)
-- `POST /api/update-data`: 크루월드에서 데이터 스크래핑 및 저장
+### 파일 업로드 (인증 필요)
+- `POST /api/upload-excel`: Excel 파일 업로드 및 데이터 저장
 
 ### 데이터 조회 (인증 필요)
-- `GET /api/flights`: 항공편 데이터 조회
-- `GET /api/months`: 사용 가능한 월 목록
-- `GET /api/stats`: 데이터베이스 통계
-
-### 데이터 내보내기 (인증 필요)
-- `GET /api/export-data`: 전체 데이터 JSON 다운로드
-
-### 사용자 정보 (인증 필요)
-- `GET /api/user/profile`: 사용자 프로필 정보
-
-### 시스템 상태
-- `GET /api/health`: 시스템 헬스체크
-- `GET /api/update-status/:scrapingId`: 스크래핑 진행 상황
+- `GET /api/flights/:monthYear`: 월별 스케줄 데이터 조회
 
 ## 🎯 사용 방법
 
@@ -207,23 +183,18 @@ GitHub에 푸시하면 자동으로 배포됩니다.
 2. Google 계정 선택 및 권한 승인
 3. 자동으로 메인 대시보드로 리디렉트
 
-### 2. 온라인 데이터 업데이트
-1. 크루월드 사용자명과 비밀번호 입력
-2. "온라인 업데이트 시작" 버튼 클릭
-3. 진행 상황 모니터링
-4. 완료 후 데이터 자동 새로고침
+### 2. Excel 파일 업로드
+1. Excel 파일(.xls, .xlsx) 선택
+2. 데이터 월 선택 (이번달/다음달)
+3. "파일 업로드 및 저장" 버튼 클릭
+4. 업로드 완료 후 데이터 자동 새로고침
 
 ### 3. 데이터 조회
 1. 월 선택 드롭다운에서 원하는 월 선택
-2. 해당 월의 항공편 데이터 확인
-3. "새로고침" 버튼으로 최신 데이터 로드
+2. "데이터 조회" 버튼 클릭
+3. 해당 월의 스케줄 데이터 확인
 
-### 4. 데이터 내보내기
-1. "JSON 데이터 다운로드" 버튼 클릭
-2. 본인의 데이터만 JSON 파일로 다운로드
-3. 로컬에서 데이터 백업 및 분석 가능
-
-### 5. 로그아웃
+### 4. 로그아웃
 1. 상단의 "로그아웃" 버튼 클릭
 2. 로그인 페이지로 자동 이동
 
