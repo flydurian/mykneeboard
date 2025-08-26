@@ -1,0 +1,5 @@
+{
+  "name": "Pilot Flight Dashboard",
+  "description": "A personal dashboard for pilots to track their flight schedules, block times, and take-off/landing currency. It provides a quick overview of past and upcoming flights, monthly summaries, and detailed views for flight information and currency status.",
+  "requestFramePermissions": []
+}
