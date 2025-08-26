@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데모 로그인 - 항공편 데이터 관리 시스템</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✈️ 항공편 데이터 관리 시스템</h1>
+            <p class="subtitle">데모 프리뷰</p>
+        </header>
+
+        <section class="auth-card">
+            <h2>🔐 데모 로그인</h2>
+            <div class="login-info">
+                <p>프리뷰를 위해 데모 계정으로 로그인하세요.</p>
+                <p class="info">🔒 이는 개발용 데모 계정입니다.</p>
+            </div>
+            
+            <div class="demo-login-section">
+                <button id="demoLoginBtn" class="demo-login-btn">
+                    <span class="material-symbols-outlined">demo</span>
+                    <span>데모 계정으로 로그인</span>
+                </button>
+            </div>
+            
+            <div class="demo-info">
+                <h3>📋 데모 계정 정보</h3>
+                <ul>
+                    <li>사용자명: demo_user</li>
+                    <li>이메일: demo@example.com</li>
+                    <li>표시명: 데모 사용자</li>
+                </ul>
+            </div>
+            
+            <div class="login-features">
+                <div class="feature">
+                    <span class="material-symbols-outlined">preview</span>
+                    <p>UI 프리뷰</p>
+                </div>
+                <div class="feature">
+                    <span class="material-symbols-outlined">code</span>
+                    <p>기능 테스트</p>
+                </div>
+                <div class="feature">
+                    <span class="material-symbols-outlined">devices</span>
+                    <p>반응형 확인</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        document.getElementById('demoLoginBtn').addEventListener('click', () => {
+            // 데모 사용자 정보로 세션 설정
+            const demoUser = {
+                id: 1,
+                google_id: 'demo_google_id',
+                username: 'demo_user',
+                email: 'demo@example.com',
+                display_name: '데모 사용자',
+                profile_picture: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2NjdFRUEiLz4KPHBhdGggZD0iTTIwIDEwQzIyLjIwOTEgMTAgMjQgMTEuNzkwOSAyNCAxNEMyNCAxNi4yMDkxIDIyLjIwOTEgMTggMjAgMThDMTcuNzkwOSAxOCAxNiAxNi4yMDkxIDE2IDE0QzE2IDExLjc5MDkgMTcuNzkwOSAxMCAyMCAxMFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yOCAyNkMyOCAyOS4zMTM3IDI0LjQxODMgMzIgMjAgMzJDMjUuNTgxNyAzMiAyOCAyOS4zMTM3IDI4IDI2WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'
+            };
+
+            // 로컬 스토리지에 데모 사용자 정보 저장
+            localStorage.setItem('demoUser', JSON.stringify(demoUser));
+            localStorage.setItem('isDemoMode', 'true');
+
+            // 메인 페이지로 이동
+            window.location.href = '/demo';
+        });
+    </script>
+</body>
+</html>

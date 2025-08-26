@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>항공편 데이터 관리 시스템</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✈️ 항공편 데이터 관리 시스템</h1>
+            <p class="subtitle">Vercel 배포 버전</p>
+            <div class="user-info">
+                <div class="user-profile">
+                    <img id="userProfilePic" src="" alt="프로필" class="profile-pic">
+                    <div class="user-details">
+                        <span id="userDisplay">사용자: 로딩 중...</span>
+                        <span id="userEmail" class="user-email"></span>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="btn btn-outline">로그아웃</button>
+            </div>
+        </header>
+
+        <!-- 데이터 업데이트 섹션 -->
+        <section id="updateSection" class="card">
+            <h2>🔄 온라인 데이터 업데이트</h2>
+            <div class="update-info">
+                <p><strong>creworld.flyasiana.com</strong>에서 최신 항공편 정보를 가져와 <strong>Turso 클라우드 데이터베이스</strong>에 저장합니다.</p>
+                <p class="warning">⚠️ 매번 로그인 정보를 입력해야 합니다.</p>
+            </div>
+            
+            <!-- 로그인 폼 -->
+            <form id="updateForm" class="update-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="username">크루월드 사용자명:</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">크루월드 비밀번호:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                </div>
+                
+                <!-- 월 선택 버튼들 -->
+                <div class="month-selection-buttons">
+                    <div class="month-buttons-row">
+                        <button type="button" class="month-btn" data-month="current">이번달</button>
+                        <button type="button" class="month-btn" data-month="next">다음달</button>
+                        <button type="submit" class="btn btn-success" id="updateBtn" disabled>온라인 업데이트 시작</button>
+                    </div>
+                </div>
+                
+                <div id="updateStatus" class="status-message"></div>
+                <div id="progressBar" class="progress-bar" style="display: none;">
+                    <div class="progress-fill"></div>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
