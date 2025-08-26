@@ -207,6 +207,32 @@ app.get('/api/auth/status', (req, res) => {
     res.json({ isAuthenticated: false });
 });
 
+// 크루월드 로그인 테스트 API (인증 필요)
+app.post('/api/creworld-login', authenticateSession, async (req, res) => {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+        return res.status(400).json({ error: '사용자명과 비밀번호를 입력해주세요.' });
+    }
+    
+    try {
+        const scraper = new FlightScraper(tursoDb);
+        
+        // 크루월드 로그인 테스트
+        const loginSuccess = await scraper.testCreworldLogin(username, password);
+        
+        if (loginSuccess) {
+            res.json({ success: true, message: '크루월드 로그인 성공!' });
+        } else {
+            res.json({ success: false, error: '크루월드 로그인에 실패했습니다. 사용자명과 비밀번호를 확인해주세요.' });
+        }
+        
+    } catch (error) {
+        console.error('크루월드 로그인 테스트 오류:', error);
+        res.status(500).json({ success: false, error: '로그인 테스트 중 오류가 발생했습니다.' });
+    }
+});
+
 // 데이터 업데이트 시작 (인증 필요)
 app.post('/api/update-data', authenticateSession, async (req, res) => {
     const { username, password, month } = req.body;

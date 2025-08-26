@@ -6,6 +6,44 @@ class FlightScraper {
         this.database = database;
     }
 
+    async testCreworldLogin(username, password) {
+        try {
+            const browser = await puppeteer.launch({
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu',
+                    '--single-process',
+                    '--disable-extensions'
+                ]
+            });
+            
+            const page = await browser.newPage();
+            
+            // 크루월드 로그인 페이지로 이동
+            await page.goto('https://creworld.flyasiana.com', {
+                waitUntil: 'networkidle2',
+                timeout: 30000
+            });
+            
+            // 로그인 처리
+            const loginSuccess = await this.handleLogin(page, username, password);
+            
+            await browser.close();
+            
+            return loginSuccess;
+            
+        } catch (error) {
+            console.error('크루월드 로그인 테스트 오류:', error);
+            return false;
+        }
+    }
+
     async scrapeAndSave(credentials, scrapingId, userId) {
         const { username, password, month } = credentials;
         
@@ -18,7 +56,6 @@ class FlightScraper {
                 
                 const browser = await puppeteer.launch({
                     headless: true,
-                    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',

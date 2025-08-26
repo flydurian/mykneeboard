@@ -98,7 +98,12 @@ header h1 {
 
 .update-info p, .export-info p, .login-info p {
     color: #666;
-    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+.success {
+    color: #28a745;
+    font-weight: 500;
 }
 
 .warning {

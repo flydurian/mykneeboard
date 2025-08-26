@@ -2,6 +2,7 @@ class FlightDataApp {
     constructor() {
         this.currentScrapingId = null;
         this.selectedMonth = null;
+        this.creworldCredentials = null;
         this.init();
     }
 
@@ -16,10 +17,10 @@ class FlightDataApp {
             this.logout();
         });
 
-        // 온라인 업데이트 폼
-        document.getElementById('updateForm').addEventListener('submit', (e) => {
+        // 크루월드 로그인 폼
+        document.getElementById('creworldLoginForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            this.handleUpdateSubmit();
+            this.handleCreworldLogin();
         });
 
         // 월 선택 버튼 이벤트
@@ -27,6 +28,11 @@ class FlightDataApp {
             btn.addEventListener('click', (e) => {
                 this.selectMonth(e.target.closest('.month-btn').dataset.month);
             });
+        });
+
+        // 업데이트 버튼
+        document.getElementById('updateBtn').addEventListener('click', () => {
+            this.handleUpdateSubmit();
         });
     }
 
@@ -85,6 +91,58 @@ class FlightDataApp {
         }
     }
 
+    async handleCreworldLogin() {
+        const username = document.getElementById('creworldUsername').value;
+        const password = document.getElementById('creworldPassword').value;
+        const loginBtn = document.getElementById('creworldLoginBtn');
+        const loginStatus = document.getElementById('loginStatus');
+
+        if (!username || !password) {
+            this.showStatus('사용자명과 비밀번호를 입력해주세요.', 'error', 'loginStatus');
+            return;
+        }
+
+        // 로그인 버튼 비활성화
+        loginBtn.disabled = true;
+        loginBtn.textContent = '로그인 중...';
+        this.showStatus('크루월드에 로그인 중...', 'info', 'loginStatus');
+
+        try {
+            const response = await fetch('/api/creworld-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.creworldCredentials = { username, password };
+                this.showStatus('✅ 크루월드 로그인 성공!', 'success', 'loginStatus');
+                
+                // 로그인 섹션 숨기고 업데이트 섹션 표시
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('updateSection').style.display = 'block';
+                
+                // 로그인 버튼 초기화
+                loginBtn.disabled = false;
+                loginBtn.textContent = '크루월드 로그인';
+            } else {
+                this.showStatus(data.error || '로그인에 실패했습니다.', 'error', 'loginStatus');
+                loginBtn.disabled = false;
+                loginBtn.textContent = '크루월드 로그인';
+            }
+        } catch (error) {
+            console.error('크루월드 로그인 오류:', error);
+            this.showStatus('로그인 중 오류가 발생했습니다.', 'error', 'loginStatus');
+            loginBtn.disabled = false;
+            loginBtn.textContent = '크루월드 로그인';
+        }
+    }
+
     selectMonth(monthType) {
         // 모든 버튼에서 선택 상태 제거
         document.querySelectorAll('.month-btn').forEach(btn => {
@@ -105,20 +163,17 @@ class FlightDataApp {
     }
 
     async handleUpdateSubmit() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        
-        if (!username || !password) {
-            this.showStatus('사용자명과 비밀번호를 입력해주세요.', 'error', 'updateStatus');
+        if (!this.creworldCredentials) {
+            this.showStatus('먼저 크루월드에 로그인해주세요.', 'error', 'updateStatus');
             return;
         }
 
         if (!this.selectedMonth) {
-            this.showStatus('업데이트할 월을 선택해주세요.', 'error', 'updateStatus');
+            this.showStatus('월을 선택해주세요.', 'error', 'updateStatus');
             return;
         }
 
-        const updateBtn = document.querySelector('#updateForm button[type="submit"]');
+        const updateBtn = document.getElementById('updateBtn');
         const progressBar = document.getElementById('progressBar');
         
         updateBtn.disabled = true;
@@ -136,8 +191,8 @@ class FlightDataApp {
                 },
                 credentials: 'include', // 쿠키 포함
                 body: JSON.stringify({ 
-                    username, 
-                    password,
+                    username: this.creworldCredentials.username, 
+                    password: this.creworldCredentials.password,
                     month: this.selectedMonth 
                 }),
             });
@@ -209,7 +264,7 @@ class FlightDataApp {
     }
 
     resetUpdateButton() {
-        const updateBtn = document.querySelector('#updateForm button[type="submit"]');
+        const updateBtn = document.getElementById('updateBtn');
         const progressBar = document.getElementById('progressBar');
         
         updateBtn.disabled = false;

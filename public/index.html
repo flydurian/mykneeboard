@@ -10,7 +10,7 @@
     <div class="container">
         <header>
             <h1>✈️ 항공편 데이터 관리 시스템</h1>
-            <p class="subtitle">Vercel 배포 버전</p>
+            <p class="subtitle">Render 배포 버전</p>
             <div class="user-info">
                 <div class="user-profile">
                     <img id="userProfilePic" src="" alt="프로필" class="profile-pic">
@@ -23,41 +23,53 @@
             </div>
         </header>
 
+        <!-- 크루월드 로그인 섹션 -->
+        <section id="loginSection" class="card">
+            <h2>🔐 크루월드 로그인</h2>
+            <div class="login-info">
+                <p>크루월드 사이트에 로그인하여 연결 상태를 확인합니다.</p>
+            </div>
+            
+            <!-- 크루월드 로그인 폼 -->
+            <form id="creworldLoginForm" class="login-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="creworldUsername">크루월드 사용자명:</label>
+                        <input type="text" id="creworldUsername" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="creworldPassword">크루월드 비밀번호:</label>
+                        <input type="password" id="creworldPassword" name="password" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="creworldLoginBtn">크루월드 로그인</button>
+                
+                <div id="loginStatus" class="status-message"></div>
+            </form>
+        </section>
+
         <!-- 데이터 업데이트 섹션 -->
-        <section id="updateSection" class="card">
+        <section id="updateSection" class="card" style="display: none;">
             <h2>🔄 온라인 데이터 업데이트</h2>
             <div class="update-info">
                 <p><strong>creworld.flyasiana.com</strong>에서 최신 항공편 정보를 가져와 <strong>Turso 클라우드 데이터베이스</strong>에 저장합니다.</p>
-                <p class="warning">⚠️ 매번 로그인 정보를 입력해야 합니다.</p>
+                <p class="success">✅ 크루월드 로그인 완료</p>
             </div>
             
-            <!-- 로그인 폼 -->
-            <form id="updateForm" class="update-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="username">크루월드 사용자명:</label>
-                        <input type="text" id="username" name="username" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="password">크루월드 비밀번호:</label>
-                        <input type="password" id="password" name="password" required>
-                    </div>
+            <!-- 월 선택 버튼들 -->
+            <div class="month-selection-buttons">
+                <div class="month-buttons-row">
+                    <button type="button" class="month-btn" data-month="current">이번달</button>
+                    <button type="button" class="month-btn" data-month="next">다음달</button>
+                    <button type="button" class="btn btn-success" id="updateBtn" disabled>온라인 업데이트 시작</button>
                 </div>
-                
-                <!-- 월 선택 버튼들 -->
-                <div class="month-selection-buttons">
-                    <div class="month-buttons-row">
-                        <button type="button" class="month-btn" data-month="current">이번달</button>
-                        <button type="button" class="month-btn" data-month="next">다음달</button>
-                        <button type="submit" class="btn btn-success" id="updateBtn" disabled>온라인 업데이트 시작</button>
-                    </div>
-                </div>
-                
-                <div id="updateStatus" class="status-message"></div>
-                <div id="progressBar" class="progress-bar" style="display: none;">
-                    <div class="progress-fill"></div>
-                </div>
-            </form>
+            </div>
+            
+            <div id="updateStatus" class="status-message"></div>
+            <div id="progressBar" class="progress-bar" style="display: none;">
+                <div class="progress-fill"></div>
+            </div>
         </section>
     </div>
 
