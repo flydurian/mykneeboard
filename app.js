@@ -180,11 +180,15 @@ app.get('/api/auth/status', (req, res) => {
         isAuthenticated: req.isAuthenticated(),
         sessionID: req.sessionID,
         user: req.user,
-        cookies: req.headers.cookie ? 'present' : 'missing'
+        cookies: req.headers.cookie ? 'present' : 'missing',
+        userAgent: req.headers['user-agent'],
+        origin: req.headers.origin,
+        referer: req.headers.referer
     });
     
     // 세션 기반 인증 확인
     if (req.isAuthenticated()) {
+        console.log('세션 기반 인증 성공:', req.user);
         res.json({ 
             isAuthenticated: true, 
             user: {
@@ -224,6 +228,7 @@ app.get('/api/auth/status', (req, res) => {
         }
     }
     
+    console.log('인증되지 않은 사용자');
     res.json({ isAuthenticated: false });
 });
 

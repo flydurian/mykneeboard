@@ -321,6 +321,46 @@ class FlightDataApp {
             statusElement.className = 'status-message';
         }, timeout);
     }
+
+    updateUserDisplay() {
+        const userDisplay = document.getElementById('userDisplay');
+        const userEmail = document.getElementById('userEmail');
+        const userProfilePic = document.getElementById('userProfilePic');
+        
+        if (this.user) {
+            userDisplay.textContent = this.user.display_name || this.user.username || '사용자';
+            userEmail.textContent = this.user.email || '';
+            
+            if (this.user.profile_picture) {
+                userProfilePic.src = this.user.profile_picture;
+                userProfilePic.style.display = 'block';
+            } else {
+                // 기본 프로필 이미지
+                userProfilePic.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2NjdFRUEiLz4KPHBhdGggZD0iTTIwIDEwQzIyLjIwOTEgMTAgMjQgMTEuNzkwOSAyNCAxNEMyNCAxNi4yMDkxIDIyLjIwOTEgMTggMjAgMThDMTcuNzkwOSAxOCAxNiAxNi4yMDkxIDE2IDE0QzE2IDExLjc5MDkgMTcuNzkwOSAxMCAyMCAxMFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yOCAyNkMyOCAyOS4zMTM3IDI0LjQxODMgMzIgMjAgMzJDMjUuNTgxNyAzMiAyOCAyOS4zMTM3IDI4IDI2WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+';
+                userProfilePic.style.display = 'block';
+            }
+        }
+    }
+
+    showMainContent() {
+        // 로딩 상태 제거
+        const loadingElements = document.querySelectorAll('.loading');
+        loadingElements.forEach(el => el.style.display = 'none');
+        
+        // 메인 콘텐츠 표시
+        const mainContent = document.querySelector('.container');
+        if (mainContent) {
+            mainContent.style.display = 'block';
+        }
+        
+        // 데이터 섹션 초기화
+        this.initializeDataSection();
+    }
+
+    redirectToLogin() {
+        console.log('로그인 페이지로 리다이렉트...');
+        window.location.href = '/login';
+    }
 }
 
 // 앱 시작
