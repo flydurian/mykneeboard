@@ -9,8 +9,7 @@
             "$month": {
               "$flightId": {
                 ".read": "$uid === auth.uid",
-                ".write": "$uid === auth.uid",
-                ".validate": "newData.hasChildren(['date', 'departure', 'arrival', 'aircraft', 'blockTime', 'status'])"
+                ".write": "$uid === auth.uid"
               }
             }
           }

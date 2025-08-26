@@ -28,12 +28,25 @@ export const writeData = async (path: string, data: any) => {
 // 데이터 추가 (자동 키 생성)
 export const pushData = async (path: string, data: any) => {
   try {
+    console.log('pushData called with:', { path, data });
+    
     const dataRef = ref(database, path);
+    console.log('Database reference created for path:', path);
+    
     const newRef = push(dataRef);
+    console.log('New reference created:', newRef.key);
+    
     await set(newRef, data);
+    console.log('Data set successfully');
+    
     return newRef.key;
   } catch (error) {
     console.error("Error pushing data:", error);
+    console.error("Error details:", {
+      code: error.code,
+      message: error.message,
+      path: path
+    });
     throw error;
   }
 };

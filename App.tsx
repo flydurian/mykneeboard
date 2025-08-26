@@ -120,6 +120,11 @@ export default function App() {
       return;
     }
 
+    // 디버깅: 사용자 정보 확인
+    console.log('Current user:', user);
+    console.log('User UID:', user.uid);
+    console.log('User email:', user.email);
+
     // 파일 확장자 확인
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     if (!['xls', 'xlsx'].includes(fileExtension || '')) {
@@ -139,10 +144,14 @@ export default function App() {
         return;
       }
 
+      console.log('Parsed flights:', flights);
+      console.log('Attempting to save flights for user:', user.uid);
+
       setUploadMessage(`${flights.length}개의 비행 데이터를 Firebase에 저장하는 중...`);
 
       // Firebase에 일괄 저장
-      await addMultipleFlights(flights, user.uid);
+      const results = await addMultipleFlights(flights, user.uid);
+      console.log('Save results:', results);
 
       setUploadMessage(`${flights.length}개의 비행 데이터가 성공적으로 저장되었습니다! 파일이 자동으로 다운로드되었습니다.`);
       
@@ -156,9 +165,14 @@ export default function App() {
         setUploadMessage('');
       }, 3000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('File upload error:', error);
-      setUploadMessage(`파일 업로드 실패: ${error}`);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      setUploadMessage(`파일 업로드 실패: ${error.message || error}`);
       
       // 5초 후 에러 메시지 제거
       setTimeout(() => {
