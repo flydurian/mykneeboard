@@ -9,9 +9,9 @@ export interface MonthData {
 }
 
 // 특정 월의 데이터 요약 정보 가져오기
-export const getMonthSummary = async (year: number, month: number): Promise<MonthData | null> => {
+export const getMonthSummary = async (year: number, month: number, userId: string): Promise<MonthData | null> => {
   try {
-    const monthFlights = await getFlightsByMonth(year, month);
+    const monthFlights = await getFlightsByMonth(year, month, userId);
     if (!monthFlights) return null;
     
     const flights = Object.values(monthFlights);
@@ -30,8 +30,8 @@ export const getMonthSummary = async (year: number, month: number): Promise<Mont
 };
 
 // 월별 데이터 구독 (특정 월의 변경사항만 감지)
-export const subscribeToMonthData = (year: number, month: number, callback: (data: any) => void) => {
-  return subscribeToFlightsByMonth(year, month, callback);
+export const subscribeToMonthData = (year: number, month: number, callback: (data: any) => void, userId: string) => {
+  return subscribeToFlightsByMonth(year, month, callback, userId);
 };
 
 // 날짜에서 연도와 월 추출

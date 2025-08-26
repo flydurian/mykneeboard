@@ -34,36 +34,44 @@ export default function App() {
   const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const firebaseFlights = await getAllFlights();
-      if (firebaseFlights && firebaseFlights.length > 0) {
-        // Firebase에서 가져온 데이터는 이미 정렬된 배열 형태
-        setFlights(firebaseFlights);
+      if (user) {
+        // 로그인된 사용자의 데이터만 가져오기
+        const firebaseFlights = await getAllFlights(user.uid);
+        if (firebaseFlights && firebaseFlights.length > 0) {
+          setFlights(firebaseFlights);
+        } else {
+          // 사용자별 데이터가 없으면 빈 배열
+          setFlights([]);
+        }
       } else {
-        // Firebase에 데이터가 없으면 초기 데이터 사용
-        setFlights([...initialPilotSchedule].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+        // 로그인되지 않은 경우 빈 배열
+        setFlights([]);
       }
     } catch (error) {
       console.error('Error fetching flights:', error);
-      // 에러 시 초기 데이터 사용
-      setFlights([...initialPilotSchedule].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      setFlights([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchInitialData();
     
-    // 실시간 데이터 구독
-    const unsubscribe = subscribeToAllFlights((firebaseFlights) => {
-      if (firebaseFlights && firebaseFlights.length > 0) {
-        setFlights(firebaseFlights);
-      }
-    });
-    
-    // 컴포넌트 언마운트 시 구독 해제
-    return () => unsubscribe();
-  }, [fetchInitialData]);
+    // 사용자가 로그인된 경우에만 실시간 데이터 구독
+    if (user) {
+      const unsubscribe = subscribeToAllFlights((firebaseFlights) => {
+        if (firebaseFlights && firebaseFlights.length > 0) {
+          setFlights(firebaseFlights);
+        } else {
+          setFlights([]);
+        }
+      }, user.uid);
+      
+      // 컴포넌트 언마운트 시 구독 해제
+      return () => unsubscribe();
+    }
+  }, [fetchInitialData, user]);
 
   // 인증 상태 감지
   useEffect(() => {
@@ -75,12 +83,17 @@ export default function App() {
   }, []);
 
   const handleUpdate = async () => {
+    if (!user) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const currentFlights = [...flights];
       if (!currentFlights.find(f => f.id === newFlightData.id)) {
-        // Firebase에 새 비행 데이터 추가
-        await addFlight(newFlightData);
+        // Firebase에 새 비행 데이터 추가 (사용자별)
+        await addFlight(newFlightData, user.uid);
         currentFlights.push(newFlightData);
       }
       setFlights(currentFlights.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
@@ -104,6 +117,11 @@ export default function App() {
   };
 
   const handleUpdateFlightStatus = async (flightId: number, statusToToggle: 'departed' | 'landed') => {
+    if (!user) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
     try {
       const newFlights = flights.map(f =>
         f.id === flightId ? { ...f, status: { ...f.status, [statusToToggle]: !f.status[statusToToggle] } } : f
@@ -112,8 +130,8 @@ export default function App() {
       const updatedFlight = newFlights.find(f => f.id === flightId);
       if (updatedFlight) {
         setSelectedFlight(updatedFlight);
-        // Firebase에 업데이트된 비행 데이터 저장
-        await updateFlight(flightId.toString(), updatedFlight);
+        // Firebase에 업데이트된 비행 데이터 저장 (사용자별)
+        await updateFlight(flightId.toString(), updatedFlight, user.uid);
       }
     } catch (error) {
       console.error('Error updating flight status:', error);
@@ -202,6 +220,66 @@ export default function App() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
           <p className="text-xl font-semibold text-gray-700 mt-4">데이터를 불러오는 중...</p>
         </div>
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 경우 안내 메시지 표시
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-100 font-sans">
+        <div className="container mx-auto p-4 md:p-6 lg:p-8 flex flex-col">
+          <header className="mb-8 flex justify-between items-center">
+            <div className="flex-1 flex justify-start">
+              <button 
+                onClick={handleLoginClick}
+                className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                로그인
+              </button>
+            </div>
+            <div className="flex-1 text-center">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Flight Dashboard</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">비행 일정을 관리하세요</p>
+            </div>
+            <div className="flex-1"></div>
+          </header>
+          
+          <div className="flex-grow flex items-center justify-center">
+            <div className="text-center max-w-md">
+              <div className="bg-white rounded-lg p-8 shadow-lg">
+                <div className="text-6xl mb-4">✈️</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">로그인이 필요합니다</h2>
+                <p className="text-gray-600 mb-6">
+                  비행 일정을 관리하려면 로그인해주세요.<br />
+                  로그인 후 개인별 비행 데이터를 안전하게 관리할 수 있습니다.
+                </p>
+                <button 
+                  onClick={handleLoginClick}
+                  className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors text-lg"
+                >
+                  로그인하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <LoginModal 
+          isOpen={isLoginModalOpen}
+          onClose={handleLoginClose}
+          onLogin={handleLogin}
+          onShowRegister={handleShowRegister}
+          isLoading={isLoginLoading}
+          error={loginError}
+        />
+        <RegisterModal 
+          isOpen={isRegisterModalOpen}
+          onClose={handleRegisterClose}
+          onRegister={handleRegister}
+          isLoading={isRegisterLoading}
+          error={registerError}
+        />
       </div>
     );
   }

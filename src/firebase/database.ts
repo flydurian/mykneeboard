@@ -74,18 +74,18 @@ export const subscribeToData = (path: string, callback: (data: any) => void) => 
   return () => off(dataRef);
 };
 
-// 월별 데이터 경로 생성 함수
-const getMonthPath = (date: string) => {
+// 사용자별 월별 데이터 경로 생성 함수
+const getMonthPath = (date: string, userId: string) => {
   const dateObj = new Date(date);
   const year = dateObj.getFullYear();
   const month = dateObj.getMonth() + 1; // 0-based to 1-based
-  return `flights/${year}/${month.toString().padStart(2, '0')}`;
+  return `users/${userId}/flights/${year}/${month.toString().padStart(2, '0')}`;
 };
 
-// 모든 월의 비행 데이터 가져오기
-export const getAllFlights = async () => {
+// 사용자의 모든 월의 비행 데이터 가져오기
+export const getAllFlights = async (userId: string) => {
   try {
-    const allFlightsRef = ref(database, 'flights');
+    const allFlightsRef = ref(database, `users/${userId}/flights`);
     const snapshot = await get(allFlightsRef);
     if (!snapshot.exists()) return [];
     
@@ -114,33 +114,33 @@ export const getAllFlights = async () => {
   }
 };
 
-// 특정 월의 비행 데이터 가져오기
-export const getFlightsByMonth = async (year: number, month: number) => {
-  const monthPath = `flights/${year}/${month.toString().padStart(2, '0')}`;
+// 사용자의 특정 월의 비행 데이터 가져오기
+export const getFlightsByMonth = async (year: number, month: number, userId: string) => {
+  const monthPath = `users/${userId}/flights/${year}/${month.toString().padStart(2, '0')}`;
   return await readData(monthPath);
 };
 
-// 비행 데이터 추가 (월별로 자동 분류)
-export const addFlight = async (flightData: any) => {
-  const monthPath = getMonthPath(flightData.date);
+// 비행 데이터 추가 (사용자별 월별로 자동 분류)
+export const addFlight = async (flightData: any, userId: string) => {
+  const monthPath = getMonthPath(flightData.date, userId);
   return await pushData(monthPath, flightData);
 };
 
 // 비행 데이터 업데이트
-export const updateFlight = async (flightId: string, flightData: any) => {
-  const monthPath = getMonthPath(flightData.date);
+export const updateFlight = async (flightId: string, flightData: any, userId: string) => {
+  const monthPath = getMonthPath(flightData.date, userId);
   return await updateData(`${monthPath}/${flightId}`, flightData);
 };
 
 // 비행 데이터 삭제
-export const deleteFlight = async (flightId: string, date: string) => {
-  const monthPath = getMonthPath(date);
+export const deleteFlight = async (flightId: string, date: string, userId: string) => {
+  const monthPath = getMonthPath(date, userId);
   return await deleteData(`${monthPath}/${flightId}`);
 };
 
-// 모든 월의 실시간 구독
-export const subscribeToAllFlights = (callback: (flights: any[]) => void) => {
-  const allFlightsRef = ref(database, 'flights');
+// 사용자의 모든 월의 실시간 구독
+export const subscribeToAllFlights = (callback: (flights: any[]) => void, userId: string) => {
+  const allFlightsRef = ref(database, `users/${userId}/flights`);
   onValue(allFlightsRef, (snapshot) => {
     if (!snapshot.exists()) {
       callback([]);
@@ -170,17 +170,17 @@ export const subscribeToAllFlights = (callback: (flights: any[]) => void) => {
   return () => off(allFlightsRef);
 };
 
-// 특정 월의 실시간 구독
-export const subscribeToFlightsByMonth = (year: number, month: number, callback: (flights: any) => void) => {
-  const monthPath = `flights/${year}/${month.toString().padStart(2, '0')}`;
+// 사용자의 특정 월의 실시간 구독
+export const subscribeToFlightsByMonth = (year: number, month: number, callback: (flights: any) => void, userId: string) => {
+  const monthPath = `users/${userId}/flights/${year}/${month.toString().padStart(2, '0')}`;
   return subscribeToData(monthPath, callback);
 };
 
 // 기존 함수들 (하위 호환성을 위해 유지)
-export const getFlights = async () => {
-  return await getAllFlights();
+export const getFlights = async (userId: string) => {
+  return await getAllFlights(userId);
 };
 
-export const subscribeToFlights = (callback: (flights: any) => void) => {
-  return subscribeToAllFlights(callback);
+export const subscribeToFlights = (callback: (flights: any) => void, userId: string) => {
+  return subscribeToAllFlights(callback, userId);
 };
