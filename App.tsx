@@ -11,6 +11,8 @@ import FlightDetailModal from './components/modals/FlightDetailModal';
 import CurrencyDetailModal from './components/modals/CurrencyDetailModal';
 import MonthlyScheduleModal from './components/modals/MonthlyScheduleModal';
 import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights } from './src/firebase/database';
+import { loginUser, logoutUser, onAuthStateChange, getCurrentUser } from './src/firebase/auth';
+import LoginModal from './components/LoginModal';
 
 export default function App() {
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -19,6 +21,10 @@ export default function App() {
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [currencyModalData, setCurrencyModalData] = useState<CurrencyModalData | null>(null);
   const [monthlyModalData, setMonthlyModalData] = useState<MonthlyModalData | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [isLoginLoading, setIsLoginLoading] = useState<boolean>(false);
+  const [loginError, setLoginError] = useState<string>('');
+  const [user, setUser] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchInitialData = useCallback(async () => {
@@ -54,6 +60,15 @@ export default function App() {
     // 컴포넌트 언마운트 시 구독 해제
     return () => unsubscribe();
   }, [fetchInitialData]);
+
+  // 인증 상태 감지
+  useEffect(() => {
+    const unsubscribe = onAuthStateChange((user) => {
+      setUser(user);
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   const handleUpdate = async () => {
     setIsUpdating(true);
@@ -109,6 +124,39 @@ export default function App() {
       setMonthlyModalData({ month, flights: monthFlights });
   };
 
+  // 로그인 관련 핸들러들
+  const handleLoginClick = () => {
+    setIsLoginModalOpen(true);
+    setLoginError('');
+  };
+
+  const handleLoginClose = () => {
+    setIsLoginModalOpen(false);
+    setLoginError('');
+  };
+
+  const handleLogin = async (email: string, password: string) => {
+    setIsLoginLoading(true);
+    setLoginError('');
+    
+    const result = await loginUser(email, password);
+    
+    if (result.success) {
+      setIsLoginModalOpen(false);
+    } else {
+      setLoginError(result.error || '로그인에 실패했습니다.');
+    }
+    
+    setIsLoginLoading(false);
+  };
+
+  const handleLogout = async () => {
+    const result = await logoutUser();
+    if (!result.success) {
+      console.error('로그아웃 실패:', result.error);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -137,9 +185,26 @@ export default function App() {
       <div className="container mx-auto p-4 md:p-6 lg:p-8 flex flex-col">
         <header className="mb-8 flex justify-between items-center">
             <div className="flex-1 flex justify-start">
-                <button className="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">
+                {user ? (
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-600">
+                      {user.email}님 환영합니다
+                    </span>
+                    <button 
+                      onClick={handleLogout}
+                      className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={handleLoginClick}
+                    className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
                     로그인
-                </button>
+                  </button>
+                )}
             </div>
             <div className="flex-1 text-center">
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Flight Dashboard</h1>
@@ -178,6 +243,13 @@ export default function App() {
         <FlightDetailModal flight={selectedFlight} onClose={() => setSelectedFlight(null)} onUpdateStatus={handleUpdateFlightStatus} />
         <CurrencyDetailModal data={currencyModalData} onClose={() => setCurrencyModalData(null)} />
         <MonthlyScheduleModal data={monthlyModalData} onClose={() => setMonthlyModalData(null)} />
+        <LoginModal 
+          isOpen={isLoginModalOpen}
+          onClose={handleLoginClose}
+          onLogin={handleLogin}
+          isLoading={isLoginLoading}
+          error={loginError}
+        />
       </div>
     </div>
   );
