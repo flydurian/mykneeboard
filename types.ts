@@ -22,6 +22,7 @@ export interface Flight {
   block: number;
   status: FlightStatus;
   crew: CrewMember[];
+  monthlyTotalBlock?: number; // 월별 총 BLOCK 시간
 }
 
 export interface DDayInfo {

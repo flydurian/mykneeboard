@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { Flight } from '../types';
+import { Flight, CrewMember } from '../types';
 
 // Excel 파일에서 비행 데이터를 추출하는 함수
 export const parseExcelFile = (file: File): Promise<Flight[]> => {
@@ -22,9 +22,28 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
         const headers = jsonData[0] as string[];
         const rows = jsonData.slice(1) as any[][];
         
+        // DUTY 정보 찾기 (월별 총 BLOCK 시간)
+        let monthlyTotalBlock = 0;
+        rows.forEach(row => {
+          row.forEach((cell, colIndex) => {
+            if (cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY')) {
+              const dutyMatch = cell.match(/DUTY\s*:\s*(\d{1,2}):(\d{2})/i);
+              if (dutyMatch) {
+                const hours = parseInt(dutyMatch[1]);
+                const minutes = parseInt(dutyMatch[2]);
+                monthlyTotalBlock = hours + (minutes / 60);
+              }
+            }
+          });
+        });
+        
         // 비행 데이터로 변환
         const flights: Flight[] = rows
           .filter(row => row.length > 0 && row.some(cell => cell !== null && cell !== undefined))
+          .filter(row => {
+            // DUTY 정보가 포함된 행은 제외
+            return !row.some(cell => cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY'));
+          })
           .map((row, index) => {
             // 기본값 설정
             const defaultFlight: Flight = {
@@ -78,6 +97,11 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
 
             return defaultFlight;
           });
+
+        // 월별 총 BLOCK 시간 정보를 첫 번째 비행 데이터에 추가
+        if (flights.length > 0 && monthlyTotalBlock > 0) {
+          flights[0].monthlyTotalBlock = monthlyTotalBlock;
+        }
 
         resolve(flights);
       } catch (error) {
@@ -155,9 +179,10 @@ const formatDate = (value: any): string => {
 export const generateExcelTemplate = (): void => {
   const template = [
     ['DATE', 'FLIGHT', 'SHOW UP', 'SECTOR', 'STD', 'STA', 'EMPL', 'NAME', 'RANK', 'POSN TYP', 'POSN', 'BLOCK'],
-    ['2024-01-15', 'KE123', '08:30', 'ICN-NRT', '09:00', '12:00', 'EMP001', '김철수', 'CPT', 'PIC', 'CAPT', '03:00'],
-    ['2024-01-16', 'KE456', '13:30', 'NRT-ICN', '14:00', '17:00', 'EMP001', '김철수', 'CPT', 'PIC', 'CAPT', '03:00'],
-    ['2024-01-17', 'KE789', '07:30', 'ICN-LAX', '08:00', '02:00', 'EMP001', '김철수', 'CPT', 'PIC', 'CAPT', '18:00']
+    ['2024-01-15', 'KE123', '08:30', 'ICN-NRT', '09:00', '12:00', 'EMP001', '김철수', 'CPT', 'CR', 'C2', '03:00'],
+    ['2024-01-16', 'KE456', '13:30', 'NRT-ICN', '14:00', '17:00', 'EMP001', '김철수', 'CPT', 'TL', 'F', '03:00'],
+    ['2024-01-17', 'KE789', '07:30', 'ICN-LAX', '08:00', '02:00', 'EMP001', '김철수', 'CPT', 'CR', 'C', '18:00'],
+    ['', '', '', '', '', '', '', '', '', '', '', 'DUTY: 24:00']
   ];
   
   const ws = XLSX.utils.aoa_to_sheet(template);
