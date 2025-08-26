@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { Flight, CrewMember } from '../types';
 
-// Excel 파일에서 비행 데이터를 추출하는 함수
+// Excel 파일에서 비행 데이터를 추출하고 정리하는 함수
 export const parseExcelFile = (file: File): Promise<Flight[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -22,9 +22,12 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
         const headers = jsonData[0] as string[];
         const rows = jsonData.slice(1) as any[][];
         
+        console.log('Excel 헤더:', headers);
+        console.log('총 행 수:', rows.length);
+        
         // DUTY 정보 찾기 (월별 총 BLOCK 시간)
         let monthlyTotalBlock = 0;
-        rows.forEach(row => {
+        rows.forEach((row, rowIndex) => {
           row.forEach((cell, colIndex) => {
             if (cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY')) {
               const dutyMatch = cell.match(/DUTY\s*:\s*(\d{1,2}):(\d{2})/i);
@@ -32,12 +35,13 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
                 const hours = parseInt(dutyMatch[1]);
                 const minutes = parseInt(dutyMatch[2]);
                 monthlyTotalBlock = hours + (minutes / 60);
+                console.log(`DUTY 정보 발견 (행 ${rowIndex + 1}): ${hours}:${minutes} (${monthlyTotalBlock}시간)`);
               }
             }
           });
         });
         
-        // 비행 데이터로 변환
+        // 비행 데이터로 변환 및 정리
         const flights: Flight[] = rows
           .filter(row => row.length > 0 && row.some(cell => cell !== null && cell !== undefined))
           .filter(row => {
@@ -45,6 +49,8 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
             return !row.some(cell => cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY'));
           })
           .map((row, index) => {
+            console.log(`행 ${index + 1} 처리:`, row);
+            
             // 기본값 설정
             const defaultFlight: Flight = {
               id: Date.now() + index, // 고유 ID 생성
@@ -68,18 +74,26 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
                 const headerUpper = header.toString().toUpperCase();
                 
                 if (headerUpper === 'DATE') {
-                  defaultFlight.date = formatDate(value);
+                  const formattedDate = formatDate(value);
+                  defaultFlight.date = formattedDate;
+                  console.log(`날짜 매핑: ${value} -> ${formattedDate}`);
                 } else if (headerUpper === 'FLIGHT') {
-                  defaultFlight.flightNumber = String(value);
+                  defaultFlight.flightNumber = String(value).trim();
+                  console.log(`항공편 매핑: ${value}`);
                 } else if (headerUpper === 'SECTOR') {
-                  defaultFlight.route = String(value);
+                  defaultFlight.route = String(value).trim();
+                  console.log(`구간 매핑: ${value}`);
                 } else if (headerUpper === 'STD') {
-                  defaultFlight.std = String(value);
+                  defaultFlight.std = formatTime(value);
+                  console.log(`출발시간 매핑: ${value} -> ${defaultFlight.std}`);
                 } else if (headerUpper === 'STA') {
-                  defaultFlight.sta = String(value);
+                  defaultFlight.sta = formatTime(value);
+                  console.log(`도착시간 매핑: ${value} -> ${defaultFlight.sta}`);
                 } else if (headerUpper.includes('BLOCK')) {
                   // Block 시간을 시간 형식으로 파싱 (예: "03:30" -> 3.5)
-                  defaultFlight.block = parseBlockTime(value);
+                  const blockTime = parseBlockTime(value);
+                  defaultFlight.block = blockTime;
+                  console.log(`블록시간 매핑: ${value} -> ${blockTime}시간`);
                 }
               }
             });
@@ -94,17 +108,38 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
             };
             
             defaultFlight.crew = [crewMember];
+            
+            console.log(`비행 데이터 생성 완료:`, {
+              date: defaultFlight.date,
+              flightNumber: defaultFlight.flightNumber,
+              route: defaultFlight.route,
+              std: defaultFlight.std,
+              sta: defaultFlight.sta,
+              block: defaultFlight.block,
+              crew: crewMember
+            });
 
             return defaultFlight;
+          })
+          .filter(flight => {
+            // 유효한 비행 데이터만 필터링
+            const isValid = flight.flightNumber && flight.route && flight.date;
+            if (!isValid) {
+              console.log(`유효하지 않은 비행 데이터 제외:`, flight);
+            }
+            return isValid;
           });
 
         // 월별 총 BLOCK 시간 정보를 첫 번째 비행 데이터에 추가
         if (flights.length > 0 && monthlyTotalBlock > 0) {
           flights[0].monthlyTotalBlock = monthlyTotalBlock;
+          console.log(`월별 총 블록시간 추가: ${monthlyTotalBlock}시간`);
         }
 
+        console.log(`최종 처리된 비행 데이터: ${flights.length}개`);
         resolve(flights);
       } catch (error) {
+        console.error('Excel 파싱 오류:', error);
         reject(new Error('Excel 파일 파싱에 실패했습니다: ' + error));
       }
     };
@@ -123,7 +158,7 @@ const getValueByHeader = (headers: string[], row: any[], targetHeader: string): 
     header && header.toString().toUpperCase() === targetHeader.toUpperCase()
   );
   if (index !== -1 && row[index] !== null && row[index] !== undefined) {
-    return String(row[index]);
+    return String(row[index]).trim();
   }
   return '';
 };
@@ -151,6 +186,27 @@ const parseBlockTime = (value: any): number => {
   }
   
   return 0;
+};
+
+// 시간 형식 변환 함수
+const formatTime = (value: any): string => {
+  if (typeof value === 'string') {
+    // "HH:MM" 형식 확인
+    const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+    if (timeMatch) {
+      return value;
+    }
+    
+    // 숫자로 변환 시도 (Excel 시간 형식)
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      const hours = Math.floor(numValue * 24);
+      const minutes = Math.floor((numValue * 24 - hours) * 60);
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+  }
+  
+  return String(value);
 };
 
 // 날짜 형식 변환 함수
