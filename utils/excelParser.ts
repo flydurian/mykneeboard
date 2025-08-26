@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { Flight, CrewMember } from '../types';
 
-// Excel 파일에서 비행 데이터를 추출하고 자동 다운로드하는 함수
+// Excel 파일에서 비행 데이터를 추출하는 함수
 export const parseExcelFile = (file: File): Promise<Flight[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
