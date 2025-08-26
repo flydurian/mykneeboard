@@ -388,8 +388,8 @@ class FlightScraper {
                 flightNumber: 'OZ123',
                 std: '08:00',
                 sta: '10:30',
-                departureAirport: 'ICN',
-                arrivalAirport: 'NRT',
+                departure_airport: 'ICN',
+                arrival_airport: 'NRT',
                 hlno: 'HL1234',
                 flightCrew: [
                     { name: '김기장', position: '기장', rank: '선임기장', employeeId: 'P001' },
@@ -404,8 +404,8 @@ class FlightScraper {
                 flightNumber: 'OZ456',
                 std: '14:00',
                 sta: '16:30',
-                departureAirport: 'ICN',
-                arrivalAirport: 'LAX',
+                departure_airport: 'ICN',
+                arrival_airport: 'LAX',
                 hlno: 'HL5678',
                 flightCrew: [
                     { name: '정기장', position: '기장', rank: '기장', employeeId: 'P003' },
