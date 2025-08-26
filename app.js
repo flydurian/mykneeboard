@@ -360,8 +360,8 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Vercel용 핸들러
-if (process.env.NODE_ENV === 'production') {
+// Render 환경에서는 서버 시작, Vercel에서는 모듈만 export
+if (process.env.VERCEL) {
     module.exports = app;
 } else {
     const PORT = process.env.PORT || 3000;
