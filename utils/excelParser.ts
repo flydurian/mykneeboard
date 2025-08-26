@@ -18,27 +18,29 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
         // JSON으로 변환
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
-        // 헤더 제거하고 데이터만 추출
-        const headers = jsonData[0] as string[];
-        const rows = jsonData.slice(1) as any[][];
+        console.log('Excel 헤더:', jsonData[1]); // 2번째 행이 헤더
+        console.log('총 행 수:', jsonData.length);
         
-        console.log('Excel 헤더:', headers);
-        console.log('총 행 수:', rows.length);
+        // 헤더는 2번째 행 (인덱스 1), 데이터는 3번째 행부터 (인덱스 2부터)
+        const headers = jsonData[1] as string[];
+        const rows = jsonData.slice(2) as any[][];
         
         // DUTY 정보 찾기 (월별 총 BLOCK 시간)
         let monthlyTotalBlock = 0;
-        rows.forEach((row, rowIndex) => {
-          row.forEach((cell, colIndex) => {
-            if (cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY')) {
-              const dutyMatch = cell.match(/DUTY\s*:\s*(\d{1,2}):(\d{2})/i);
-              if (dutyMatch) {
-                const hours = parseInt(dutyMatch[1]);
-                const minutes = parseInt(dutyMatch[2]);
-                monthlyTotalBlock = hours + (minutes / 60);
-                console.log(`DUTY 정보 발견 (행 ${rowIndex + 1}): ${hours}:${minutes} (${monthlyTotalBlock}시간)`);
+        jsonData.forEach((row, rowIndex) => {
+          if (Array.isArray(row)) {
+            row.forEach((cell, colIndex) => {
+              if (cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY')) {
+                const dutyMatch = cell.match(/DUTY\s*:\s*(\d{1,2}):(\d{2})/i);
+                if (dutyMatch) {
+                  const hours = parseInt(dutyMatch[1]);
+                  const minutes = parseInt(dutyMatch[2]);
+                  monthlyTotalBlock = hours + (minutes / 60);
+                  console.log(`DUTY 정보 발견 (행 ${rowIndex + 1}): ${hours}:${minutes} (${monthlyTotalBlock}시간)`);
+                }
               }
-            }
-          });
+            });
+          }
         });
         
         // 비행 데이터로 변환 및 정리
@@ -49,7 +51,7 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
             return !row.some(cell => cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY'));
           })
           .map((row, index) => {
-            console.log(`행 ${index + 1} 처리:`, row);
+            console.log(`행 ${index + 3} 처리:`, row); // 실제 행 번호는 3부터 시작
             
             // 기본값 설정
             const defaultFlight: Flight = {
@@ -103,7 +105,7 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
               empl: getValueByHeader(headers, row, 'EMPL') || '',
               name: getValueByHeader(headers, row, 'NAME') || '',
               rank: getValueByHeader(headers, row, 'RANK') || '',
-              posnType: getValueByHeader(headers, row, 'POSN TYP') || '',
+              posnType: getValueByHeader(headers, row, 'POSN \nTYP') || getValueByHeader(headers, row, 'POSN TYP') || '',
               posn: getValueByHeader(headers, row, 'POSN') || ''
             };
             
@@ -122,10 +124,19 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
             return defaultFlight;
           })
           .filter(flight => {
-            // 유효한 비행 데이터만 필터링
-            const isValid = flight.flightNumber && flight.route && flight.date;
+            // 유효한 비행 데이터만 필터링 (항공편 번호가 있거나 특별한 일정인 경우)
+            const hasFlightNumber = flight.flightNumber && flight.flightNumber.trim() !== '';
+            const hasSpecialSchedule = flight.route && (
+              flight.route.includes('DAY OFF') || 
+              flight.route.includes('STANDBY') || 
+              flight.route.includes('FIXED SKD')
+            );
+            const isValid = hasFlightNumber || hasSpecialSchedule;
+            
             if (!isValid) {
               console.log(`유효하지 않은 비행 데이터 제외:`, flight);
+            } else {
+              console.log(`유효한 비행 데이터 포함:`, flight);
             }
             return isValid;
           });
@@ -216,6 +227,15 @@ const formatDate = (value: any): string => {
   }
   
   if (typeof value === 'string') {
+    // "MM/DD(요일)" 형식 파싱 (예: "08/01(금)")
+    const dateMatch = value.match(/^(\d{1,2})\/(\d{1,2})\([월화수목금토일]\)$/);
+    if (dateMatch) {
+      const month = parseInt(dateMatch[1]);
+      const day = parseInt(dateMatch[2]);
+      const year = new Date().getFullYear();
+      return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    }
+    
     // 다양한 날짜 형식 처리
     const date = new Date(value);
     if (!isNaN(date.getTime())) {
