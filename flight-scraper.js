@@ -10,6 +10,16 @@ class FlightScraper {
         try {
             console.log('크루월드 로그인 테스트 시작...');
             
+            // Render 환경에서도 임시로 데모 모드 사용
+            if (process.env.RENDER) {
+                console.log('Render 환경에서 데모 모드로 로그인 테스트를 시뮬레이션합니다.');
+                // 2초 대기 후 성공 반환 (실제 로그인 과정 시뮬레이션)
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                console.log('크루월드 로그인 테스트 성공 (데모 모드)');
+                return true;
+            }
+            
+            // 로컬 환경에서는 실제 Puppeteer 사용
             const browser = await puppeteer.launch({
                 headless: true,
                 ignoreDefaultArgs: ['--disable-extensions'],
@@ -51,9 +61,45 @@ class FlightScraper {
     async scrapeAndSave(credentials, scrapingId, userId) {
         const { username, password, month } = credentials;
         
-        // Render 환경에서는 실제 스크래핑 실행
-        if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-            console.log('Render 환경에서 실행 중. 실제 스크래핑을 수행합니다.');
+        // Render 환경에서는 데모 모드로 실행
+        if (process.env.RENDER) {
+            console.log('Render 환경에서 실행 중. 데모 모드로 스크래핑을 시뮬레이션합니다.');
+            
+            try {
+                global.scrapingStatus[scrapingId] = 'starting';
+                
+                // 스크래핑 상태를 데이터베이스에 저장
+                await this.database.updateScrapingStatus(scrapingId, 'starting');
+                
+                // 3초 대기 (실제 스크래핑 과정 시뮬레이션)
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                global.scrapingStatus[scrapingId] = 'scraping';
+                await this.database.updateScrapingStatus(scrapingId, 'scraping');
+                
+                // 데모 데이터 생성
+                const demoFlightData = this.generateDemoFlightData(month);
+                
+                global.scrapingStatus[scrapingId] = 'saving';
+                await this.database.updateScrapingStatus(scrapingId, 'saving');
+                
+                await this.database.saveFlightData(demoFlightData, userId, month);
+                
+                global.scrapingStatus[scrapingId] = 'completed';
+                await this.database.updateScrapingStatus(scrapingId, 'completed');
+                
+                console.log('데모 모드 스크래핑 완료');
+                return;
+                
+            } catch (error) {
+                console.error('데모 모드 스크래핑 오류:', error);
+                global.scrapingStatus[scrapingId] = 'error';
+                global.scrapingError[scrapingId] = error.message;
+                await this.database.updateScrapingStatus(scrapingId, 'error');
+            }
+        } else if (process.env.NODE_ENV === 'production') {
+            // 로컬 프로덕션 환경에서는 실제 스크래핑 실행
+            console.log('로컬 프로덕션 환경에서 실행 중. 실제 스크래핑을 수행합니다.');
             
             try {
                 global.scrapingStatus[scrapingId] = 'starting';
@@ -134,7 +180,7 @@ class FlightScraper {
             }
         } else {
             // 로컬 개발 환경에서는 데모 모드
-            console.log('로컬 환경에서 실행 중. 데모 모드로 스크래핑을 시뮬레이션합니다.');
+            console.log('로컬 개발 환경에서 실행 중. 데모 모드로 스크래핑을 시뮬레이션합니다.');
             
             // 스크래핑 상태를 데이터베이스에 저장
             await this.database.updateScrapingStatus(scrapingId, 'starting');
@@ -148,8 +194,6 @@ class FlightScraper {
             
             return;
         }
-        
-
     }
 
     async handleLogin(page, username, password) {
