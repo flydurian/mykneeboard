@@ -13,8 +13,8 @@
 npm i -g vercel
 ```
 
-### 2. 환경 변수 설정
-현재 이 프로젝트는 외부 API 키가 필요하지 않습니다.
+### 2. Firebase 설정
+이 프로젝트는 Firebase Realtime Database를 사용합니다. Firebase 프로젝트가 이미 설정되어 있으며, 실시간 데이터 동기화가 가능합니다.
 
 ### 3. 배포 방법
 
@@ -64,3 +64,4 @@ npm run preview
 - React 19
 - TypeScript
 - Vite
+- Firebase Realtime Database

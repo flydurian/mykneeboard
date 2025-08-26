@@ -46,3 +46,14 @@ export interface MonthlyModalData {
     month: number;
     flights: Flight[];
 }
+
+// Firebase 관련 타입 정의
+declare global {
+  interface Window {
+    firebase: {
+      app: any;
+      analytics: any;
+      database: any;
+    };
+  }
+}

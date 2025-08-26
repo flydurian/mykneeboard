@@ -10,6 +10,7 @@ import BlockTimeCard from './components/BlockTimeCard';
 import FlightDetailModal from './components/modals/FlightDetailModal';
 import CurrencyDetailModal from './components/modals/CurrencyDetailModal';
 import MonthlyScheduleModal from './components/modals/MonthlyScheduleModal';
+import { getFlights, addFlight, updateFlight, deleteFlight, subscribeToFlights } from './src/firebase/database';
 
 export default function App() {
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -20,28 +21,63 @@ export default function App() {
   const [monthlyModalData, setMonthlyModalData] = useState<MonthlyModalData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchInitialData = useCallback(() => {
+  const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const firebaseFlights = await getFlights();
+      if (firebaseFlights) {
+        // Firebase에서 가져온 데이터를 Flight[] 형태로 변환
+        const flightsArray = Object.keys(firebaseFlights).map(key => ({
+          ...firebaseFlights[key],
+          id: parseInt(key)
+        }));
+        setFlights(flightsArray.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      } else {
+        // Firebase에 데이터가 없으면 초기 데이터 사용
+        setFlights([...initialPilotSchedule].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      }
+    } catch (error) {
+      console.error('Error fetching flights:', error);
+      // 에러 시 초기 데이터 사용
       setFlights([...initialPilotSchedule].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   }, []);
 
   useEffect(() => {
     fetchInitialData();
+    
+    // 실시간 데이터 구독
+    const unsubscribe = subscribeToFlights((firebaseFlights) => {
+      if (firebaseFlights) {
+        const flightsArray = Object.keys(firebaseFlights).map(key => ({
+          ...firebaseFlights[key],
+          id: parseInt(key)
+        }));
+        setFlights(flightsArray.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      }
+    });
+    
+    // 컴포넌트 언마운트 시 구독 해제
+    return () => unsubscribe();
   }, [fetchInitialData]);
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     setIsUpdating(true);
-    setTimeout(() => {
+    try {
       const currentFlights = [...flights];
       if (!currentFlights.find(f => f.id === newFlightData.id)) {
+        // Firebase에 새 비행 데이터 추가
+        await addFlight(newFlightData);
         currentFlights.push(newFlightData);
       }
       setFlights(currentFlights.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    } catch (error) {
+      console.error('Error updating flights:', error);
+    } finally {
       setIsUpdating(false);
-    }, 1500);
+    }
   };
 
   const handleUploadClick = () => {
@@ -56,13 +92,21 @@ export default function App() {
     }
   };
 
-  const handleUpdateFlightStatus = (flightId: number, statusToToggle: 'departed' | 'landed') => {
-    const newFlights = flights.map(f =>
-      f.id === flightId ? { ...f, status: { ...f.status, [statusToToggle]: !f.status[statusToToggle] } } : f
-    );
-    setFlights(newFlights);
-    const updatedFlight = newFlights.find(f => f.id === flightId);
-    if (updatedFlight) setSelectedFlight(updatedFlight);
+  const handleUpdateFlightStatus = async (flightId: number, statusToToggle: 'departed' | 'landed') => {
+    try {
+      const newFlights = flights.map(f =>
+        f.id === flightId ? { ...f, status: { ...f.status, [statusToToggle]: !f.status[statusToToggle] } } : f
+      );
+      setFlights(newFlights);
+      const updatedFlight = newFlights.find(f => f.id === flightId);
+      if (updatedFlight) {
+        setSelectedFlight(updatedFlight);
+        // Firebase에 업데이트된 비행 데이터 저장
+        await updateFlight(flightId.toString(), updatedFlight);
+      }
+    } catch (error) {
+      console.error('Error updating flight status:', error);
+    }
   };
   
   const handleCurrencyCardClick = (type: 'takeoff' | 'landing', currencyInfo: CurrencyInfo) => {
