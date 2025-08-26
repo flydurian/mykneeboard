@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>항공편 데이터 관리 시스템</title>
+    <title>항공편 데이터 관리 시스템 - 파일 업로드</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>✈️ 항공편 데이터 관리 시스템</h1>
-            <p class="subtitle">파일 업로드 버전</p>
+            <p class="subtitle">📁 Excel 파일 업로드 버전</p>
             <div class="user-info">
                 <div class="user-profile">
                     <img id="userProfilePic" src="" alt="프로필" class="profile-pic">
@@ -100,10 +100,9 @@
                             <!-- 동적으로 생성됨 -->
                         </tbody>
                     </table>
-                </div>
-                
-                <div id="noDataMessage" class="no-data-message" style="display: none;">
-                    <p>조회된 데이터가 없습니다.</p>
+                    <div id="noDataMessage" class="no-data" style="display: none;">
+                        <p>조회된 데이터가 없습니다.</p>
+                    </div>
                 </div>
             </div>
         </section>

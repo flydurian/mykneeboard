@@ -3,8 +3,9 @@ const path = require('path');
 const session = require('express-session');
 const passport = require('passport');
 const cookieParser = require('cookie-parser');
+const multer = require('multer');
+const xlsx = require('xlsx');
 const TursoDatabase = require('./turso-db');
-const FlightScraper = require('./flight-scraper');
 const { 
     configurePassport, 
     authenticateSession, 
@@ -26,6 +27,25 @@ const tursoDb = new TursoDatabase();
 // 데이터베이스 초기화
 tursoDb.init().catch(error => {
     console.error('데이터베이스 초기화 오류:', error);
+});
+
+// Multer 설정 (파일 업로드)
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB 제한
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['.xls', '.xlsx'];
+        const fileExtension = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf('.'));
+        
+        if (allowedTypes.includes(fileExtension)) {
+            cb(null, true);
+        } else {
+            cb(new Error('지원하지 않는 파일 형식입니다. .xls 또는 .xlsx 파일을 업로드해주세요.'));
+        }
+    }
 });
 
 // Content Security Policy 헤더 설정
@@ -207,81 +227,75 @@ app.get('/api/auth/status', (req, res) => {
     res.json({ isAuthenticated: false });
 });
 
-// 크루월드 로그인 테스트 API (인증 필요)
-app.post('/api/creworld-login', authenticateSession, async (req, res) => {
-    const { username, password } = req.body;
-    
-    if (!username || !password) {
-        return res.status(400).json({ error: '사용자명과 비밀번호를 입력해주세요.' });
-    }
-    
+// Excel 파일 업로드 API (인증 필요)
+app.post('/api/upload-excel', authenticateSession, upload.single('file'), async (req, res) => {
     try {
-        const scraper = new FlightScraper(tursoDb);
-        
-        // 크루월드 로그인 테스트
-        const loginSuccess = await scraper.testCreworldLogin(username, password);
-        
-        if (loginSuccess) {
-            res.json({ success: true, message: '크루월드 로그인 성공!' });
-        } else {
-            res.json({ success: false, error: '크루월드 로그인에 실패했습니다. 사용자명과 비밀번호를 확인해주세요.' });
+        if (!req.file) {
+            return res.status(400).json({ error: '파일이 업로드되지 않았습니다.' });
         }
-        
-    } catch (error) {
-        console.error('크루월드 로그인 테스트 오류:', error);
-        res.status(500).json({ success: false, error: '로그인 테스트 중 오류가 발생했습니다.' });
-    }
-});
 
-// 데이터 업데이트 시작 (인증 필요)
-app.post('/api/update-data', authenticateSession, async (req, res) => {
-    const { username, password, month } = req.body;
-    const userId = req.user.id;
-    
-    if (!username || !password) {
-        return res.status(400).json({ error: '사용자명과 비밀번호를 입력해주세요.' });
-    }
+        const { month } = req.body;
+        const userId = req.user.id;
 
-    if (!month || !['current', 'next'].includes(month)) {
-        return res.status(400).json({ error: '유효한 월을 선택해주세요.' });
-    }
-    
-    try {
-        const scrapingId = Date.now().toString();
-        
-        const scraper = new FlightScraper(tursoDb);
-        
-        // Vercel에서는 백그라운드 작업이 제한되므로 즉시 실행
-        scraper.scrapeAndSave({ username, password, month }, scrapingId, userId)
-            .then(() => {
-                console.log('스크래핑 완료');
-            })
-            .catch((error) => {
-                console.error('스크래핑 오류:', error);
+        if (!month || !['current', 'next'].includes(month)) {
+            return res.status(400).json({ error: '유효한 월을 선택해주세요.' });
+        }
+
+        // Excel 파일 파싱
+        const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (data.length < 2) {
+            return res.status(400).json({ error: '파일에 데이터가 없습니다.' });
+        }
+
+        // 헤더 추출
+        const headers = data[0];
+        const rows = data.slice(1);
+
+        // 데이터 변환
+        const flightData = rows.map(row => {
+            const flight = {};
+            headers.forEach((header, index) => {
+                if (row[index] !== undefined) {
+                    const key = header.toLowerCase().replace(/\s+/g, '_');
+                    flight[key] = row[index];
+                }
             });
+            return flight;
+        });
+
+        // 월별 데이터 저장
+        let targetMonth;
+        let monthYear;
         
-        const monthText = month === 'current' ? '이번달' : '다음달';
+        if (month === 'next') {
+            const now = new Date();
+            targetMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            monthYear = targetMonth.toISOString().slice(0, 7);
+        } else {
+            const now = new Date();
+            targetMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            monthYear = targetMonth.toISOString().slice(0, 7);
+        }
+
+        // 데이터베이스에 저장
+        await tursoDb.saveFlightData(flightData, userId, monthYear);
+
         res.json({ 
             success: true, 
-            message: `${monthText} 데이터 업데이트가 시작되었습니다.`,
-            scrapingId: scrapingId
+            message: `${monthYear} 데이터 업로드가 완료되었습니다. (${flightData.length}개 항공편)`,
+            count: flightData.length
         });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
 
-// 스크래핑 상태 확인 (인증 필요)
-app.get('/api/update-status/:scrapingId', authenticateSession, async (req, res) => {
-    const { scrapingId } = req.params;
-    
-    try {
-        const statusData = await tursoDb.getScrapingStatus(scrapingId);
-        res.json(statusData);
     } catch (error) {
-        console.error('스크래핑 상태 조회 오류:', error);
-        res.status(500).json({ status: 'error', error: '상태 조회 중 오류가 발생했습니다.' });
+        console.error('Excel 파일 업로드 오류:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '파일 업로드 중 오류가 발생했습니다: ' + error.message 
+        });
     }
 });
 
@@ -291,38 +305,10 @@ app.get('/api/flights/:monthYear', authenticateSession, async (req, res) => {
         const { monthYear } = req.params;
         const userId = req.user.id;
         
-        const flights = await tursoDb.getFlightsWithCrewByMonth(monthYear, userId);
+        const flights = await tursoDb.getFlightsByMonth(monthYear, userId);
         res.json({ success: true, data: flights });
     } catch (error) {
         console.error('항공편 조회 오류:', error);
-        res.status(500).json({ success: false, error: '데이터 조회 중 오류가 발생했습니다.' });
-    }
-});
-
-// Flight Crew 조회 API (인증 필요)
-app.get('/api/flight-crew/:monthYear', authenticateSession, async (req, res) => {
-    try {
-        const { monthYear } = req.params;
-        const userId = req.user.id;
-        
-        const flightCrew = await tursoDb.getFlightCrewByMonth(monthYear, userId);
-        res.json({ success: true, data: flightCrew });
-    } catch (error) {
-        console.error('Flight Crew 조회 오류:', error);
-        res.status(500).json({ success: false, error: '데이터 조회 중 오류가 발생했습니다.' });
-    }
-});
-
-// Cabin Crew 조회 API (인증 필요)
-app.get('/api/cabin-crew/:monthYear', authenticateSession, async (req, res) => {
-    try {
-        const { monthYear } = req.params;
-        const userId = req.user.id;
-        
-        const cabinCrew = await tursoDb.getCabinCrewByMonth(monthYear, userId);
-        res.json({ success: true, data: cabinCrew });
-    } catch (error) {
-        console.error('Cabin Crew 조회 오류:', error);
         res.status(500).json({ success: false, error: '데이터 조회 중 오류가 발생했습니다.' });
     }
 });
