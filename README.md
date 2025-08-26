@@ -14,9 +14,7 @@ npm i -g vercel
 ```
 
 ### 2. 환경 변수 설정
-Vercel 대시보드에서 다음 환경 변수를 설정하세요:
-
-- `GEMINI_API_KEY`: Gemini API 키
+현재 이 프로젝트는 외부 API 키가 필요하지 않습니다.
 
 ### 3. 배포 방법
 
@@ -66,4 +64,3 @@ npm run preview
 - React 19
 - TypeScript
 - Vite
-- Gemini API
