@@ -10,7 +10,7 @@
     <div class="container">
         <header>
             <h1>✈️ 항공편 데이터 관리 시스템</h1>
-            <p class="subtitle">Render 배포 버전</p>
+            <p class="subtitle">파일 업로드 버전</p>
             <div class="user-info">
                 <div class="user-profile">
                     <img id="userProfilePic" src="" alt="프로필" class="profile-pic">
@@ -23,52 +23,88 @@
             </div>
         </header>
 
-        <!-- 크루월드 로그인 섹션 -->
-        <section id="loginSection" class="card">
-            <h2>🔐 크루월드 로그인</h2>
-            <div class="login-info">
-                <p>크루월드 사이트에 로그인하여 연결 상태를 확인합니다.</p>
+        <!-- 파일 업로드 섹션 -->
+        <section id="uploadSection" class="card">
+            <h2>📁 항공편 데이터 파일 업로드</h2>
+            <div class="upload-info">
+                <p>Excel 파일(.xls, .xlsx)을 업로드하여 <strong>Turso 클라우드 데이터베이스</strong>에 저장합니다.</p>
+                <p class="warning">⚠️ 구글 인증을 받은 사용자만 파일을 업로드할 수 있습니다.</p>
             </div>
             
-            <!-- 크루월드 로그인 폼 -->
-            <form id="creworldLoginForm" class="login-form">
+            <!-- 파일 업로드 폼 -->
+            <form id="uploadForm" class="upload-form" enctype="multipart/form-data">
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="creworldUsername">크루월드 사용자명:</label>
-                        <input type="text" id="creworldUsername" name="username" required>
+                        <label for="fileInput">Excel 파일 선택:</label>
+                        <input type="file" id="fileInput" name="file" accept=".xls,.xlsx" required>
+                        <div class="file-info">
+                            <small>지원 형식: .xls, .xlsx (최대 10MB)</small>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="creworldPassword">크루월드 비밀번호:</label>
-                        <input type="password" id="creworldPassword" name="password" required>
+                        <label for="monthSelect">데이터 월:</label>
+                        <select id="monthSelect" name="month" required>
+                            <option value="">월을 선택하세요</option>
+                            <option value="current">이번달</option>
+                            <option value="next">다음달</option>
+                        </select>
                     </div>
                 </div>
                 
-                <button type="submit" class="btn btn-primary" id="creworldLoginBtn">크루월드 로그인</button>
+                <button type="submit" class="btn btn-primary" id="uploadBtn">파일 업로드 및 저장</button>
                 
-                <div id="loginStatus" class="status-message"></div>
+                <div id="uploadStatus" class="status-message"></div>
+                <div id="uploadProgress" class="progress-bar" style="display: none;">
+                    <div class="progress-fill"></div>
+                </div>
             </form>
         </section>
 
-        <!-- 데이터 업데이트 섹션 -->
-        <section id="updateSection" class="card" style="display: none;">
-            <h2>🔄 온라인 데이터 업데이트</h2>
-            <div class="update-info">
-                <p><strong>creworld.flyasiana.com</strong>에서 최신 항공편 정보를 가져와 <strong>Turso 클라우드 데이터베이스</strong>에 저장합니다.</p>
-                <p class="success">✅ 크루월드 로그인 완료</p>
+        <!-- 데이터 조회 섹션 -->
+        <section id="dataSection" class="card">
+            <h2>📊 저장된 데이터 조회</h2>
+            <div class="data-info">
+                <p>업로드된 항공편 데이터를 조회합니다.</p>
             </div>
             
-            <!-- 월 선택 버튼들 -->
-            <div class="month-selection-buttons">
-                <div class="month-buttons-row">
-                    <button type="button" class="month-btn" data-month="current">이번달</button>
-                    <button type="button" class="month-btn" data-month="next">다음달</button>
-                    <button type="button" class="btn btn-success" id="updateBtn" disabled>온라인 업데이트 시작</button>
+            <!-- 데이터 조회 컨트롤 -->
+            <div class="data-controls">
+                <div class="control-row">
+                    <div class="control-group">
+                        <label for="dataMonthSelect">조회 월:</label>
+                        <select id="dataMonthSelect" class="form-select">
+                            <option value="">월을 선택하세요</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="loadDataBtn">데이터 조회</button>
                 </div>
             </div>
             
-            <div id="updateStatus" class="status-message"></div>
-            <div id="progressBar" class="progress-bar" style="display: none;">
-                <div class="progress-fill"></div>
+            <!-- 데이터 테이블 -->
+            <div class="data-table-container">
+                <div class="table-header">
+                    <h3 id="tableTitle">항공편 데이터</h3>
+                    <div class="table-actions">
+                        <button type="button" class="btn btn-outline" id="exportCsvBtn">CSV 내보내기</button>
+                    </div>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table id="dataTable" class="data-table">
+                        <thead>
+                            <tr id="tableHeader">
+                                <!-- 동적으로 생성됨 -->
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- 동적으로 생성됨 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="noDataMessage" class="no-data-message" style="display: none;">
+                    <p>조회된 데이터가 없습니다.</p>
+                </div>
             </div>
         </section>
     </div>

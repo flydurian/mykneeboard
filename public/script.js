@@ -1,14 +1,13 @@
 class FlightDataApp {
     constructor() {
-        this.currentScrapingId = null;
-        this.selectedMonth = null;
-        this.creworldCredentials = null;
+        this.currentData = [];
         this.init();
     }
 
     async init() {
         await this.checkAuthStatus();
         this.setupEventListeners();
+        this.initializeDataSection();
     }
 
     setupEventListeners() {
@@ -17,22 +16,25 @@ class FlightDataApp {
             this.logout();
         });
 
-        // 크루월드 로그인 폼
-        document.getElementById('creworldLoginForm').addEventListener('submit', (e) => {
+        // 파일 업로드 폼
+        document.getElementById('uploadForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            this.handleCreworldLogin();
+            this.handleFileUpload();
         });
 
-        // 월 선택 버튼 이벤트
-        document.querySelectorAll('.month-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.selectMonth(e.target.closest('.month-btn').dataset.month);
-            });
+        // 데이터 조회 버튼
+        document.getElementById('loadDataBtn').addEventListener('click', () => {
+            this.loadData();
         });
 
-        // 업데이트 버튼
-        document.getElementById('updateBtn').addEventListener('click', () => {
-            this.handleUpdateSubmit();
+        // CSV 내보내기 버튼
+        document.getElementById('exportCsvBtn').addEventListener('click', () => {
+            this.exportToCsv();
+        });
+
+        // 파일 선택 시 미리보기
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            this.handleFileSelect(e);
         });
     }
 
@@ -83,7 +85,7 @@ class FlightDataApp {
             if (data.success) {
                 window.location.href = '/login';
             } else {
-                this.showStatus('로그아웃 중 오류가 발생했습니다.', 'error', 'updateStatus');
+                this.showStatus('로그아웃 중 오류가 발생했습니다.', 'error', 'uploadStatus');
             }
         } catch (error) {
             console.error('로그아웃 오류:', error);
@@ -91,196 +93,224 @@ class FlightDataApp {
         }
     }
 
-    async handleCreworldLogin() {
-        const username = document.getElementById('creworldUsername').value;
-        const password = document.getElementById('creworldPassword').value;
-        const loginBtn = document.getElementById('creworldLoginBtn');
-        const loginStatus = document.getElementById('loginStatus');
+    handleFileSelect(event) {
+        const file = event.target.files[0];
+        const uploadStatus = document.getElementById('uploadStatus');
+        
+        if (file) {
+            // 파일 크기 확인 (10MB 제한)
+            if (file.size > 10 * 1024 * 1024) {
+                this.showStatus('파일 크기가 10MB를 초과합니다.', 'error', 'uploadStatus');
+                event.target.value = '';
+                return;
+            }
+            
+            // 파일 형식 확인
+            const allowedTypes = ['.xls', '.xlsx'];
+            const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+            
+            if (!allowedTypes.includes(fileExtension)) {
+                this.showStatus('지원하지 않는 파일 형식입니다. .xls 또는 .xlsx 파일을 선택해주세요.', 'error', 'uploadStatus');
+                event.target.value = '';
+                return;
+            }
+            
+            this.showStatus(`파일 선택됨: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`, 'info', 'uploadStatus');
+        }
+    }
 
-        if (!username || !password) {
-            this.showStatus('사용자명과 비밀번호를 입력해주세요.', 'error', 'loginStatus');
+    async handleFileUpload() {
+        const fileInput = document.getElementById('fileInput');
+        const monthSelect = document.getElementById('monthSelect');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadProgress = document.getElementById('uploadProgress');
+        
+        const file = fileInput.files[0];
+        const month = monthSelect.value;
+        
+        if (!file) {
+            this.showStatus('파일을 선택해주세요.', 'error', 'uploadStatus');
             return;
         }
-
-        // 로그인 버튼 비활성화
-        loginBtn.disabled = true;
-        loginBtn.textContent = '로그인 중...';
-        this.showStatus('크루월드에 로그인 중...', 'info', 'loginStatus');
-
+        
+        if (!month) {
+            this.showStatus('데이터 월을 선택해주세요.', 'error', 'uploadStatus');
+            return;
+        }
+        
+        // 업로드 버튼 비활성화
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = '업로드 중...';
+        uploadProgress.style.display = 'block';
+        
+        this.showStatus('파일을 업로드하고 있습니다...', 'info', 'uploadStatus');
+        
         try {
-            const response = await fetch('/api/creworld-login', {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('month', month);
+            
+            const response = await fetch('/api/upload-excel', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 credentials: 'include',
-                body: JSON.stringify({ username, password })
+                body: formData
             });
-
+            
             const data = await response.json();
-
+            
             if (data.success) {
-                this.creworldCredentials = { username, password };
-                this.showStatus('✅ 크루월드 로그인 성공!', 'success', 'loginStatus');
+                this.showStatus('✅ 파일 업로드 및 데이터 저장이 완료되었습니다!', 'success', 'uploadStatus');
                 
-                // 로그인 섹션 숨기고 업데이트 섹션 표시
-                document.getElementById('loginSection').style.display = 'none';
-                document.getElementById('updateSection').style.display = 'block';
+                // 폼 초기화
+                fileInput.value = '';
+                monthSelect.value = '';
                 
-                // 로그인 버튼 초기화
-                loginBtn.disabled = false;
-                loginBtn.textContent = '크루월드 로그인';
+                // 데이터 조회 섹션 업데이트
+                this.populateMonthOptions();
+                await this.loadData();
             } else {
-                this.showStatus(data.error || '로그인에 실패했습니다.', 'error', 'loginStatus');
-                loginBtn.disabled = false;
-                loginBtn.textContent = '크루월드 로그인';
+                this.showStatus(data.error || '파일 업로드에 실패했습니다.', 'error', 'uploadStatus');
             }
         } catch (error) {
-            console.error('크루월드 로그인 오류:', error);
-            this.showStatus('로그인 중 오류가 발생했습니다.', 'error', 'loginStatus');
-            loginBtn.disabled = false;
-            loginBtn.textContent = '크루월드 로그인';
+            console.error('파일 업로드 오류:', error);
+            this.showStatus('파일 업로드 중 오류가 발생했습니다.', 'error', 'uploadStatus');
+        } finally {
+            // 업로드 버튼 활성화
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = '파일 업로드 및 저장';
+            uploadProgress.style.display = 'none';
         }
     }
 
-    selectMonth(monthType) {
-        // 모든 버튼에서 선택 상태 제거
-        document.querySelectorAll('.month-btn').forEach(btn => {
-            btn.classList.remove('selected');
+    initializeDataSection() {
+        this.populateMonthOptions();
+        this.updateTableHeaders();
+    }
+
+    populateMonthOptions() {
+        const monthSelect = document.getElementById('dataMonthSelect');
+        monthSelect.innerHTML = '<option value="">월을 선택하세요</option>';
+        
+        const now = new Date();
+        const currentMonth = now.toISOString().slice(0, 7);
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 7);
+        
+        const months = [
+            { value: currentMonth, label: `${currentMonth} (이번달)` },
+            { value: nextMonth, label: `${nextMonth} (다음달)` }
+        ];
+        
+        months.forEach(month => {
+            const option = document.createElement('option');
+            option.value = month.value;
+            option.textContent = month.label;
+            monthSelect.appendChild(option);
         });
-
-        // 선택된 버튼에 선택 상태 추가
-        const selectedBtn = document.querySelector(`[data-month="${monthType}"]`);
-        selectedBtn.classList.add('selected');
-
-        this.selectedMonth = monthType;
-
-        // 업데이트 버튼 활성화 및 텍스트 업데이트
-        const updateBtn = document.getElementById('updateBtn');
-        const monthText = monthType === 'current' ? '이번달' : '다음달';
-        updateBtn.textContent = `${monthText} 업데이트 시작`;
-        updateBtn.disabled = false;
     }
 
-    async handleUpdateSubmit() {
-        if (!this.creworldCredentials) {
-            this.showStatus('먼저 크루월드에 로그인해주세요.', 'error', 'updateStatus');
+    async loadData() {
+        const month = document.getElementById('dataMonthSelect').value;
+        
+        if (!month) {
+            this.showStatus('조회할 월을 선택해주세요.', 'error', 'uploadStatus');
             return;
         }
-
-        if (!this.selectedMonth) {
-            this.showStatus('월을 선택해주세요.', 'error', 'updateStatus');
-            return;
-        }
-
-        const updateBtn = document.getElementById('updateBtn');
-        const progressBar = document.getElementById('progressBar');
         
-        updateBtn.disabled = true;
-        updateBtn.textContent = '업데이트 중...';
-        progressBar.style.display = 'block';
-        
-        const monthText = this.selectedMonth === 'current' ? '이번달' : '다음달';
-        this.showStatus(`${monthText} 데이터 업데이트를 시작합니다...`, 'info', 'updateStatus');
-
         try {
-            const response = await fetch('/api/update-data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include', // 쿠키 포함
-                body: JSON.stringify({ 
-                    username: this.creworldCredentials.username, 
-                    password: this.creworldCredentials.password,
-                    month: this.selectedMonth 
-                }),
+            const response = await fetch(`/api/flights/${month}`, {
+                credentials: 'include'
             });
-
+            
             const data = await response.json();
-
+            
             if (data.success) {
-                this.currentScrapingId = data.scrapingId;
-                this.showStatus(data.message, 'info', 'updateStatus');
-                this.monitorUpdateProgress();
+                this.currentData = data.data || [];
+                this.renderDataTable();
+                this.showStatus(`${month} 데이터 조회 완료 (${this.currentData.length}개 항공편)`, 'success', 'uploadStatus');
             } else {
-                this.showStatus(data.error, 'error', 'updateStatus');
-                this.resetUpdateButton();
+                this.showStatus(data.error || '데이터 조회에 실패했습니다.', 'error', 'uploadStatus');
             }
         } catch (error) {
-            this.showStatus('업데이트 시작 중 오류가 발생했습니다.', 'error', 'updateStatus');
-            this.resetUpdateButton();
+            console.error('데이터 조회 오류:', error);
+            this.showStatus('데이터 조회 중 오류가 발생했습니다.', 'error', 'uploadStatus');
         }
     }
 
-    async monitorUpdateProgress() {
-        if (!this.currentScrapingId) return;
-        
-        console.log('업데이트 진행 상황 모니터링 시작:', this.currentScrapingId);
-        
-        const interval = setInterval(async () => {
-            try {
-                const response = await fetch(`/api/update-status/${this.currentScrapingId}`, {
-                    credentials: 'include'
-                });
-                const data = await response.json();
-                
-                console.log('업데이트 상태 확인:', data);
-
-                if (data.status === 'completed') {
-                    const monthText = this.selectedMonth === 'current' ? '이번달' : '다음달';
-                    this.showStatus(`${monthText} 업데이트가 완료되었습니다!`, 'success', 'updateStatus');
-                    this.resetUpdateButton();
-                    clearInterval(interval);
-                } else if (data.status === 'error') {
-                    this.showStatus(`업데이트 오류: ${data.error}`, 'error', 'updateStatus');
-                    this.resetUpdateButton();
-                    clearInterval(interval);
-                } else if (data.status === 'starting' || data.status === 'connecting' || data.status === 'scraping' || data.status === 'saving') {
-                    // 진행 중인 상태 표시
-                    const statusMessages = {
-                        'starting': '업데이트를 시작하고 있습니다...',
-                        'connecting': '크루월드에 연결하고 있습니다...',
-                        'scraping': '데이터를 수집하고 있습니다...',
-                        'saving': '데이터베이스에 저장하고 있습니다...'
-                    };
-                    this.showStatus(statusMessages[data.status] || '업데이트 중...', 'info', 'updateStatus');
-                } else {
-                    // 기타 상태 (idle 등)
-                    console.log('알 수 없는 상태:', data.status);
-                }
-            } catch (error) {
-                console.error('진행 상황 확인 오류:', error);
-                this.showStatus('진행 상황 확인 중 오류가 발생했습니다.', 'error', 'updateStatus');
-            }
-        }, 3000);
-        
-        // 30초 후에도 완료되지 않으면 타임아웃 처리
-        setTimeout(() => {
-            clearInterval(interval);
-            this.showStatus('업데이트가 시간 초과되었습니다. 다시 시도해주세요.', 'error', 'updateStatus');
-            this.resetUpdateButton();
-        }, 30000);
+    updateTableHeaders() {
+        const tableHeader = document.getElementById('tableHeader');
+        const headers = ['항공편 번호', '출발 시간', '도착 시간', '출발 공항', '도착 공항', '항공기', 'Flight Crew', 'Cabin Crew'];
+        tableHeader.innerHTML = headers.map(header => `<th>${header}</th>`).join('');
     }
 
-    resetUpdateButton() {
-        const updateBtn = document.getElementById('updateBtn');
-        const progressBar = document.getElementById('progressBar');
+    renderDataTable() {
+        const tableBody = document.getElementById('tableBody');
+        const noDataMessage = document.getElementById('noDataMessage');
         
-        updateBtn.disabled = false;
-        updateBtn.textContent = '온라인 업데이트 시작';
-        progressBar.style.display = 'none';
+        if (this.currentData.length === 0) {
+            tableBody.innerHTML = '';
+            noDataMessage.style.display = 'block';
+            return;
+        }
         
-        // 선택 상태 초기화
-        this.selectedMonth = null;
-        document.querySelectorAll('.month-btn').forEach(btn => {
-            btn.classList.remove('selected');
-        });
+        noDataMessage.style.display = 'none';
         
-        document.getElementById('updateForm').reset();
+        const tableRows = this.currentData.map(flight => `
+            <tr>
+                <td class="flight-number">${flight.flight_number || '-'}</td>
+                <td>${flight.std || '-'}</td>
+                <td>${flight.sta || '-'}</td>
+                <td><span class="airport-code">${flight.departure_airport || '-'}</span></td>
+                <td><span class="airport-code">${flight.arrival_airport || '-'}</span></td>
+                <td>${flight.hlno || '-'}</td>
+                <td>${flight.flight_crew_count || 0}명</td>
+                <td>${flight.cabin_crew_count || 0}명</td>
+            </tr>
+        `).join('');
+        
+        tableBody.innerHTML = tableRows;
     }
 
-    showStatus(message, type, elementId = 'updateStatus') {
+    exportToCsv() {
+        if (this.currentData.length === 0) {
+            this.showStatus('내보낼 데이터가 없습니다.', 'error', 'uploadStatus');
+            return;
+        }
+        
+        const month = document.getElementById('dataMonthSelect').value;
+        if (!month) {
+            this.showStatus('내보낼 월을 선택해주세요.', 'error', 'uploadStatus');
+            return;
+        }
+        
+        // CSV 헤더
+        const headers = ['항공편 번호', '출발 시간', '도착 시간', '출발 공항', '도착 공항', '항공기'];
+        const csvContent = [
+            headers.join(','),
+            ...this.currentData.map(flight => [
+                flight.flight_number || '',
+                flight.std || '',
+                flight.sta || '',
+                flight.departure_airport || '',
+                flight.arrival_airport || '',
+                flight.hlno || ''
+            ].join(','))
+        ].join('\n');
+        
+        // CSV 파일 다운로드
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `항공편_데이터_${month}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        this.showStatus('CSV 파일이 다운로드되었습니다.', 'success', 'uploadStatus');
+    }
+
+    showStatus(message, type, elementId = 'uploadStatus') {
         const statusElement = document.getElementById(elementId);
         statusElement.textContent = message;
         statusElement.className = `status-message ${type}`;
