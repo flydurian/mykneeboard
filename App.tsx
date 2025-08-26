@@ -10,7 +10,7 @@ import BlockTimeCard from './components/BlockTimeCard';
 import FlightDetailModal from './components/modals/FlightDetailModal';
 import CurrencyDetailModal from './components/modals/CurrencyDetailModal';
 import MonthlyScheduleModal from './components/modals/MonthlyScheduleModal';
-import { getFlights, addFlight, updateFlight, deleteFlight, subscribeToFlights } from './src/firebase/database';
+import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights } from './src/firebase/database';
 
 export default function App() {
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -24,14 +24,10 @@ export default function App() {
   const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const firebaseFlights = await getFlights();
-      if (firebaseFlights) {
-        // Firebase에서 가져온 데이터를 Flight[] 형태로 변환
-        const flightsArray = Object.keys(firebaseFlights).map(key => ({
-          ...firebaseFlights[key],
-          id: parseInt(key)
-        }));
-        setFlights(flightsArray.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      const firebaseFlights = await getAllFlights();
+      if (firebaseFlights && firebaseFlights.length > 0) {
+        // Firebase에서 가져온 데이터는 이미 정렬된 배열 형태
+        setFlights(firebaseFlights);
       } else {
         // Firebase에 데이터가 없으면 초기 데이터 사용
         setFlights([...initialPilotSchedule].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
@@ -49,13 +45,9 @@ export default function App() {
     fetchInitialData();
     
     // 실시간 데이터 구독
-    const unsubscribe = subscribeToFlights((firebaseFlights) => {
-      if (firebaseFlights) {
-        const flightsArray = Object.keys(firebaseFlights).map(key => ({
-          ...firebaseFlights[key],
-          id: parseInt(key)
-        }));
-        setFlights(flightsArray.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    const unsubscribe = subscribeToAllFlights((firebaseFlights) => {
+      if (firebaseFlights && firebaseFlights.length > 0) {
+        setFlights(firebaseFlights);
       }
     });
     
