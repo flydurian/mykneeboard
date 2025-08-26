@@ -173,7 +173,7 @@ export default function App() {
       const results = await addMultipleFlights(flights, user.uid);
       console.log('Save results:', results);
 
-      setUploadMessage(`${flights.length}개의 비행 데이터가 성공적으로 저장되었습니다! 파일이 자동으로 다운로드되었습니다.`);
+      setUploadMessage(`${flights.length}개의 비행 데이터가 성공적으로 저장되었습니다!`);
       
       // 파일 입력 초기화
       if (fileInputRef.current) {

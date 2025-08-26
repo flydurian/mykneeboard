@@ -103,9 +103,6 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
           flights[0].monthlyTotalBlock = monthlyTotalBlock;
         }
 
-        // 파일을 자동으로 다운로드 (기존 파일 덮어쓰기)
-        autoDownloadFile(file, workbook);
-
         resolve(flights);
       } catch (error) {
         reject(new Error('Excel 파일 파싱에 실패했습니다: ' + error));
@@ -118,21 +115,6 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
     
     reader.readAsArrayBuffer(file);
   });
-};
-
-// 파일을 자동으로 다운로드하는 함수
-const autoDownloadFile = (originalFile: File, workbook: XLSX.WorkBook) => {
-  try {
-    // 원본 파일명 유지
-    const fileName = originalFile.name;
-    
-    // 워크북을 파일로 변환
-    XLSX.writeFile(workbook, fileName);
-    
-    console.log(`파일이 자동으로 다운로드되었습니다: ${fileName}`);
-  } catch (error) {
-    console.error('파일 다운로드 실패:', error);
-  }
 };
 
 // 헤더에 따라 값을 가져오는 헬퍼 함수 (안전한 처리)
