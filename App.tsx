@@ -91,6 +91,14 @@ export default function App() {
   // 인증 상태 감지
   useEffect(() => {
     const unsubscribe = onAuthStateChange((user) => {
+      console.log('Auth state changed:', {
+        user: user ? {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          emailVerified: user.emailVerified
+        } : null
+      });
       setUser(user);
     });
     

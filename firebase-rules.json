@@ -2,18 +2,8 @@
   "rules": {
     "users": {
       "$uid": {
-        ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid",
-        "flights": {
-          "$year": {
-            "$month": {
-              "$flightId": {
-                ".read": "$uid === auth.uid",
-                ".write": "$uid === auth.uid"
-              }
-            }
-          }
-        }
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
     ".read": false,

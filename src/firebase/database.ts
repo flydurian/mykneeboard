@@ -1,5 +1,6 @@
 import { ref, get, set, push, update, remove, onValue, off } from "firebase/database";
-import { database } from "./config";
+import { database, auth } from "./config";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 // 데이터 읽기
 export const readData = async (path: string) => {
@@ -102,6 +103,24 @@ export const getAllFlights = async (userId: string) => {
     
     if (!userId) {
       console.log('No userId provided, returning empty array');
+      return [];
+    }
+    
+    // 현재 인증 상태 확인
+    const currentUser = auth.currentUser;
+    console.log('Current auth user:', currentUser ? {
+      uid: currentUser.uid,
+      email: currentUser.email,
+      emailVerified: currentUser.emailVerified
+    } : null);
+    
+    if (!currentUser) {
+      console.log('No authenticated user found, returning empty array');
+      return [];
+    }
+    
+    if (currentUser.uid !== userId) {
+      console.log('User ID mismatch, returning empty array');
       return [];
     }
     
