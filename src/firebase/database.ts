@@ -98,12 +98,27 @@ const getMonthPath = (date: string, userId: string) => {
 // 사용자의 모든 월의 비행 데이터 가져오기
 export const getAllFlights = async (userId: string) => {
   try {
+    console.log('getAllFlights called with userId:', userId);
+    
+    if (!userId) {
+      console.log('No userId provided, returning empty array');
+      return [];
+    }
+    
     const allFlightsRef = ref(database, `users/${userId}/flights`);
+    console.log('Database reference path:', `users/${userId}/flights`);
+    
     const snapshot = await get(allFlightsRef);
-    if (!snapshot.exists()) return [];
+    console.log('Snapshot exists:', snapshot.exists());
+    
+    if (!snapshot.exists()) {
+      console.log('No data found for user, returning empty array');
+      return [];
+    }
     
     const allFlights: any[] = [];
     const yearData = snapshot.val();
+    console.log('Year data keys:', Object.keys(yearData));
     
     // 모든 연도와 월을 순회
     Object.keys(yearData).forEach(year => {
@@ -120,10 +135,23 @@ export const getAllFlights = async (userId: string) => {
       });
     });
     
+    console.log('Total flights found:', allFlights.length);
     return allFlights.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
     console.error('Error getting all flights:', error);
-    return [];
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      userId: userId
+    });
+    
+    // 권한 오류인 경우 빈 배열 반환
+    if (error.code === 'PERMISSION_DENIED') {
+      console.log('Permission denied, returning empty array');
+      return [];
+    }
+    
+    throw error;
   }
 };
 

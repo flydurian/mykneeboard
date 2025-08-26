@@ -37,21 +37,26 @@ export default function App() {
   const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
     try {
-      if (user) {
+      if (user && user.uid) {
+        console.log('Fetching data for authenticated user:', user.uid);
         // 로그인된 사용자의 데이터만 가져오기
         const firebaseFlights = await getAllFlights(user.uid);
         if (firebaseFlights && firebaseFlights.length > 0) {
+          console.log('Found flights for user:', firebaseFlights.length);
           setFlights(firebaseFlights);
         } else {
+          console.log('No flights found for user, setting empty array');
           // 사용자별 데이터가 없으면 빈 배열
           setFlights([]);
         }
       } else {
+        console.log('No authenticated user, setting empty array');
         // 로그인되지 않은 경우 빈 배열
         setFlights([]);
       }
     } catch (error) {
       console.error('Error fetching flights:', error);
+      // 오류가 발생해도 빈 배열로 설정하여 앱이 계속 작동하도록 함
       setFlights([]);
     } finally {
       setIsLoading(false);
@@ -62,8 +67,10 @@ export default function App() {
     fetchInitialData();
     
     // 사용자가 로그인된 경우에만 실시간 데이터 구독
-    if (user) {
+    if (user && user.uid) {
+      console.log('Setting up real-time subscription for user:', user.uid);
       const unsubscribe = subscribeToAllFlights((firebaseFlights) => {
+        console.log('Real-time update received:', firebaseFlights?.length || 0, 'flights');
         if (firebaseFlights && firebaseFlights.length > 0) {
           setFlights(firebaseFlights);
         } else {
@@ -72,7 +79,12 @@ export default function App() {
       }, user.uid);
       
       // 컴포넌트 언마운트 시 구독 해제
-      return () => unsubscribe();
+      return () => {
+        console.log('Cleaning up real-time subscription');
+        unsubscribe();
+      };
+    } else {
+      console.log('No authenticated user, skipping real-time subscription');
     }
   }, [fetchInitialData, user]);
 
