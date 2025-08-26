@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
+  updateProfile,
   User,
   AuthError
 } from "firebase/auth";
@@ -39,9 +40,16 @@ export const loginUser = async (email: string, password: string): Promise<{ succ
 };
 
 // 회원가입 함수
-export const registerUser = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+export const registerUser = async (email: string, password: string, displayName: string): Promise<{ success: boolean; error?: string }> => {
   try {
-    await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    
+    // 사용자 프로필 업데이트 (사용자 이름 설정)
+    await updateProfile(user, {
+      displayName: displayName
+    });
+    
     return { success: true };
   } catch (error) {
     const authError = error as AuthError;

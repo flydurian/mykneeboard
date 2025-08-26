@@ -4,11 +4,12 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (email: string, password: string) => void;
+  onShowRegister: () => void;
   isLoading?: boolean;
   error?: string;
 }
 
-export default function LoginModal({ isOpen, onClose, onLogin, isLoading = false, error }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onLogin, onShowRegister, isLoading = false, error }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -90,7 +91,10 @@ export default function LoginModal({ isOpen, onClose, onLogin, isLoading = false
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             계정이 없으신가요?{' '}
-            <button className="text-blue-600 hover:text-blue-700 font-medium">
+            <button 
+              onClick={onShowRegister}
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
               회원가입
             </button>
           </p>

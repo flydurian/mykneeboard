@@ -11,8 +11,9 @@ import FlightDetailModal from './components/modals/FlightDetailModal';
 import CurrencyDetailModal from './components/modals/CurrencyDetailModal';
 import MonthlyScheduleModal from './components/modals/MonthlyScheduleModal';
 import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights } from './src/firebase/database';
-import { loginUser, logoutUser, onAuthStateChange, getCurrentUser } from './src/firebase/auth';
+import { loginUser, logoutUser, registerUser, onAuthStateChange, getCurrentUser } from './src/firebase/auth';
 import LoginModal from './components/LoginModal';
+import RegisterModal from './components/RegisterModal';
 
 export default function App() {
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -22,8 +23,11 @@ export default function App() {
   const [currencyModalData, setCurrencyModalData] = useState<CurrencyModalData | null>(null);
   const [monthlyModalData, setMonthlyModalData] = useState<MonthlyModalData | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState<boolean>(false);
   const [isLoginLoading, setIsLoginLoading] = useState<boolean>(false);
+  const [isRegisterLoading, setIsRegisterLoading] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
+  const [registerError, setRegisterError] = useState<string>('');
   const [user, setUser] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -150,6 +154,39 @@ export default function App() {
     setIsLoginLoading(false);
   };
 
+  // 회원가입 관련 핸들러들
+  const handleShowRegister = () => {
+    setIsLoginModalOpen(false);
+    setIsRegisterModalOpen(true);
+    setRegisterError('');
+  };
+
+  const handleRegisterClose = () => {
+    setIsRegisterModalOpen(false);
+    setRegisterError('');
+  };
+
+  const handleRegister = async (email: string, password: string, displayName: string) => {
+    setIsRegisterLoading(true);
+    setRegisterError('');
+    
+    const result = await registerUser(email, password, displayName);
+    
+    if (result.success) {
+      setIsRegisterModalOpen(false);
+      // 회원가입 성공 후 자동 로그인
+      const loginResult = await loginUser(email, password);
+      if (!loginResult.success) {
+        setLoginError('회원가입은 완료되었지만 자동 로그인에 실패했습니다. 다시 로그인해주세요.');
+        setIsLoginModalOpen(true);
+      }
+    } else {
+      setRegisterError(result.error || '회원가입에 실패했습니다.');
+    }
+    
+    setIsRegisterLoading(false);
+  };
+
   const handleLogout = async () => {
     const result = await logoutUser();
     if (!result.success) {
@@ -188,7 +225,7 @@ export default function App() {
                 {user ? (
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-600">
-                      {user.email}님 환영합니다
+                      {user.displayName || user.email}님 환영합니다
                     </span>
                     <button 
                       onClick={handleLogout}
@@ -247,8 +284,16 @@ export default function App() {
           isOpen={isLoginModalOpen}
           onClose={handleLoginClose}
           onLogin={handleLogin}
+          onShowRegister={handleShowRegister}
           isLoading={isLoginLoading}
           error={loginError}
+        />
+        <RegisterModal 
+          isOpen={isRegisterModalOpen}
+          onClose={handleRegisterClose}
+          onRegister={handleRegister}
+          isLoading={isRegisterLoading}
+          error={registerError}
         />
       </div>
     </div>
