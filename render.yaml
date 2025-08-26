@@ -2,7 +2,7 @@ services:
   - type: web
     name: flight-dashboard
     env: node
-    buildCommand: npm install
+    buildCommand: npm run build
     startCommand: node app.js
     envVars:
       - key: NODE_ENV

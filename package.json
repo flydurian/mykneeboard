@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "node app.js",
-    "build": "npm install && npx puppeteer browsers install chrome"
+    "build": "npm install && npx puppeteer browsers install chrome --force"
   },
   "dependencies": {
     "@libsql/client": "^0.5.0",

@@ -8,8 +8,11 @@ class FlightScraper {
 
     async testCreworldLogin(username, password) {
         try {
+            console.log('크루월드 로그인 테스트 시작...');
+            
             const browser = await puppeteer.launch({
                 headless: true,
+                ignoreDefaultArgs: ['--disable-extensions'],
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -19,7 +22,8 @@ class FlightScraper {
                     '--no-zygote',
                     '--disable-gpu',
                     '--single-process',
-                    '--disable-extensions'
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor'
                 ]
             });
             
@@ -56,6 +60,7 @@ class FlightScraper {
                 
                 const browser = await puppeteer.launch({
                     headless: true,
+                    ignoreDefaultArgs: ['--disable-extensions'],
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -65,7 +70,8 @@ class FlightScraper {
                         '--no-zygote',
                         '--disable-gpu',
                         '--single-process',
-                        '--disable-extensions'
+                        '--disable-web-security',
+                        '--disable-features=VizDisplayCompositor'
                     ]
                 });
                 
