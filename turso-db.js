@@ -39,11 +39,6 @@ class TursoDatabase {
 
 
     async initializeTables() {
-        if (this.isDemoMode) {
-            console.log('데모 모드: 테이블 초기화 건너뜀');
-            return;
-        }
-
         try {
             // 사용자 테이블
             await this.client.execute(`
@@ -60,90 +55,38 @@ class TursoDatabase {
                 )
             `);
 
-            // 항공편 정보 테이블
+            // 월간 스케줄 테이블 (이미지 기반)
             await this.client.execute(`
-                CREATE TABLE IF NOT EXISTS flights (
+                CREATE TABLE IF NOT EXISTS monthly_schedule (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    flight_number TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    flight TEXT,
+                    show_up TEXT,
+                    sector TEXT,
                     std TEXT,
                     sta TEXT,
-                    departure_airport TEXT,
-                    arrival_airport TEXT,
-                    hlno TEXT,
+                    empl TEXT,
+                    name TEXT,
+                    rank TEXT,
+                    posn_type TEXT,
+                    posn TEXT,
                     month_year TEXT NOT NULL,
                     user_id INTEGER NOT NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-            `);
-
-            // Flight Crew List 테이블
-            await this.client.execute(`
-                CREATE TABLE IF NOT EXISTS flight_crew (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    flight_id INTEGER NOT NULL,
-                    crew_member_name TEXT NOT NULL,
-                    crew_position TEXT,
-                    crew_rank TEXT,
-                    crew_employee_id TEXT,
-                    month_year TEXT NOT NULL,
-                    user_id INTEGER NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (flight_id) REFERENCES flights(id) ON DELETE CASCADE,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-            `);
-
-            // Cabin Crew List 테이블
-            await this.client.execute(`
-                CREATE TABLE IF NOT EXISTS cabin_crew (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    flight_id INTEGER NOT NULL,
-                    crew_member_name TEXT NOT NULL,
-                    crew_position TEXT,
-                    crew_rank TEXT,
-                    crew_employee_id TEXT,
-                    month_year TEXT NOT NULL,
-                    user_id INTEGER NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (flight_id) REFERENCES flights(id) ON DELETE CASCADE,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 )
             `);
 
             // 인덱스 생성
             await this.client.execute(`
-                CREATE INDEX IF NOT EXISTS idx_flights_user_month 
-                ON flights(user_id, month_year)
-            `);
-            
-            await this.client.execute(`
-                CREATE INDEX IF NOT EXISTS idx_flight_crew_user_month 
-                ON flight_crew(user_id, month_year)
-            `);
-            
-            await this.client.execute(`
-                CREATE INDEX IF NOT EXISTS idx_cabin_crew_user_month 
-                ON cabin_crew(user_id, month_year)
-            `);
-
-            // 스크래핑 상태 테이블
-            await this.client.execute(`
-                CREATE TABLE IF NOT EXISTS scraping_status (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    scraping_id TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    error TEXT,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
+                CREATE INDEX IF NOT EXISTS idx_monthly_schedule_user_month 
+                ON monthly_schedule(user_id, month_year)
             `);
 
             await this.client.execute(`
-                CREATE INDEX IF NOT EXISTS idx_scraping_status_id 
-                ON scraping_status(scraping_id)
+                CREATE INDEX IF NOT EXISTS idx_monthly_schedule_date 
+                ON monthly_schedule(date)
             `);
 
             // 기존 데이터베이스에 last_login 컬럼이 없으면 추가
@@ -367,17 +310,7 @@ class TursoDatabase {
         try {
             // 기존 월 데이터 삭제 (해당 사용자의 데이터만)
             await this.client.execute({
-                sql: 'DELETE FROM cabin_crew WHERE month_year = ? AND user_id = ?',
-                args: [monthYear, userId]
-            });
-            
-            await this.client.execute({
-                sql: 'DELETE FROM flight_crew WHERE month_year = ? AND user_id = ?',
-                args: [monthYear, userId]
-            });
-            
-            await this.client.execute({
-                sql: 'DELETE FROM flights WHERE month_year = ? AND user_id = ?',
+                sql: 'DELETE FROM monthly_schedule WHERE month_year = ? AND user_id = ?',
                 args: [monthYear, userId]
             });
 
@@ -387,102 +320,45 @@ class TursoDatabase {
             for (const flight of flightData) {
                 // 데이터 타입 검증 및 변환
                 const safeFlight = {
-                    flight_number: this.sanitizeValue(flight.flight_number || flight.flightNumber || ''),
+                    date: this.sanitizeValue(flight.date || flight.flight_date || flight.departure_date || ''),
+                    flight: this.sanitizeValue(flight.flight || flight.flight_number || flight.flightNumber || ''),
+                    show_up: this.sanitizeValue(flight.show_up || flight.showUp || flight.showup || ''),
+                    sector: this.sanitizeValue(flight.sector || flight.route || ''),
                     std: this.sanitizeValue(flight.std || flight.departure_time || flight.departuretime || ''),
                     sta: this.sanitizeValue(flight.sta || flight.arrival_time || flight.arrivaltime || ''),
-                    departure_airport: this.sanitizeValue(flight.departure_airport || flight.departureairport || ''),
-                    arrival_airport: this.sanitizeValue(flight.arrival_airport || flight.arrivalairport || ''),
-                    hlno: this.sanitizeValue(flight.hlno || flight.aircraft_type || flight.aircrafttype || '')
+                    empl: this.sanitizeValue(flight.empl || flight.employee_id || flight.employeeid || ''),
+                    name: this.sanitizeValue(flight.name || flight.crew_name || flight.crewname || ''),
+                    rank: this.sanitizeValue(flight.rank || flight.crew_rank || flight.crewrank || ''),
+                    posn_type: this.sanitizeValue(flight.posn_type || flight.position_type || flight.posntype || ''),
+                    posn: this.sanitizeValue(flight.posn || flight.position || '')
                 };
 
-                // 항공편 정보 저장
-                const flightResult = await this.client.execute({
+                // 월간 스케줄 정보 저장
+                await this.client.execute({
                     sql: `
-                        INSERT INTO flights 
-                        (flight_number, std, sta, departure_airport, arrival_airport, hlno, month_year, user_id)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO monthly_schedule 
+                        (date, flight, show_up, sector, std, sta, empl, name, rank, posn_type, posn, month_year, user_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `,
                     args: [
-                        safeFlight.flight_number,
+                        safeFlight.date,
+                        safeFlight.flight,
+                        safeFlight.show_up,
+                        safeFlight.sector,
                         safeFlight.std,
                         safeFlight.sta,
-                        safeFlight.departure_airport,
-                        safeFlight.arrival_airport,
-                        safeFlight.hlno,
+                        safeFlight.empl,
+                        safeFlight.name,
+                        safeFlight.rank,
+                        safeFlight.posn_type,
+                        safeFlight.posn,
                         monthYear,
                         userId
                     ]
                 });
-                
-                const flightId = flightResult.lastInsertRowid;
-                
-                // Flight Crew List 저장 (현재는 단순화)
-                if (flight.pilot_in_command || flight.first_officer) {
-                    if (flight.pilot_in_command) {
-                        await this.client.execute({
-                            sql: `
-                                INSERT INTO flight_crew 
-                                (flight_id, crew_member_name, crew_position, crew_rank, crew_employee_id, month_year, user_id)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            `,
-                            args: [
-                                flightId,
-                                this.sanitizeValue(flight.pilot_in_command),
-                                'PIC',
-                                '',
-                                '',
-                                monthYear,
-                                userId
-                            ]
-                        });
-                    }
-                    
-                    if (flight.first_officer) {
-                        await this.client.execute({
-                            sql: `
-                                INSERT INTO flight_crew 
-                                (flight_id, crew_member_name, crew_position, crew_rank, crew_employee_id, month_year, user_id)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            `,
-                            args: [
-                                flightId,
-                                this.sanitizeValue(flight.first_officer),
-                                'FO',
-                                '',
-                                '',
-                                monthYear,
-                                userId
-                            ]
-                        });
-                    }
-                }
-                
-                // Cabin Crew List 저장 (현재는 단순화)
-                const cabinCrewFields = ['cabin_crew_1', 'cabin_crew_2', 'cabin_crew_3', 'cabin_crew_4'];
-                for (let i = 0; i < cabinCrewFields.length; i++) {
-                    const crewMember = flight[cabinCrewFields[i]];
-                    if (crewMember) {
-                        await this.client.execute({
-                            sql: `
-                                INSERT INTO cabin_crew 
-                                (flight_id, crew_member_name, crew_position, crew_rank, crew_employee_id, month_year, user_id)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            `,
-                            args: [
-                                flightId,
-                                this.sanitizeValue(crewMember),
-                                'CC',
-                                '',
-                                '',
-                                monthYear,
-                                userId
-                            ]
-                        });
-                    }
-                }
             }
 
-            console.log(`${flightData.length}개 항공편 데이터 저장 완료 (월: ${monthYear}, 사용자 ID: ${userId})`);
+            console.log(`${flightData.length}개 스케줄 데이터 저장 완료 (월: ${monthYear}, 사용자 ID: ${userId})`);
             
         } catch (error) {
             console.error('데이터 저장 오류:', error);
@@ -511,25 +387,31 @@ class TursoDatabase {
     }
 
     async getFlightsByMonth(monthYear, userId) {
-        if (this.isDemoMode) {
-            console.log('데모 모드: 항공편 조회 건너뜀');
-            return [];
-        }
-
         try {
             const result = await this.client.execute({
                 sql: `
-                    SELECT * FROM flights 
+                    SELECT 
+                        date,
+                        flight,
+                        show_up,
+                        sector,
+                        std,
+                        sta,
+                        empl,
+                        name,
+                        rank,
+                        posn_type,
+                        posn
+                    FROM monthly_schedule 
                     WHERE month_year = ? AND user_id = ?
-                    ORDER BY flight_number, std
+                    ORDER BY date, flight
                 `,
                 args: [monthYear, userId]
             });
-            
-            console.log(`${monthYear} 월 데이터 조회 완료: ${result.rows.length}개 항공편`);
+
             return result.rows;
         } catch (error) {
-            console.error('데이터 조회 오류:', error);
+            console.error('스케줄 조회 오류:', error);
             throw error;
         }
     }
@@ -544,7 +426,7 @@ class TursoDatabase {
             const result = await this.client.execute({
                 sql: `
                     SELECT DISTINCT month_year 
-                    FROM flights 
+                    FROM monthly_schedule 
                     WHERE user_id = ?
                     ORDER BY month_year DESC
                 `,
@@ -577,7 +459,7 @@ class TursoDatabase {
                         COUNT(*) as total_flights,
                         COUNT(DISTINCT month_year) as total_months,
                         MAX(month_year) as latest_month
-                    FROM flights
+                    FROM monthly_schedule
                     WHERE user_id = ?
                 `,
                 args: [userId]

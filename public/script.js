@@ -27,11 +27,6 @@ class FlightDataApp {
             this.loadData();
         });
 
-        // CSV 내보내기 버튼
-        document.getElementById('exportCsvBtn').addEventListener('click', () => {
-            this.exportToCsv();
-        });
-
         // 파일 선택 시 미리보기
         document.getElementById('fileInput').addEventListener('change', (e) => {
             this.handleFileSelect(e);
@@ -238,76 +233,35 @@ class FlightDataApp {
 
     updateTableHeaders() {
         const tableHeader = document.getElementById('tableHeader');
-        const headers = ['항공편 번호', '출발 시간', '도착 시간', '출발 공항', '도착 공항', '항공기', 'Flight Crew', 'Cabin Crew'];
+        const headers = ['날짜', 'FLIGHT', 'SHOW UP', '섹터', 'STD', 'STA', 'EMPL', 'NAME', 'RANK', 'POSN TYPE', 'POSN'];
         tableHeader.innerHTML = headers.map(header => `<th>${header}</th>`).join('');
     }
 
     renderDataTable() {
         const tableBody = document.getElementById('tableBody');
         const noDataMessage = document.getElementById('noDataMessage');
-        
         if (this.currentData.length === 0) {
             tableBody.innerHTML = '';
             noDataMessage.style.display = 'block';
             return;
         }
-        
         noDataMessage.style.display = 'none';
-        
         const tableRows = this.currentData.map(flight => `
             <tr>
-                <td class="flight-number">${flight.flight_number || '-'}</td>
-                <td>${flight.std || '-'}</td>
-                <td>${flight.sta || '-'}</td>
-                <td><span class="airport-code">${flight.departure_airport || '-'}</span></td>
-                <td><span class="airport-code">${flight.arrival_airport || '-'}</span></td>
-                <td>${flight.hlno || '-'}</td>
-                <td>${flight.flight_crew_count || 0}명</td>
-                <td>${flight.cabin_crew_count || 0}명</td>
+                <td>${flight.date || flight.flight_date || '-'}</td>
+                <td class="flight-number">${flight.flight || flight.flight_number || flight.flightnumber || '-'}</td>
+                <td>${flight.show_up || flight.showUp || flight.showup || '-'}</td>
+                <td>${flight.sector || flight.route || '-'}</td>
+                <td>${flight.std || flight.departure_time || flight.departuretime || '-'}</td>
+                <td>${flight.sta || flight.arrival_time || flight.arrivaltime || '-'}</td>
+                <td>${flight.empl || flight.employee_id || flight.employeeid || '-'}</td>
+                <td>${flight.name || flight.crew_name || flight.crewname || '-'}</td>
+                <td>${flight.rank || flight.crew_rank || flight.crewrank || '-'}</td>
+                <td>${flight.posn_type || flight.position_type || flight.posntype || '-'}</td>
+                <td>${flight.posn || flight.position || '-'}</td>
             </tr>
         `).join('');
-        
         tableBody.innerHTML = tableRows;
-    }
-
-    exportToCsv() {
-        if (this.currentData.length === 0) {
-            this.showStatus('내보낼 데이터가 없습니다.', 'error', 'uploadStatus');
-            return;
-        }
-        
-        const month = document.getElementById('dataMonthSelect').value;
-        if (!month) {
-            this.showStatus('내보낼 월을 선택해주세요.', 'error', 'uploadStatus');
-            return;
-        }
-        
-        // CSV 헤더
-        const headers = ['항공편 번호', '출발 시간', '도착 시간', '출발 공항', '도착 공항', '항공기'];
-        const csvContent = [
-            headers.join(','),
-            ...this.currentData.map(flight => [
-                flight.flight_number || '',
-                flight.std || '',
-                flight.sta || '',
-                flight.departure_airport || '',
-                flight.arrival_airport || '',
-                flight.hlno || ''
-            ].join(','))
-        ].join('\n');
-        
-        // CSV 파일 다운로드
-        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `항공편_데이터_${month}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        this.showStatus('CSV 파일이 다운로드되었습니다.', 'success', 'uploadStatus');
     }
 
     showStatus(message, type, elementId = 'uploadStatus') {
