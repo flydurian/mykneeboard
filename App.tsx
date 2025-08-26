@@ -12,7 +12,7 @@ import CurrencyDetailModal from './components/modals/CurrencyDetailModal';
 import MonthlyScheduleModal from './components/modals/MonthlyScheduleModal';
 import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights, addMultipleFlights } from './src/firebase/database';
 import { loginUser, logoutUser, registerUser, onAuthStateChange, getCurrentUser } from './src/firebase/auth';
-import { parseExcelFile, generateExcelTemplate } from './utils/excelParser';
+import { parseExcelFile } from './utils/excelParser';
 import LoginModal from './components/LoginModal';
 import RegisterModal from './components/RegisterModal';
 
@@ -169,9 +169,7 @@ export default function App() {
     }
   };
 
-  const handleDownloadTemplate = () => {
-    generateExcelTemplate();
-  };
+
 
   const handleUpdateFlightStatus = async (flightId: number, statusToToggle: 'departed' | 'landed') => {
     if (!user) {
@@ -384,13 +382,6 @@ export default function App() {
             </div>
             <div className="flex-1 flex justify-end items-center gap-2">
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xls,.xlsx"/>
-                <button 
-                  onClick={handleDownloadTemplate} 
-                  title="Download Excel Template" 
-                  className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition-colors"
-                >
-                  📄
-                </button>
                 <button 
                   onClick={handleUploadClick} 
                   disabled={isUploading} 

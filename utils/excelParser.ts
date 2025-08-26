@@ -175,20 +175,4 @@ const formatDate = (value: any): string => {
   return new Date().toISOString().split('T')[0];
 };
 
-// Excel 템플릿 생성 함수 (실제 비행사 스케줄 형식)
-export const generateExcelTemplate = (): void => {
-  const template = [
-    ['DATE', 'FLIGHT', 'SHOW UP', 'SECTOR', 'STD', 'STA', 'EMPL', 'NAME', 'RANK', 'POSN TYP', 'POSN', 'BLOCK'],
-    ['2024-01-15', 'KE123', '08:30', 'ICN-NRT', '09:00', '12:00', 'EMP001', '김철수', 'CPT', 'CR', 'C2', '03:00'],
-    ['2024-01-16', 'KE456', '13:30', 'NRT-ICN', '14:00', '17:00', 'EMP001', '김철수', 'CPT', 'TL', 'F', '03:00'],
-    ['2024-01-17', 'KE789', '07:30', 'ICN-LAX', '08:00', '02:00', 'EMP001', '김철수', 'CPT', 'CR', 'C', '18:00'],
-    ['', '', '', '', '', '', '', '', '', '', '', 'DUTY: 24:00']
-  ];
-  
-  const ws = XLSX.utils.aoa_to_sheet(template);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Flight Schedule');
-  
-  // 파일 다운로드
-  XLSX.writeFile(wb, 'flight_schedule_template.xlsx');
-};
+
