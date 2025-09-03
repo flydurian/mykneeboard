@@ -23,6 +23,8 @@ export interface Flight {
   status: FlightStatus;
   crew: CrewMember[];
   monthlyTotalBlock?: number; // 월별 총 BLOCK 시간
+  lastModified?: string; // 최종 수정 시간 (ISO 문자열)
+  version?: number; // 데이터 버전
 }
 
 export interface DDayInfo {
@@ -46,6 +48,7 @@ export interface CurrencyModalData {
 export interface MonthlyModalData {
     month: number;
     flights: Flight[];
+    blockTime: string;
 }
 
 // Firebase 관련 타입 정의

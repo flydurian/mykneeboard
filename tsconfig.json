@@ -13,9 +13,8 @@
     "types": [
       "node"
     ],
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "isolatedModules": true,
-    "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
@@ -23,7 +22,6 @@
         "./*"
       ]
     },
-    "allowImportingTsExtensions": true,
     "noEmit": true
   }
 }

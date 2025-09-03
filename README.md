@@ -4,60 +4,42 @@
 
 # Pilot Flight Dashboard
 
-비행사용 비행 대시보드 애플리케이션입니다.
+비행사들을 위한 종합 비행 대시보드 애플리케이션입니다.
 
-## 🚀 Vercel 배포 가이드
+## 주요 기능
 
-### 1. Vercel CLI 설치 (선택사항)
+- 월별 비행 시간 관리
+- 휴식 시간 계산기
+- 항공편 검색 (Amadeus API + 구글 스프레드시트)
+- 항공사 정보 검색
+- 실시간 네트워크 상태 감지
+
+## 기술 스택
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS
+- **Backend**: Vercel Serverless Functions
+- **API**: Amadeus Flight Search API
+- **Database**: Firebase Realtime Database
+- **Deployment**: Vercel
+
+## Vercel 서버리스 함수 설정
+
+### 환경 변수 설정
+
+Vercel 대시보드에서 다음 환경 변수를 설정하세요:
+
 ```bash
-npm i -g vercel
+AMADEUS_CLIENT_ID=UgrWkt3n3EpU7hZnPwISgm1Y69tYVz77
+AMADEUS_CLIENT_SECRET=19zDwNkLrepKXgFI
 ```
 
-### 2. Firebase 설정
-이 프로젝트는 Firebase Realtime Database를 사용합니다. Firebase 프로젝트가 이미 설정되어 있으며, 실시간 데이터 동기화가 가능합니다.
+### API 엔드포인트
 
-#### 데이터 구조
-비행 데이터는 사용자별로 분리되어 월별로 자동 분류되어 저장됩니다:
-```
-users/
-├── [사용자ID1]/
-│   └── flights/
-│       ├── 2024/
-│       │   ├── 01/ (1월)
-│       │   ├── 02/ (2월)
-│       │   └── ...
-│       └── 2025/
-│           ├── 01/ (1월)
-│           └── ...
-└── [사용자ID2]/
-    └── flights/
-        └── ...
-```
+- **토큰 인증**: `/api/amadeus/token`
+- **항공편 검색**: `/api/amadeus/flights`
 
-#### 보안
-- 각 사용자는 자신의 데이터만 접근 가능
-- Firebase Authentication을 통한 사용자 인증
-- Firebase Realtime Database 보안 규칙으로 데이터 보호
+## 로컬 개발
 
-### 3. 배포 방법
-
-#### 방법 1: Vercel 대시보드 사용
-1. [Vercel](https://vercel.com)에 로그인
-2. "New Project" 클릭
-3. GitHub 저장소 연결
-4. 환경 변수 설정
-5. "Deploy" 클릭
-
-#### 방법 2: Vercel CLI 사용
-```bash
-# 프로젝트 루트에서
-vercel
-
-# 프로덕션 배포
-vercel --prod
-```
-
-### 4. 로컬 개발
 ```bash
 # 의존성 설치
 npm install
@@ -67,24 +49,31 @@ npm run dev
 
 # 빌드
 npm run build
-
-# 미리보기
-npm run preview
 ```
 
-## 📁 프로젝트 구조
-```
-├── components/          # React 컴포넌트
-│   ├── modals/         # 모달 컴포넌트
-│   └── ...
-├── utils/              # 유틸리티 함수
-├── types.ts            # TypeScript 타입 정의
-├── constants.ts        # 상수 정의
-└── ...
+## 배포
+
+```bash
+# Vercel CLI 설치
+npm i -g vercel
+
+# 배포
+vercel
+
+# 프로덕션 배포
+vercel --prod
 ```
 
-## 🔧 기술 스택
-- React 19
-- TypeScript
-- Vite
-- Firebase Realtime Database
+## API 사용법
+
+### 온라인 모드
+- Amadeus API를 통한 실시간 항공편 검색
+- 공항 코드 (ICN, NRT 등) 또는 항공사 코드 (KE, OZ 등)로 검색
+
+### 오프라인 모드
+- 구글 스프레드시트를 통한 항공편 정보 검색
+- 국제선/국내선 스케줄 데이터 활용
+
+## 라이선스
+
+MIT License

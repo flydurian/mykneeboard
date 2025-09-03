@@ -4,8 +4,12 @@ import {
   signOut, 
   onAuthStateChanged,
   updateProfile,
+  updatePassword,
+  sendPasswordResetEmail,
   User,
-  AuthError
+  AuthError,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from "firebase/auth";
 import { auth } from "./config";
 
@@ -92,4 +96,85 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
 // 현재 사용자 가져오기
 export const getCurrentUser = (): User | null => {
   return auth.currentUser;
+};
+
+// 사용자 이름 변경 함수
+export const updateUserName = async (newDisplayName: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
+
+    await updateProfile(user, {
+      displayName: newDisplayName
+    });
+
+    return { success: true };
+  } catch (error) {
+    const authError = error as AuthError;
+    return { success: false, error: authError.message || "이름 변경에 실패했습니다." };
+  }
+};
+
+// 비밀번호 변경 함수
+export const updateUserPassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
+
+    // 현재 비밀번호로 재인증
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+
+    // 새 비밀번호로 업데이트
+    await updatePassword(user, newPassword);
+
+    return { success: true };
+  } catch (error) {
+    const authError = error as AuthError;
+    let errorMessage = "비밀번호 변경에 실패했습니다.";
+    
+    switch (authError.code) {
+      case 'auth/wrong-password':
+        errorMessage = "현재 비밀번호가 올바르지 않습니다.";
+        break;
+      case 'auth/weak-password':
+        errorMessage = "새 비밀번호가 너무 약합니다. 6자 이상으로 설정해주세요.";
+        break;
+      case 'auth/requires-recent-login':
+        errorMessage = "보안을 위해 다시 로그인해주세요.";
+        break;
+      default:
+        errorMessage = authError.message || "비밀번호 변경에 실패했습니다.";
+    }
+    
+    return { success: false, error: errorMessage };
+  }
+};
+
+// 비밀번호 재설정 이메일 발송 함수
+export const resetPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true };
+  } catch (error) {
+    const authError = error as AuthError;
+    let errorMessage = "비밀번호 재설정 이메일 발송에 실패했습니다.";
+
+    switch (authError.code) {
+      case 'auth/user-not-found':
+        errorMessage = "등록되지 않은 이메일입니다.";
+        break;
+      case 'auth/invalid-email':
+        errorMessage = "유효하지 않은 이메일 형식입니다.";
+        break;
+      default:
+        errorMessage = authError.message || "알 수 없는 오류가 발생했습니다.";
+    }
+
+    return { success: false, error: errorMessage };
+  }
 };

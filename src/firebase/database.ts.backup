@@ -19,79 +19,93 @@ const safeParseInt = (value: string): number => {
   return Math.abs(hash);
 };
 
-// 기본 데이터 읽기 함수
-const readData = async (path: string) => {
+// 데이터 읽기
+export const readData = async (path: string) => {
   try {
     const dataRef = ref(database, path);
     const snapshot = await get(dataRef);
     return snapshot.exists() ? snapshot.val() : null;
   } catch (error) {
-    console.error(`Error reading data from ${path}:`, error);
-    return null;
+    console.error("Error reading data:", error);
+    throw error;
   }
 };
 
-// 기본 데이터 쓰기 함수
-const writeData = async (path: string, data: any) => {
+// 데이터 쓰기
+export const writeData = async (path: string, data: any) => {
   try {
     const dataRef = ref(database, path);
     await set(dataRef, data);
     return true;
   } catch (error) {
-    console.error(`Error writing data to ${path}:`, error);
-    return false;
+    console.error("Error writing data:", error);
+    throw error;
   }
 };
 
-// 기본 데이터 푸시 함수
-const pushData = async (path: string, data: any) => {
+// 데이터 추가 (자동 키 생성)
+export const pushData = async (path: string, data: any) => {
   try {
+    // console.log('pushData called with:', { path, data });
+    
     const dataRef = ref(database, path);
-    const newRef = await push(dataRef, data);
+    // console.log('Database reference created for path:', path);
+    
+    const newRef = push(dataRef);
+    // console.log('New reference created:', newRef.key);
+    
+    await set(newRef, data);
+    // console.log('Data set successfully');
+    
     return newRef.key;
   } catch (error) {
-    console.error(`Error pushing data to ${path}:`, error);
-    return null;
+    console.error("Error pushing data:", error);
+    console.error("Error details:", {
+      code: error.code,
+      message: error.message,
+      path: path
+    });
+    throw error;
   }
 };
 
-// 기본 데이터 업데이트 함수
-const updateData = async (path: string, data: any) => {
+// 데이터 업데이트
+export const updateData = async (path: string, data: any) => {
   try {
     const dataRef = ref(database, path);
     await update(dataRef, data);
     return true;
   } catch (error) {
-    console.error(`Error updating data at ${path}:`, error);
-    return false;
+    console.error("Error updating data:", error);
+    throw error;
   }
 };
 
-// 기본 데이터 삭제 함수
-const deleteData = async (path: string) => {
+// 데이터 삭제
+export const deleteData = async (path: string) => {
   try {
     const dataRef = ref(database, path);
     await remove(dataRef);
     return true;
   } catch (error) {
-    console.error(`Error deleting data at ${path}:`, error);
-    return false;
+    console.error("Error deleting data:", error);
+    throw error;
   }
 };
 
-// 기본 데이터 구독 함수
-const subscribeToData = (path: string, callback: (data: any) => void) => {
+// 실시간 데이터 리스너
+export const subscribeToData = (path: string, callback: (data: any) => void) => {
   const dataRef = ref(database, path);
   onValue(dataRef, (snapshot) => {
-    if (snapshot.exists()) {
-      callback(snapshot.val());
-    } else {
-      callback(null);
-    }
+    const data = snapshot.exists() ? snapshot.val() : null;
+    callback(data);
   });
   
+  // 구독 해제 함수 반환
   return () => off(dataRef);
 };
+
+
 
 // 사용자별 월별 데이터 경로 생성 함수
 const getMonthPath = (date: string, userId: string) => {
@@ -101,148 +115,73 @@ const getMonthPath = (date: string, userId: string) => {
   return `users/${userId}/flights/${year}/${month.toString().padStart(2, '0')}`;
 };
 
-// Firebase 데이터베이스 연결 테스트
-export const testDatabaseConnection = async (userId: string) => {
-  try {
-    console.log('🧪 Firebase 데이터베이스 연결 테스트 시작');
-    
-    if (!auth.currentUser) {
-      console.log('❌ Firebase 인증되지 않음');
-      return { success: false, error: 'Firebase 인증되지 않음' };
-    }
-    
-    const testRef = ref(database, `users/${userId}/test`);
-    console.log('🔗 테스트 경로:', `users/${userId}/test`);
-    
-    // 읽기 권한 테스트
-    try {
-      await get(testRef);
-      console.log('✅ 읽기 권한 확인됨');
-    } catch (readError) {
-      console.log('❌ 읽기 권한 없음:', readError);
-      return { success: false, error: '읽기 권한 없음', details: readError };
-    }
-    
-    // 쓰기 권한 테스트 (테스트 데이터 생성 후 삭제)
-    try {
-      const testData = { test: true, timestamp: Date.now() };
-      const newRef = await pushData(`users/${userId}/test`, testData);
-      console.log('✅ 쓰기 권한 확인됨');
-      
-      // 테스트 데이터 삭제
-      if (newRef) {
-        const deleteRef = ref(database, `users/${userId}/test/${newRef}`);
-        await remove(deleteRef);
-        console.log('✅ 테스트 데이터 삭제 완료');
-      }
-      
-      return { success: true, message: 'Firebase 데이터베이스 연결 성공' };
-    } catch (writeError) {
-      console.log('❌ 쓰기 권한 없음:', writeError);
-      return { success: false, error: '쓰기 권한 없음', details: writeError };
-    }
-    
-  } catch (error) {
-    console.error('❌ Firebase 데이터베이스 연결 테스트 실패:', error);
-    return { success: false, error: '연결 테스트 실패', details: error };
-  }
-};
-
 // 사용자의 모든 월의 비행 데이터 가져오기
 export const getAllFlights = async (userId: string) => {
   try {
-    console.log('🔥 getAllFlights 호출됨');
-    console.log('👤 요청된 userId:', userId);
-    
     if (!userId) {
-      console.log('❌ userId가 없음');
       return [];
     }
     
     // 현재 인증 상태 확인
     const currentUser = auth.currentUser;
-    console.log('🔐 현재 Firebase 인증 상태:', currentUser ? '인증됨' : '인증 안됨');
-    console.log('🔑 현재 사용자 UID:', currentUser?.uid);
     
     if (!currentUser) {
-      console.log('❌ Firebase 인증되지 않음');
       return [];
     }
     
-    // 🔧 인증 상태 불일치 문제 해결: 현재 인증된 사용자 데이터만 가져오기
-    const actualUserId = currentUser.uid;
-    console.log('✅ 실제 사용자 ID로 데이터 가져오기:', actualUserId);
-    
-    const allFlightsRef = ref(database, `users/${actualUserId}/flights`);
-    console.log('🗄️ 데이터베이스 경로:', `users/${actualUserId}/flights`);
-    
-    // 🔧 간단한 연결 테스트: 실제 데이터 경로로 직접 시도
-    try {
-      const snapshot = await get(allFlightsRef);
-      console.log('📊 데이터베이스 스냅샷 존재 여부:', snapshot.exists());
-      
-      if (!snapshot.exists()) {
-        console.log('ℹ️ 데이터베이스에 비행 데이터 없음');
-        return [];
-      }
-      
-      const allFlights: any[] = [];
-      const yearData = snapshot.val();
-      console.log('📅 연도별 데이터 구조:', Object.keys(yearData));
-      
-      // 모든 연도와 월을 순회 (안전한 구조 검증 추가)
-      Object.keys(yearData).forEach(year => {
-        if (yearData[year] && typeof yearData[year] === 'object') {
-          Object.keys(yearData[year]).forEach(month => {
-            const monthFlights = yearData[year][month];
-            if (monthFlights && typeof monthFlights === 'object') {
-              Object.keys(monthFlights).forEach(flightKey => {
-                const flightData = monthFlights[flightKey];
-                if (flightData && typeof flightData === 'object') {
-                  // id 필드가 없거나 유효하지 않은 경우 안전한 숫자 변환 사용
-                  const flightId = flightData.id && typeof flightData.id === 'number' && !isNaN(flightData.id) && flightData.id > 0 
-                    ? flightData.id 
-                    : safeParseInt(flightKey);
-                  
-                  allFlights.push({
-                    ...flightData,
-                    id: flightId
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-      
-      console.log(`✅ 총 ${allFlights.length}개 비행 데이터 로드 완료`);
-      return allFlights.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-    } catch (dbError) {
-      console.error('❌ Firebase 데이터베이스 읽기 오류:', dbError);
-      
-      // 권한 오류인 경우 빈 배열 반환
-      if (dbError.code === 'PERMISSION_DENIED') {
-        console.log('🚫 권한 거부됨, 빈 배열 반환');
-        return [];
-      }
-      
-      // 기타 오류는 상위로 전파
-      throw dbError;
+    if (currentUser.uid !== userId) {
+      return [];
     }
     
+    const allFlightsRef = ref(database, `users/${userId}/flights`);
+    
+    const snapshot = await get(allFlightsRef);
+    
+    if (!snapshot.exists()) {
+      return [];
+    }
+    
+    const allFlights: any[] = [];
+    const yearData = snapshot.val();
+    
+    // 모든 연도와 월을 순회 (안전한 구조 검증 추가)
+    Object.keys(yearData).forEach(year => {
+      if (yearData[year] && typeof yearData[year] === 'object') {
+        Object.keys(yearData[year]).forEach(month => {
+          const monthFlights = yearData[year][month];
+          if (monthFlights && typeof monthFlights === 'object') {
+            Object.keys(monthFlights).forEach(flightKey => {
+              const flightData = monthFlights[flightKey];
+              if (flightData && typeof flightData === 'object') {
+                // id 필드가 없거나 유효하지 않은 경우 안전한 숫자 변환 사용
+                const flightId = flightData.id && typeof flightData.id === 'number' && !isNaN(flightData.id) && flightData.id > 0 
+                  ? flightData.id 
+                  : safeParseInt(flightKey);
+                
+                allFlights.push({
+                  ...flightData,
+                  id: flightId
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+    
+
+    return allFlights.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
-    console.error('❌ getAllFlights 오류:', error);
-    console.error('🔍 오류 상세 정보:', {
+    console.error('Error getting all flights:', error);
+    console.error('Error details:', {
       code: error.code,
       message: error.message,
-      userId: userId,
-      stack: error.stack
+      userId: userId
     });
     
     // 권한 오류인 경우 빈 배열 반환
     if (error.code === 'PERMISSION_DENIED') {
-      console.log('🚫 권한 거부됨, 빈 배열 반환');
+      console.log('Permission denied, returning empty array');
       return [];
     }
     
@@ -287,6 +226,7 @@ export const addFlight = async (flightData: any, userId: string) => {
   if (newKey) {
     const flightRef = ref(database, `${monthPath}/${newKey}`);
     const safeId = safeParseInt(newKey);
+    // console.log('addFlight - 생성된 키:', newKey, '변환된 ID:', safeId);
     await update(flightRef, { id: safeId });
   }
   
@@ -295,6 +235,18 @@ export const addFlight = async (flightData: any, userId: string) => {
 
 // 비행 데이터 업데이트 (이륙/착륙 상태만)
 export const updateFlight = async (flightId: string, dataToUpdate: any, userId: string) => {
+  // 디버깅을 위한 로그 추가
+  /*
+  console.log('updateFlight 호출:', {
+    flightId,
+    dataToUpdate,
+    userId
+  });
+  */
+
+  // ✨ 전달받은 dataToUpdate를 그대로 사용합니다
+  // console.log('전달받은 업데이트 데이터:', JSON.stringify(dataToUpdate, null, 2));
+
   // 모든 월에서 해당 비행을 찾아서 업데이트
   const allFlightsRef = ref(database, `users/${userId}/flights`);
   const snapshot = await get(allFlightsRef);
@@ -318,18 +270,22 @@ export const updateFlight = async (flightId: string, dataToUpdate: any, userId: 
                 
                 // ID가 일치하는 항공편 찾기
                 if (flightIdNum.toString() === flightId) {
+                  // console.log('찾은 비행 데이터:', JSON.stringify(existingFlightData, null, 2));
+                  
+                  // ✨ 전달받은 dataToUpdate를 그대로 업데이트합니다
                   const flightRef = ref(database, `users/${userId}/flights/${year}/${month}/${firebaseKey}`);
                   await update(flightRef, dataToUpdate);
+                  // console.log(`Firebase 업데이트 성공: 키=${firebaseKey}, ID=${flightId}`);
                   found = true;
                   break;
                 }
               }
             }
           }
-          if (found) break;
         }
         if (found) break;
       }
+      if (found) break;
     }
     
     if (!found) {
@@ -382,6 +338,8 @@ export const subscribeToAllFlights = (callback: (flights: any[]) => void, userId
                   ? flightData.id 
                   : safeParseInt(flightKey);
                 
+                // console.log('subscribeToAllFlights - 키:', flightKey, '변환된 ID:', flightId);
+                
                 allFlights.push({
                   ...flightData,
                   id: flightId
@@ -393,7 +351,16 @@ export const subscribeToAllFlights = (callback: (flights: any[]) => void, userId
       }
     });
     
+    /*
+    console.log('subscribeToAllFlights - 처리된 비행 데이터:', allFlights.map(f => ({
+      id: f.id,
+      flightNumber: f.flightNumber,
+      date: f.date
+    })));
+    */
+    
     const sortedFlights = allFlights.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // console.log("실시간 데이터 업데이트!", sortedFlights);
     callback(sortedFlights);
   });
   

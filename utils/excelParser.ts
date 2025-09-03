@@ -18,139 +18,128 @@ export const parseExcelFile = (file: File): Promise<Flight[]> => {
         // JSON으로 변환
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
-        console.log('전체 Excel 데이터:', jsonData);
-        console.log('총 행 수:', jsonData.length);
+
         
-        // 헤더는 4번째 행 (인덱스 3), 데이터는 5번째 행부터 (인덱스 4부터)
-        const headers = jsonData[3] as string[];
-        const rows = jsonData.slice(4) as any[][];
-        
-        console.log('Excel 헤더 (4번째 행):', headers);
-        console.log('데이터 시작 행 (5번째 행부터):', rows.length, '개');
-        
-        // DUTY 정보 찾기 (월별 총 BLOCK 시간)
+        // 4번째 행에서 DUTY 정보 추출 (월별 총 BLOCK 시간)
         let monthlyTotalBlock = 0;
-        jsonData.forEach((row, rowIndex) => {
-          if (Array.isArray(row)) {
-            row.forEach((cell, colIndex) => {
-              if (cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY')) {
-                const dutyMatch = cell.match(/DUTY\s*:\s*(\d{1,2}):(\d{2})/i);
-                if (dutyMatch) {
-                  const hours = parseInt(dutyMatch[1]);
-                  const minutes = parseInt(dutyMatch[2]);
-                  monthlyTotalBlock = hours + (minutes / 60);
-                  console.log(`DUTY 정보 발견 (행 ${rowIndex + 1}): ${hours}:${minutes} (${monthlyTotalBlock}시간)`);
-                }
+        const dutyRow = jsonData[3] as any[];
+        if (Array.isArray(dutyRow)) {
+          dutyRow.forEach((cell, colIndex) => {
+            if (cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY')) {
+              const dutyMatch = cell.match(/DUTY\s*:\s*(\d{1,2}):(\d{2})/i);
+              if (dutyMatch) {
+                const hours = parseInt(dutyMatch[1]);
+                const minutes = parseInt(dutyMatch[2]);
+                monthlyTotalBlock = hours + (minutes / 60);
+
               }
-            });
-          }
-        });
-        
-        // 비행 데이터로 변환 및 정리
-        const flights: Flight[] = rows
-          .filter(row => row.length > 0 && row.some(cell => cell !== null && cell !== undefined))
-          .filter(row => {
-            // DUTY 정보가 포함된 행은 제외
-            return !row.some(cell => cell && typeof cell === 'string' && cell.toUpperCase().includes('DUTY'));
-          })
-          .map((row, index) => {
-            console.log(`행 ${index + 5} 처리:`, row); // 실제 행 번호는 5부터 시작
-            
-            // 기본값 설정
-            const defaultFlight: Flight = {
-              id: Date.now() + index, // 고유 ID 생성
-              date: new Date().toISOString().split('T')[0], // 오늘 날짜
-              flightNumber: '',
-              route: '',
-              std: '',
-              sta: '',
-              block: 0,
-              status: {
-                departed: false,
-                landed: false
-              },
-              crew: []
-            };
-
-            // 헤더에 따라 데이터 매핑 (안전한 처리)
-            headers.forEach((header, colIndex) => {
-              const value = row[colIndex];
-              if (value !== null && value !== undefined && header) {
-                const headerUpper = header.toString().toUpperCase();
-                
-                if (headerUpper === 'DATE') {
-                  const formattedDate = formatDate(value);
-                  defaultFlight.date = formattedDate;
-                  console.log(`날짜 매핑: ${value} -> ${formattedDate}`);
-                } else if (headerUpper === 'FLIGHT') {
-                  defaultFlight.flightNumber = String(value).trim();
-                  console.log(`항공편 매핑: ${value}`);
-                } else if (headerUpper === 'SECTOR') {
-                  defaultFlight.route = String(value).trim();
-                  console.log(`구간 매핑: ${value}`);
-                } else if (headerUpper === 'STD') {
-                  defaultFlight.std = formatTime(value);
-                  console.log(`출발시간 매핑: ${value} -> ${defaultFlight.std}`);
-                } else if (headerUpper === 'STA') {
-                  defaultFlight.sta = formatTime(value);
-                  console.log(`도착시간 매핑: ${value} -> ${defaultFlight.sta}`);
-                } else if (headerUpper.includes('BLOCK')) {
-                  // Block 시간을 시간 형식으로 파싱 (예: "03:30" -> 3.5)
-                  const blockTime = parseBlockTime(value);
-                  defaultFlight.block = blockTime;
-                  console.log(`블록시간 매핑: ${value} -> ${blockTime}시간`);
-                }
-              }
-            });
-
-            // Crew 정보 추가 (EMPL, NAME, RANK, POSN TYP, POSN)
-            const crewMember: CrewMember = {
-              empl: getValueByHeader(headers, row, 'EMPL') || '',
-              name: getValueByHeader(headers, row, 'NAME') || '',
-              rank: getValueByHeader(headers, row, 'RANK') || '',
-              posnType: getValueByHeader(headers, row, 'POSN \nTYP') || getValueByHeader(headers, row, 'POSN TYP') || '',
-              posn: getValueByHeader(headers, row, 'POSN') || ''
-            };
-            
-            defaultFlight.crew = [crewMember];
-            
-            console.log(`비행 데이터 생성 완료:`, {
-              date: defaultFlight.date,
-              flightNumber: defaultFlight.flightNumber,
-              route: defaultFlight.route,
-              std: defaultFlight.std,
-              sta: defaultFlight.sta,
-              block: defaultFlight.block,
-              crew: crewMember
-            });
-
-            return defaultFlight;
-          })
-          .filter(flight => {
-            // 유효한 비행 데이터만 필터링 (항공편 번호가 있거나 특별한 일정인 경우)
-            const hasFlightNumber = flight.flightNumber && flight.flightNumber.trim() !== '';
-            const hasSpecialSchedule = flight.route && (
-              flight.route.includes('DAY OFF') || 
-              flight.route.includes('STANDBY') || 
-              flight.route.includes('FIXED SKD')
-            );
-            const isValid = hasFlightNumber || hasSpecialSchedule;
-            
-            if (!isValid) {
-              console.log(`유효하지 않은 비행 데이터 제외:`, flight);
-            } else {
-              console.log(`유효한 비행 데이터 포함:`, flight);
             }
-            return isValid;
           });
+        }
+        
+        // 5번째 행부터 데이터 추출 (해당 월의 말일까지)
+        const dataRows = jsonData.slice(4) as any[][];
 
+        
+        // 해당 월의 말일까지 필터링
+        const currentMonth = new Date().getMonth() + 1; // 1-12
+        const currentYear = new Date().getFullYear();
+        const lastDayOfMonth = new Date(currentYear, currentMonth, 0).getDate();
+        
+        // 비행 데이터를 stateful하게 파싱하고 병합
+        const flightsMap = new Map<string, Flight>();
+        let lastFlightKey: string | null = null;
+        let lastDate: string = new Date().toISOString().split('T')[0];
+ 
+        dataRows.forEach((row, index) => {
+            // 빈 행 건너뛰기
+            if (row.length === 0 || !row.some(cell => cell)) {
+                return;
+            }
+ 
+            const dateStr = row[0] ? String(row[0]).trim() : '';
+            let flightNumber = row[2] ? String(row[2]).trim() : '';
+            let route = row[8] ? String(row[8]).trim() : '';
+            const std = row[10] ? String(row[10]).trim() : '';
+            const sta = row[11] ? String(row[11]).trim() : '';
+ 
+            // STANDBY 정보 축약
+            if (flightNumber.includes('A-TYPE STANDBY')) {
+               flightNumber = 'A STBY';
+            } else if (flightNumber.includes('B-TYPE STANDBY')) {
+               flightNumber = 'B STBY';
+            }
+            if (route.includes('A-TYPE STANDBY')) {
+               route = 'A STBY';
+            } else if (route.includes('B-TYPE STANDBY')) {
+               route = 'B STBY';
+            }
+
+            // Crew 정보 파싱
+            const crewMember: CrewMember = {
+                empl: row[12] ? String(row[12]).trim() : '',
+                name: row[13] ? String(row[13]).trim() : '',
+                rank: row[15] ? String(row[15]).trim() : '',
+                posnType: row[18] ? String(row[18]).trim() : '',
+                posn: row[19] ? String(row[19]).trim() : ''
+            };
+            const hasCrewInfo = !!(crewMember.empl || crewMember.name);
+ 
+            // 날짜 파싱 및 유지
+            const dateMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\([월화수목금토일]\)$/);
+            if (dateMatch) {
+                const month = parseInt(dateMatch[1]);
+                const day = parseInt(dateMatch[2]);
+                lastDate = `${currentYear}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            }
+ 
+            const isFlightRow = flightNumber && flightNumber !== 'FLIGHT' && !flightNumber.includes('DAY OFF');
+            const isSpecialScheduleRow = !isFlightRow && route && (route.includes('STANDBY') || route.includes('FIXED SKD'));
+ 
+            // 비행편 정보가 있는 행 (신기록 또는 특별 스케줄)
+            if (isFlightRow || isSpecialScheduleRow) {
+                lastFlightKey = `${lastDate}-${flightNumber || route}`; // STANDBY 등을 위해 route도 키로 사용
+ 
+                const newFlight: Flight = {
+                    id: Math.floor(Math.random() * 1000000) + index,
+                    date: lastDate,
+                    flightNumber: flightNumber,
+                    route: route,
+                    std: formatTime(std),
+                    sta: formatTime(sta),
+                    block: 0,
+                    status: { departed: false, landed: false },
+                    crew: []
+                };
+                
+                if (hasCrewInfo) {
+                    newFlight.crew.push(crewMember);
+                }
+                
+                flightsMap.set(lastFlightKey, newFlight);
+                
+            }
+            // Crew 정보만 있는 행
+            else if (hasCrewInfo && lastFlightKey) {
+                const existingFlight = flightsMap.get(lastFlightKey);
+                if (existingFlight) {
+                    existingFlight.crew.push(crewMember);
+
+                }
+            }
+        });
+ 
+        // DAY OFF 같은 유효하지 않은 항목 필터링 (이미 위에서 처리했지만 안전장치)
+        const flights = Array.from(flightsMap.values()).filter(flight => {
+            const isDayOff = flight.flightNumber.includes('DAY OFF');
+            return !isDayOff;
+        });
+ 
         // 월별 총 BLOCK 시간 정보를 첫 번째 비행 데이터에 추가
         if (flights.length > 0 && monthlyTotalBlock > 0) {
           flights[0].monthlyTotalBlock = monthlyTotalBlock;
-          console.log(`월별 총 블록시간 추가: ${monthlyTotalBlock}시간`);
-        }
 
-        console.log(`최종 처리된 비행 데이터: ${flights.length}개`);
+        }
         resolve(flights);
       } catch (error) {
         console.error('Excel 파싱 오류:', error);
@@ -209,6 +198,15 @@ const formatTime = (value: any): string => {
     const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
     if (timeMatch) {
       return value;
+    }
+    
+    // "DD HH:MM" 형식 파싱 (예: "04 09:40")
+    const dayTimeMatch = value.match(/^(\d{1,2})\s+(\d{1,2}):(\d{2})$/);
+    if (dayTimeMatch) {
+      const day = parseInt(dayTimeMatch[1]);
+      const hours = parseInt(dayTimeMatch[2]);
+      const minutes = parseInt(dayTimeMatch[3]);
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     }
     
     // 숫자로 변환 시도 (Excel 시간 형식)
