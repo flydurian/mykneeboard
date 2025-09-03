@@ -1,5 +1,4 @@
 {
-  "name": "mykneeboard",
   "functions": {
     "api/amadeus/*.ts": {
       "maxDuration": 30
