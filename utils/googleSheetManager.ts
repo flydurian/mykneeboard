@@ -1,30 +1,132 @@
 import { GoogleSheetFlightData, GoogleSheetMetadata } from '../types';
 
+// Google Apps Script와 통신하는 함수 선언
+declare const google: any; 
+
+function callGoogleScript(functionName: string, ...args: any[]): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        [functionName](...args);
+    } else {
+      // Google Apps Script 환경이 아닌 경우 fetch로 대체
+      resolve(fetchGoogleSheetData(functionName, ...args));
+    }
+  });
+}
+
+// fetch를 사용한 대체 함수
+async function fetchGoogleSheetData(functionName: string, ...args: any[]): Promise<any> {
+  const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycby229kWBwCFIlM-bPZFiBG847b8Rr4ineX5StiFRJG4QE0KUayp3OKMrm61lrk4OqRN/exec';
+  
+  try {
+    const response = await fetch(GOOGLE_SHEET_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        function: functionName,
+        args: args
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Fetch 요청 실패:', error);
+    throw error;
+  }
+}
+
 export class GoogleSheetManager {
-  private readonly GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycby229kWBwCFIlM-bPZFiBG847b8Rr4ineX5StiFRJG4QE0KUayp3OKMrm61lrk4OqRN/exec';
   private readonly DB_NAME = 'MyKneeBoardDB';
   private readonly STORE_NAME = 'googleSheetFlights';
   private readonly META_STORE = 'googleSheetMetadata';
+  private readonly SPREADSHEET_ID = 'default'; // 기본 스프레드시트 ID
+  private readonly PAGE_SIZE = 1000; // 한 번에 요청할 행의 수
+  private isSyncing = false;
 
   /**
-   * 구글 스프레드시트에서 데이터 가져오기
+   * 구글 스프레드시트에서 데이터 가져오기 (페이징 방식)
    */
   async fetchFromGoogleSheet(): Promise<GoogleSheetFlightData[]> {
     try {
       console.log('🔄 구글 스프레드시트에서 데이터 가져오는 중...');
       
-      const response = await fetch(this.GOOGLE_SHEET_URL);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // 페이징 방식으로 데이터 요청
+      const allData = await this.fetchDataWithPaging();
+      console.log('✅ 구글 스프레드시트 데이터 로드 완료:', allData.length, '개 레코드');
       
-      const data = await response.json();
-      console.log('✅ 구글 스프레드시트 데이터 로드 완료:', data.length, '개 레코드');
-      
-      return this.parseGoogleSheetData(data);
+      return this.parseGoogleSheetData(allData);
     } catch (error) {
       console.error('❌ 구글 스프레드시트 데이터 가져오기 실패:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 페이징 방식으로 데이터 가져오기
+   */
+  private async fetchDataWithPaging(): Promise<any[]> {
+    if (this.isSyncing) {
+      console.log('이미 동기화가 진행 중입니다.');
+      return [];
+    }
+
+    this.isSyncing = true;
+    console.log(`[${this.SPREADSHEET_ID}] 동기화를 시작합니다...`);
+
+    try {
+      const clientTimestamp = localStorage.getItem('timestamp_' + this.SPREADSHEET_ID);
+
+      // 1. 최초 확인 요청: 버전이 최신인지 먼저 확인합니다.
+      const initialResponse = await callGoogleScript('getDataForWebApp', this.SPREADSHEET_ID, clientTimestamp, null, null);
+
+      if (initialResponse.status === 'NO_UPDATE') {
+        console.log(`[${this.SPREADSHEET_ID}] 데이터가 이미 최신 버전입니다.`);
+        return [];
+      }
+
+      if (initialResponse.status === 'UPDATE_AVAILABLE') {
+        const { totalRows, timestamp } = initialResponse;
+        const totalPages = Math.ceil(totalRows / this.PAGE_SIZE);
+        console.log(`[${this.SPREADSHEET_ID}] 업데이트 필요. 총 ${totalRows}개 행을 ${totalPages}개 페이지로 나누어 다운로드합니다.`);
+
+        let allData: any[] = [];
+
+        // 2. 페이지 순회: 모든 페이지를 순차적으로 요청합니다.
+        for (let page = 1; page <= totalPages; page++) {
+          console.log(`[${this.SPREADSHEET_ID}] 페이지 ${page}/${totalPages} 다운로드 중...`);
+          const chunkResponse = await callGoogleScript('getDataForWebApp', this.SPREADSHEET_ID, null, page, this.PAGE_SIZE);
+          
+          if (chunkResponse.status === 'DATA_CHUNK' && chunkResponse.data) {
+            // 받아온 데이터 조각을 전체 데이터 배열에 합칩니다.
+            allData = allData.concat(chunkResponse.data);
+          } else {
+            throw new Error(`페이지 ${page} 다운로드 실패: ${chunkResponse.message || '알 수 없는 오류'}`);
+          }
+        }
+
+        // 3. 동기화 완료: 모든 데이터를 받은 후 저장합니다.
+        console.log(`[${this.SPREADSHEET_ID}] 총 ${allData.length}개 행 다운로드 완료.`);
+        localStorage.setItem('timestamp_' + this.SPREADSHEET_ID, timestamp);
+        console.log(`[${this.SPREADSHEET_ID}] 동기화 성공!`);
+        
+        return allData;
+      }
+
+      return [];
+    } catch (error) {
+      console.error(`[${this.SPREADSHEET_ID}] 데이터 동기화 실패:`, error);
+      throw error;
+    } finally {
+      this.isSyncing = false; // 성공하든 실패하든 동기화 상태를 해제
     }
   }
 
@@ -157,7 +259,7 @@ export class GoogleSheetManager {
   }
 
   /**
-   * 데이터 동기화 (스마트 업데이트)
+   * 데이터 동기화 (페이징 방식)
    */
   async syncData(): Promise<{
     updated: boolean;
@@ -171,7 +273,7 @@ export class GoogleSheetManager {
       const localMetadata = await this.loadMetadata();
       const localLastUpdated = localMetadata?.lastUpdated;
       
-      // 구글 스프레드시트에서 데이터 가져오기
+      // 페이징 방식으로 구글 스프레드시트에서 데이터 가져오기
       const googleData = await this.fetchFromGoogleSheet();
       
       if (!googleData || googleData.length === 0) {
@@ -226,11 +328,11 @@ export class GoogleSheetManager {
     const daysDiff = (currentTime - localTime) / (1000 * 60 * 60 * 24);
     
     if (daysDiff > 30) {
-      console.log('📝 한 달이 지났습니다. 데이터를 새로고침합니다.');
+      console.log('📝 한 달이 지났습니다. 페이징 방식으로 데이터를 새로고침합니다.');
       return true;
     }
     
-    console.log('✅ 로컬 데이터가 최신입니다.');
+    console.log('✅ 로컬 데이터가 최신입니다. 페이징 업데이트가 필요하지 않습니다.');
     return false;
   }
 
