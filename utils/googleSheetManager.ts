@@ -220,13 +220,13 @@ export class GoogleSheetManager {
       return true;
     }
     
-    // 시간 기반 업데이트 (24시간마다)
+    // 시간 기반 업데이트 (한 달마다)
     const localTime = new Date(localLastUpdated).getTime();
     const currentTime = new Date().getTime();
-    const hoursDiff = (currentTime - localTime) / (1000 * 60 * 60);
+    const daysDiff = (currentTime - localTime) / (1000 * 60 * 60 * 24);
     
-    if (hoursDiff > 24) {
-      console.log('📝 24시간이 지났습니다. 데이터를 새로고침합니다.');
+    if (daysDiff > 30) {
+      console.log('📝 한 달이 지났습니다. 데이터를 새로고침합니다.');
       return true;
     }
     

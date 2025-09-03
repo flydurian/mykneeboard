@@ -97,13 +97,7 @@ const [airlineSearchQuery, setAirlineSearchQuery] = useState('');
 const [airlineSearchResults, setAirlineSearchResults] = useState<AirlineInfo[]>([]);
 const [isLoadingAirlineData, setIsLoadingAirlineData] = useState(false);
 
-// 구글 스프레드시트 관련 상태
-const [isSyncingGoogleSheet, setIsSyncingGoogleSheet] = useState(false);
-const [googleSheetStatus, setGoogleSheetStatus] = useState<{
-  updated: boolean;
-  recordCount: number;
-  message: string;
-} | null>(null);
+
 
 // 항공편 검색 관련 상태
 const [flightSearchQuery, setFlightSearchQuery] = useState('');
@@ -191,6 +185,36 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // 구글 스프레드시트 자동 동기화 (한 달마다)
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    const autoSyncGoogleSheet = async () => {
+      try {
+        console.log('🔄 구글 스프레드시트 자동 동기화 시작...');
+        const { GoogleSheetManager } = await import('./utils/googleSheetManager');
+        const sheetManager = new GoogleSheetManager();
+        
+        const result = await sheetManager.syncData();
+        if (result.updated) {
+          console.log('✅ 구글 스프레드시트 자동 동기화 완료:', result.message);
+        } else {
+          console.log('ℹ️ 구글 스프레드시트 동기화 불필요:', result.message);
+        }
+      } catch (error) {
+        console.error('❌ 구글 스프레드시트 자동 동기화 실패:', error);
+      }
+    };
+    
+    // 초기 실행
+    autoSyncGoogleSheet();
+    
+    // 한 달마다 실행 (30일)
+    const interval = setInterval(autoSyncGoogleSheet, 30 * 24 * 60 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [user]);
 
   // 항공사 데이터 로드
   useEffect(() => {
@@ -300,34 +324,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
     return null;
   };
 
-  // 구글 스프레드시트 동기화 함수
-  const handleGoogleSheetSync = useCallback(async () => {
-    setIsSyncingGoogleSheet(true);
-    setGoogleSheetStatus(null);
-    
-    try {
-      // GoogleSheetManager 동적 import
-      const { GoogleSheetManager } = await import('./utils/googleSheetManager');
-      const sheetManager = new GoogleSheetManager();
-      
-      const result = await sheetManager.syncData();
-      setGoogleSheetStatus(result);
-      
-      if (result.updated) {
-        // 동기화 성공 시 상태 업데이트
-        console.log('✅ 구글 스프레드시트 동기화 완료:', result.message);
-      }
-    } catch (error) {
-      console.error('❌ 구글 스프레드시트 동기화 실패:', error);
-      setGoogleSheetStatus({
-        updated: false,
-        recordCount: 0,
-        message: `동기화 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
-      });
-    } finally {
-      setIsSyncingGoogleSheet(false);
-    }
-  }, []);
+
 
   // Vercel API를 통해 Amadeus 항공편 검색
   const searchFlightsFromAmadeus = async (query: string) => {
@@ -1454,19 +1451,8 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
                 {/* 항공편 검색 결과 섹션 */}
                 {showFlightResults && (
                 <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-6 mb-6`}>
-                  <div className="mb-6 flex items-center justify-between">
+                  <div className="mb-6">
                     <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공편 검색 결과</h3>
-                    <button 
-                      onClick={handleGoogleSheetSync}
-                      disabled={isSyncingGoogleSheet}
-                      className={`px-3 py-1 text-xs rounded-lg transition-colors font-medium ${
-                        isSyncingGoogleSheet 
-                          ? 'bg-gray-400 text-white cursor-not-allowed' 
-                          : 'bg-green-500 hover:bg-green-600 text-white'
-                      }`}
-                    >
-                      {isSyncingGoogleSheet ? '동기화 중...' : '🔄 구글시트 동기화'}
-                    </button>
                   </div>
                   
                   {!isOnline && (
@@ -1477,22 +1463,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
                     </div>
                   )}
                   
-                  {/* 구글 스프레드시트 동기화 상태 */}
-                  {googleSheetStatus && (
-                    <div className={`mb-4 p-3 rounded-lg border ${
-                      googleSheetStatus.updated 
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
-                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                    }`}>
-                      <p className={`text-sm ${
-                        googleSheetStatus.updated 
-                          ? 'text-green-700 dark:text-green-300' 
-                          : 'text-blue-700 dark:text-blue-300'
-                      }`}>
-                        {googleSheetStatus.message}
-                      </p>
-                    </div>
-                  )}
+
                   
                   {/* 항공편 검색 결과 */}
                   {flightSearchResults.length > 0 ? (
