@@ -2,7 +2,7 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Pilot Flight Dashboard
+# MyKneeBoard
 
 비행사들을 위한 종합 비행 대시보드 애플리케이션입니다.
 
