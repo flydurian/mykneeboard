@@ -1,11 +1,10 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported } from "firebase/analytics";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBqCk8phg_Bd8_3sz2Qnvy4WRRvH8Mf5k0",
   authDomain: "flightdashboard-159bc.firebaseapp.com",
@@ -19,7 +18,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// Analytics 초기화 (지원되는 환경에서만)
+let analytics = null;
+isSupported().then(yes => yes ? analytics = getAnalytics(app) : null);
+
+// Database 및 Auth 초기화
 const database = getDatabase(app);
 const auth = getAuth(app);
 

@@ -80,35 +80,7 @@
   }
 }
 </script>
-  <!-- Firebase SDK -->
-  <script type="module">
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
-    import { getDatabase } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyBqCk8phg_Bd8_3sz2Qnvy4WRRvH8Mf5k0",
-      authDomain: "flightdashboard-159bc.firebaseapp.com",
-      databaseURL: "https://flightdashboard-159bc-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "flightdashboard-159bc",
-      storageBucket: "flightdashboard-159bc.firebasestorage.app",
-      messagingSenderId: "834175395337",
-      appId: "1:834175395337:web:839e1d56796b621a97fad8",
-      measurementId: "G-X2FMMSY232"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const database = getDatabase(app);
-    const auth = getAuth(app);
-    
-    // Make Firebase available globally
-    window.firebase = { app, analytics, database, auth };
-  </script>
 <link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-gray-100">
