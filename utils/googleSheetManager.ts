@@ -1,43 +1,25 @@
 import { GoogleSheetFlightData, GoogleSheetMetadata } from '../types';
 
-// Google Apps Script와 통신하는 함수 선언
-declare const google: any; 
+// Apps Script 웹 앱의 URL
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby229kWBwCFIlM-bPZFiBG847b8Rr4ineX5StiFRJG4QE0KUayp3OKMrm61lrk4OqRN/exec';
 
-function callGoogleScript(functionName: string, ...args: any[]): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        [functionName](...args);
-    } else {
-      // Google Apps Script 환경이 아닌 경우 fetch로 대체
-      resolve(fetchGoogleSheetData(functionName, ...args));
-    }
-  });
-}
-
-// fetch를 사용한 대체 함수
-async function fetchGoogleSheetData(functionName: string, ...args: any[]): Promise<any> {
-  const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycby229kWBwCFIlM-bPZFiBG847b8Rr4ineX5StiFRJG4QE0KUayp3OKMrm61lrk4OqRN/exec';
-  
+// Apps Script를 호출하는 부분을 fetch로 변경
+async function callGoogleScript(params: object): Promise<any> {
   try {
-    const response = await fetch(GOOGLE_SHEET_URL, {
+    const response = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        function: functionName,
-        args: args
-      })
+      body: JSON.stringify(params),
+      mode: 'cors', // CORS 모드 사용
     });
-    
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`네트워크 응답이 올바르지 않습니다: ${response.statusText}`);
     }
     
-    return await response.json();
+    return await response.json(); // 응답을 JSON으로 파싱하여 반환
   } catch (error) {
     console.error('Fetch 요청 실패:', error);
     throw error;
@@ -86,7 +68,13 @@ export class GoogleSheetManager {
       const clientTimestamp = localStorage.getItem('timestamp_' + this.SPREADSHEET_ID);
 
       // 1. 최초 확인 요청: 버전이 최신인지 먼저 확인합니다.
-      const initialResponse = await callGoogleScript('getDataForWebApp', this.SPREADSHEET_ID, clientTimestamp, null, null);
+      const initialResponse = await callGoogleScript({
+        function: 'getDataForWebApp',
+        spreadsheetId: this.SPREADSHEET_ID,
+        clientTimestamp: clientTimestamp,
+        pageNumber: null,
+        pageSize: null
+      });
 
       if (initialResponse.status === 'NO_UPDATE') {
         console.log(`[${this.SPREADSHEET_ID}] 데이터가 이미 최신 버전입니다.`);
@@ -103,7 +91,12 @@ export class GoogleSheetManager {
         // 2. 페이지 순회: 모든 페이지를 순차적으로 요청합니다.
         for (let page = 1; page <= totalPages; page++) {
           console.log(`[${this.SPREADSHEET_ID}] 페이지 ${page}/${totalPages} 다운로드 중...`);
-          const chunkResponse = await callGoogleScript('getDataForWebApp', this.SPREADSHEET_ID, null, page, this.PAGE_SIZE);
+          const chunkResponse = await callGoogleScript({
+            function: 'getDataForWebApp',
+            spreadsheetId: this.SPREADSHEET_ID,
+            pageNumber: page,
+            pageSize: this.PAGE_SIZE
+          });
           
           if (chunkResponse.status === 'DATA_CHUNK' && chunkResponse.data) {
             // 받아온 데이터 조각을 전체 데이터 배열에 합칩니다.
