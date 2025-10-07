@@ -117,9 +117,6 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
           lastModified: conflict.serverData.lastModified
         };
 
-        console.log("---------- 데이터 검증 및 덮어쓰기 시작 ----------");
-        console.log("전달받은 로컬 데이터:", localFlight);
-        console.log("전달받은 서버 데이터:", serverFlight);
 
         // --- STEP 1: 데이터 소스(재료)를 철저히 검증합니다 ---
 
@@ -143,7 +140,6 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
 
         const choice = resolution.useLocal ? 'local' : 'server';
         const authoritativeStatus = (choice === 'local') ? localStatus : serverStatus;
-        console.log(`'${choice}' 선택. 최종 확정된 status:`, authoritativeStatus);
 
         // --- STEP 3: 완전한 최종 객체를 만듭니다 ---
 
@@ -154,26 +150,17 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
           lastModified: new Date().toISOString(),
         };
 
-        console.log(`'${choice}' 데이터를 기준으로 안전한 덮어쓰기:`, {
-          flightId: conflict.flightId,
-          authoritativeStatus,
-          finalData
-        });
-
         // --- STEP 4: 완성된 데이터로 충돌 해결 실행 ---
         const selectedResolution = { flightId: conflict.flightId, useLocal: resolution.useLocal };
         await onResolve([selectedResolution]);
         
-        console.log("✅ 충돌 해결 성공.");
       }
       
-      console.log("모든 충돌 해결 완료: 데이터 소스 검증 및 안전한 덮어쓰기가 완료되었습니다.");
       onClose();
     } catch (error) {
       console.error('❌ 충돌 해결 중 오류 발생:', error);
       alert('충돌 해결 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
-      console.log("-------------------- 작업 완료 --------------------");
     }
   };
 
@@ -205,7 +192,7 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe" onClick={onClose}>
               <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="bg-red-500 text-white p-4 flex-shrink-0">
@@ -213,7 +200,7 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
             <h2 className="text-xl font-bold">데이터 충돌 해결</h2>
             <button
               onClick={onClose}
-              className="text-white hover:text-gray-200 text-2xl"
+              className="text-white text-2xl"
             >
               ×
             </button>
@@ -321,13 +308,13 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 flex justify-end gap-3 flex-shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-500 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
+            className="px-4 py-2 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-500 rounded"
           >
             취소
           </button>
           <button
             onClick={handleResolveAll}
-            className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            className="px-6 py-2 bg-red-500 text-white rounded"
           >
             업데이트 ({conflicts.length}개)
           </button>

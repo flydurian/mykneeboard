@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { validateEmail, sanitizeInput } from '../utils/inputValidation';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -40,7 +41,16 @@ export default function LoginModal({
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(email, password);
+    
+    // 입력값 정제 및 검증
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedPassword = sanitizeInput(password);
+    
+    if (!validateEmail(sanitizedEmail)) {
+      return; // 이메일 형식이 잘못된 경우 로그인 시도하지 않음
+    }
+    
+    onLogin(sanitizedEmail, sanitizedPassword);
   };
 
   const handleResetSubmit = async (e: React.FormEvent) => {
@@ -58,7 +68,7 @@ export default function LoginModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 pt-safe" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{isResetMode ? '비밀번호 찾기' : '로그인'}</h2>
@@ -88,6 +98,8 @@ export default function LoginModal({
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="이메일을 입력하세요"
+                autoComplete="email"
+                style={{ touchAction: 'manipulation' }}
                 required
               />
             </div>
@@ -134,6 +146,8 @@ export default function LoginModal({
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="이메일을 입력하세요"
+                  autoComplete="email"
+                  style={{ touchAction: 'manipulation' }}
                   required
                 />
               </div>
@@ -149,6 +163,8 @@ export default function LoginModal({
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="비밀번호를 입력하세요"
+                  autoComplete="current-password"
+                  style={{ touchAction: 'manipulation' }}
                   required
                 />
               </div>

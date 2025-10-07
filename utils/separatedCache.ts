@@ -27,7 +27,6 @@ export class SeparatedCache {
         (flight.departure.length === 3 && flight.arrival.length === 3)
       );
 
-      console.log(`🌍 국제선: ${international.length}개, 🇰🇷 국내선: ${domestic.length}개 분리 완료`);
 
       // 별도로 저장
       await Promise.all([
@@ -43,7 +42,6 @@ export class SeparatedCache {
       };
 
       await this.saveMetadata(metadata, userId);
-      console.log('✅ 분리된 캐시 저장 완료');
     } catch (error) {
       console.error('❌ 분리된 캐시 저장 실패:', error);
       throw error;
@@ -143,19 +141,16 @@ export class SeparatedCache {
       });
 
       if (!result) {
-        console.log('⚠️ 분리된 캐시 데이터 없음');
         return null;
       }
 
       // 캐시 만료 확인 (24시간)
       const cacheAge = Date.now() - result.timestamp;
       if (cacheAge > 24 * 60 * 60 * 1000) {
-        console.log('⚠️ 분리된 캐시 만료됨');
-        await this.clearSeparatedCache(userId);
+        // 트랜잭션이 활성 상태가 아니므로 즉시 정리하지 않음
         return null;
       }
 
-      console.log('✅ 분리된 캐시 데이터 로드 완료');
       return result.data;
     } catch (error) {
       console.error('❌ 분리된 캐시 로드 실패:', error);
@@ -167,10 +162,27 @@ export class SeparatedCache {
   async clearSeparatedCache(userId: string): Promise<void> {
     try {
       const db = await indexedDBCache['getDB']();
+      
+      // 새로운 트랜잭션으로 안전하게 처리
       const transaction = db.transaction(['flights', 'metadata'], 'readwrite');
       
       const flightStore = transaction.objectStore('flights');
       const metadataStore = transaction.objectStore('metadata');
+
+      // 트랜잭션 완료를 먼저 설정
+      const transactionPromise = new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => {
+          resolve();
+        };
+        transaction.onerror = () => {
+          console.error('❌ 트랜잭션 오류:', transaction.error);
+          reject(transaction.error);
+        };
+        transaction.onabort = () => {
+          console.error('❌ 트랜잭션 중단됨');
+          reject(new Error('Transaction aborted'));
+        };
+      });
 
       // 관련 데이터 삭제
       const allFlights = await this.getAllFlightsFromIndexedDB(userId);
@@ -183,14 +195,12 @@ export class SeparatedCache {
       // 메타데이터 삭제
       metadataStore.delete(`${userId}_separated`);
 
-      await new Promise((resolve, reject) => {
-        transaction.oncomplete = resolve;
-        transaction.onerror = () => reject(transaction.error);
-      });
-
-      console.log('🗑️ 분리된 캐시 정리 완료');
+      // 트랜잭션 완료 대기
+      await transactionPromise;
+      
     } catch (error) {
       console.error('❌ 분리된 캐시 정리 실패:', error);
+      // 오류가 발생해도 앱이 중단되지 않도록 함
     }
   }
 

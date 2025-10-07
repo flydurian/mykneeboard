@@ -1,62 +1,106 @@
-
-import React from 'react';
-import { Flight } from '../types';
-import { calculateDday } from '../utils/helpers';
+import React, { useMemo, memo, useCallback } from 'react';
+import { Flight, FlightStatus } from '../types';
+import { calculateDday, isActualFlight, getAirportCodeForCard } from '../utils/helpers';
 import StatusBadge from './StatusBadge';
 import { getCityInfo } from '../utils/cityData';
+import { formatInTimeZone } from 'date-fns-tz';
 
 interface FlightCardProps {
     flight: Flight | undefined;
-    type: 'last' | 'next';
-    onClick: (flight: Flight | undefined, type: 'last' | 'next') => void;
+    type: 'last' | 'next' | 'nextNext';
+    onClick: (flight: Flight | undefined, type: 'last' | 'next' | 'nextNext') => void;
     todayStr: string;
+    onStatusChange?: (flightId: string, status: Partial<FlightStatus>) => void;
+    baseIata?: string;
 }
 
-const FlightCard: React.FC<FlightCardProps> = ({ flight, type, onClick, todayStr }) => {
-    const handleClick = () => {
+const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, todayStr, onStatusChange, baseIata }) => {
+    const handleClick = useCallback((e: React.MouseEvent) => {
+        // StatusBadge 버튼 클릭 시에는 카드 클릭 이벤트 방지
+        if ((e.target as HTMLElement).closest('button')) {
+            return;
+        }
         onClick(flight, type);
-    };
+    }, [flight, type, onClick]);
 
-    if (!flight) {
-        return (
-            <div 
-                onClick={handleClick}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center flex flex-col justify-center items-center h-full cursor-pointer transform hover:scale-105 transition-transform duration-300"
-            >
-                <p className="text-xl font-bold text-gray-400 dark:text-gray-500">
-                    {type === 'next' ? '다음 비행 기록 없음' : '과거 비행 기록 없음'}
-                </p>
-            </div>
-        );
-    }
+    const ddayInfo = useMemo(() => {
+        if (!flight) {
+            return null;
+        }
+        
+        try {
+            if (!isActualFlight(flight)) {
+                return null;
+            }
+            
+            if (type === 'last') {
+                // 최근 비행: 출발시간이 지나면 최근비행으로 분류, 날짜는 도착시간의 현지날짜 기준으로 계산
+                if (flight.departureDateTimeUtc && flight.arrivalDateTimeUtc && flight.route) {
+                    const departureUtc = new Date(flight.departureDateTimeUtc);
+                    const arrivalUtc = new Date(flight.arrivalDateTimeUtc);
+                    const nowUtc = new Date();
+                    
+                    // 출발시간이 현재 시간보다 과거라면 최근 비행으로 분류
+                    if (departureUtc <= nowUtc) {
+                        // 도착 전까지는 출발지 현지 날짜를 기준으로 표기
+                        const [depAirport, arrAirport] = flight.route.split('/');
+                        const depTimezone = getCityInfo(depAirport)?.timezone || 'Asia/Seoul';
+                        const arrTimezone = getCityInfo(arrAirport)?.timezone || 'Asia/Seoul';
 
-    const ddayInfo = (() => {
-        if (type === 'last') {
-            // 최근 비행: 출발지 로컬 날짜 기준으로 계산
-            try {
-                const departureAirport = flight.route.split('/')[0];
-                const cityInfo = getCityInfo(departureAirport);
-                
-                if (cityInfo && flight.std) {
-                    // 출발지 현지 날짜 계산
-                    const [hours, minutes] = flight.std.split(':').map(Number);
-                    const departureDateTime = new Date(flight.date);
-                    departureDateTime.setHours(hours, minutes, 0, 0);
+                        const hasArrived = nowUtc >= arrivalUtc;
+
+                        if (!hasArrived) {
+                            // 출발지 현지 날짜 기준 (도착 전 구간)
+                            const departureLocal = new Date(departureUtc.toLocaleString('en-US', { timeZone: depTimezone }));
+                            const nowLocal = new Date(nowUtc.toLocaleString('en-US', { timeZone: depTimezone }));
+                            const depDate = new Date(departureLocal.getFullYear(), departureLocal.getMonth(), departureLocal.getDate());
+                            const nowDate = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), nowLocal.getDate());
+                            const diffTime = nowDate.getTime() - depDate.getTime();
+                            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                            if (diffDays === 0) return { text: '오늘', days: 0 };
+                            if (diffDays === 1) return { text: '어제', days: -1 };
+                            return { text: `${diffDays}일 전`, days: -diffDays };
+                        } else {
+                            // 도착 후에는 도착지 현지 날짜 기준
+                            const arrivalLocal = new Date(arrivalUtc.toLocaleString('en-US', { timeZone: arrTimezone }));
+                            const nowLocal = new Date(nowUtc.toLocaleString('en-US', { timeZone: arrTimezone }));
+                            const arrivalDate = new Date(arrivalLocal.getFullYear(), arrivalLocal.getMonth(), arrivalLocal.getDate());
+                            const nowDate = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), nowLocal.getDate());
+                            const diffTime = nowDate.getTime() - arrivalDate.getTime();
+                            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                            if (diffDays === 0) return { text: '오늘', days: 0 };
+                            if (diffDays === 1) return { text: '어제', days: -1 };
+                            return { text: `${diffDays}일 전`, days: -diffDays };
+                        }
+                    }
+                }
+            } else if (type === 'next' || type === 'nextNext') {
+                // 다음 비행: 출발이 예정된 비행만 표시 (출발시간이 현재보다 미래)
+                if (flight.departureDateTimeUtc && flight.route) {
+                    const departureUtc = new Date(flight.departureDateTimeUtc);
+                    const nowUtc = new Date();
                     
-                    // 출발지 현지 날짜로 변환
-                    const localDepartureDate = new Date(departureDateTime.toLocaleString("en-US", { timeZone: cityInfo.timezone }));
-                    const localDateStr = localDepartureDate.toLocaleDateString('en-CA'); // YYYY-MM-DD 형식
+                    // 출발시간이 현재 시간보다 과거라면 다음 비행이 아님
+                    if (departureUtc <= nowUtc) {
+                        return null;
+                    }
                     
-                    // 현재 출발지 현지 날짜
-                    const now = new Date();
-                    const localNow = new Date(now.toLocaleString("en-US", { timeZone: cityInfo.timezone }));
-                    const localTodayStr = localNow.toLocaleDateString('en-CA'); // YYYY-MM-DD 형식
+                    // 출발지 시간대 정보 가져오기
+                    const [depAirport] = flight.route.split('/');
+                    const depTimezone = getCityInfo(depAirport)?.timezone || 'Asia/Seoul';
                     
-                    // 출발지 현지 날짜 기준으로 D-day 계산
-                    const todayInLocal = new Date(localTodayStr);
-                    const flightDateInLocal = new Date(localDateStr);
+                    // 출발시간을 출발지 현지시간으로 변환
+                    const departureLocal = new Date(departureUtc.toLocaleString("en-US", {timeZone: depTimezone}));
                     
-                    const diffTime = flightDateInLocal.getTime() - todayInLocal.getTime();
+                    // 현재 시간을 출발지 현지시간으로 변환
+                    const nowLocal = new Date(nowUtc.toLocaleString("en-US", {timeZone: depTimezone}));
+                    
+                    // 현지 날짜 기준으로 차이 계산
+                    const departureDate = new Date(departureLocal.getFullYear(), departureLocal.getMonth(), departureLocal.getDate());
+                    const nowDate = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), nowLocal.getDate());
+                    const diffTime = departureDate.getTime() - nowDate.getTime();
                     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
                     
                     if (diffDays === 0) {
@@ -64,42 +108,105 @@ const FlightCard: React.FC<FlightCardProps> = ({ flight, type, onClick, todayStr
                     }
                     if (diffDays === 1) return { text: '내일', days: 1 };
                     if (diffDays > 0) return { text: `${diffDays}일 후`, days: diffDays };
-                    if (diffDays === -1) return { text: '어제', days: -1 };
-                    return { text: `${Math.abs(diffDays)}일 전`, days: diffDays };
+                    return { text: `${diffDays}일 후`, days: diffDays };
                 }
-            } catch (error) {
-                console.error('출발지 현지 날짜 계산 오류:', error);
             }
+        } catch (error) {
         }
         
-        // 다음 비행이거나 계산 실패 시 기존 로직 사용
-        return calculateDday(flight.date, todayStr, flight.std);
-    })();
-    const [origin, destination] = flight.route.split('/');
-    const isNextFlight = type === 'next';
-    const targetAirport = origin === 'ICN' ? destination : origin;
+        
+        return { text: '날짜 오류', days: 0 };
+    }, [flight, type, todayStr]);
+
+    if (!flight) {
+        return (
+            <div 
+                onClick={handleClick}
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 text-center flex flex-col justify-center items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer"
+            >
+                <p className="text-xl font-bold text-gray-400 dark:text-gray-500">
+                    {type === 'next' ? '다음 비행 기록 없음' : type === 'nextNext' ? '그 다음 비행 기록 없음' : '과거 비행 기록 없음'}
+                </p>
+            </div>
+        );
+    }
+
+    const getAirportCode = () => {
+        if (!flight) return '';
+        // 도착 전 구간(출발은 했지만 아직 도착 전)에는 베이스 공항을 제외하고 표시
+        try {
+            if (type === 'last' && flight.departureDateTimeUtc && flight.arrivalDateTimeUtc && flight.route) {
+                const nowUtc = new Date();
+                const depUtc = new Date(flight.departureDateTimeUtc);
+                const arrUtc = new Date(flight.arrivalDateTimeUtc);
+                if (depUtc <= nowUtc && nowUtc < arrUtc) {
+                    // 베이스 공항을 제외한 공항 코드 반환
+                    const code = getAirportCodeForCard(flight.route, type, baseIata);
+                    return code;
+                }
+            }
+        } catch {}
+        const code = getAirportCodeForCard(flight.route, type, baseIata);
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🔍 FlightCard Debug:', {
+                type,
+                flightNumber: flight.flightNumber,
+                route: flight.route,
+                baseIata,
+                result: code
+            });
+        }
+        return code;
+    };
+
+    const getStatusColor = () => {
+        if (!ddayInfo) return 'text-gray-500';
+        
+        if (ddayInfo.days === 0) return 'text-green-500';
+        if (ddayInfo.days > 0) return 'text-blue-500';
+        if (ddayInfo.days === -1) return 'text-yellow-500';
+        return 'text-gray-500';
+    };
 
     return (
         <div 
-            onClick={handleClick} 
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 text-center cursor-pointer transform hover:scale-105 transition-transform duration-300 flex flex-col justify-center h-full relative min-h-[120px] sm:min-h-[140px]"
+            onClick={handleClick}
+            className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 text-center flex flex-col justify-between items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer hover:shadow-xl transition-shadow duration-200"
         >
-            {!isNextFlight && <StatusBadge status={flight.status} />}
-            <div className="flex flex-col justify-center items-center h-full">
-                <p className={`text-sm font-semibold ${isNextFlight ? 'text-blue-500 dark:text-blue-400' : 'text-green-500 dark:text-green-400'}`}>
-                    {isNextFlight ? '다음 비행' : '최근 비행'}
+            {/* 이륙/착륙 배지를 카드 안쪽 상단에 배치 */}
+            {flight && type === 'last' && (
+                <StatusBadge 
+                    key={`status-${flight.id}-${flight.status?.departed}-${flight.status?.landed}`}
+                    status={flight.status} 
+                    flightNumber={flight.flightNumber}
+                    isActualFlight={isActualFlight(flight)}
+                    onStatusChange={onStatusChange}
+                    flightId={flight.id}
+                    type={type}
+                />
+            )}
+            
+            <div className="flex flex-col items-center">
+                <p className={`text-sm font-medium mb-1 ${type === 'next' ? 'text-blue-600 dark:text-blue-400' : type === 'nextNext' ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'}`}>
+                    {type === 'next' ? '다음 비행' : type === 'nextNext' ? '그 다음 비행' : '최근 비행'}
                 </p>
-                <div className="flex flex-col justify-center items-center flex-1">
-                    <p className={`text-4xl sm:text-5xl font-bold my-2 ${isNextFlight ? 'text-blue-600 dark:text-blue-500' : 'text-green-600 dark:text-green-500'}`}>
-                        {ddayInfo.text === 'D-Day' ? '오늘' : ddayInfo.text}
+                
+                {ddayInfo && (
+                    <p className={`text-4xl sm:text-4xl md:text-5xl font-bold mb-3 whitespace-nowrap ${type === 'next' ? 'text-blue-600 dark:text-blue-400' : type === 'nextNext' ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'}`}>
+                        {ddayInfo.text}
                     </p>
-                    <div className="flex items-center justify-center">
-                        <span className="text-4xl sm:text-5xl font-bold text-gray-800 dark:text-gray-200">{targetAirport}</span>
-                    </div>
-                </div>
+                )}
+            </div>
+            
+            <div className="flex flex-col items-center">
+                <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-1 whitespace-nowrap">
+                    {getAirportCode()}
+                </p>
             </div>
         </div>
     );
-};
+});
+
+FlightCard.displayName = 'FlightCard';
 
 export default FlightCard;

@@ -1,6 +1,0 @@
-{
-  "name": "My KneeBoard",
-  "short_name": "MyKneeBoard",
-  "description": "A dashboard for airline pilots to manage their flight schedules and related information.",
-  "requestFramePermissions": []
-}

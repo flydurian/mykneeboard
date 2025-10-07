@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Flight } from '../../types';
-import { XIcon, InfoIcon, MetarIcon } from '../icons';
+import { XIcon, InfoIcon, MetarIcon, MemoIcon } from '../icons';
 import { networkDetector } from '../../utils/networkDetector';
-import { getICAO, getCityName, getCurrency, getExchangeRateUrl, getUTCOffset, getCityInfo } from '../../utils/cityData';
+import { getICAO, getCityName, getCurrency, getExchangeRateUrl, getUTCOffset, getCityInfo, getCountry } from '../../utils/cityData';
+import { isActualFlight } from '../../utils/helpers';
 import { 
     SunIcon as HeroSunIcon,
-    MoonIcon as HeroMoonIcon,
     CloudIcon,
     BoltIcon,
     EyeSlashIcon,
@@ -50,11 +50,103 @@ interface CityScheduleModalProps {
     city: string | null;
     flights: Flight[];
     onFlightClick: (flight: Flight) => void;
+    onMemoClick?: (cityCode: string) => void;
 }
 
 
 
-const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, city, flights, onFlightClick }) => {
+// 국기 아이콘을 가져오는 함수
+const getCountryFlag = (country: string | null): string => {
+    if (!country) return '🏳️';
+    
+    const flagMap: { [key: string]: string } = {
+        'South Korea': '🇰🇷',
+        'United States': '🇺🇸',
+        'United Kingdom': '🇬🇧',
+        'Netherlands': '🇳🇱',
+        'Spain': '🇪🇸',
+        'France': '🇫🇷',
+        'Italy': '🇮🇹',
+        'Germany': '🇩🇪',
+        'Czech Republic': '🇨🇿',
+        'Switzerland': '🇨🇭',
+        'Austria': '🇦🇹',
+        'Belgium': '🇧🇪',
+        'Denmark': '🇩🇰',
+        'Sweden': '🇸🇪',
+        'Norway': '🇳🇴',
+        'Finland': '🇫🇮',
+        'Ireland': '🇮🇪',
+        'Portugal': '🇵🇹',
+        'Greece': '🇬🇷',
+        'Turkey': '🇹🇷',
+        'Poland': '🇵🇱',
+        'Hungary': '🇭🇺',
+        'Bulgaria': '🇧🇬',
+        'Romania': '🇷🇴',
+        'Croatia': '🇭🇷',
+        'Slovenia': '🇸🇮',
+        'Russia': '🇷🇺',
+        'Japan': '🇯🇵',
+        'Hong Kong': '🇭🇰',
+        'Thailand': '🇹🇭',
+        'China': '🇨🇳',
+        'Taiwan': '🇹🇼',
+        'Singapore': '🇸🇬',
+        'Indonesia': '🇮🇩',
+        'Vietnam': '🇻🇳',
+        'Australia': '🇦🇺',
+        'New Zealand': '🇳🇿',
+        'Malaysia': '🇲🇾',
+        'Israel': '🇮🇱',
+        'Qatar': '🇶🇦',
+        'Philippines': '🇵🇭',
+        'Macau': '🇲🇴',
+        'India': '🇮🇳',
+        'Canada': '🇨🇦',
+        'Guam': '🇬🇺',
+        'United Arab Emirates': '🇦🇪',
+        'Cambodia': '🇰🇭',
+        'Laos': '🇱🇦',
+        'Uzbekistan': '🇺🇿',
+        'Kazakhstan': '🇰🇿',
+        'Egypt': '🇪🇬'
+    };
+    
+    return flagMap[country] || '🏳️';
+};
+
+const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, city, flights, onFlightClick, onMemoClick }) => {
+    // 도시 정보 가져오기
+    const cityInfo = city ? getCityInfo(city) : null;
+
+    // 캐시 관련 유틸리티 함수들
+    const getCachedData = (key: string, maxAge: number = 30 * 60 * 1000) => {
+        try {
+            const cached = localStorage.getItem(key);
+            if (cached) {
+                const { data, timestamp } = JSON.parse(cached);
+                if (Date.now() - timestamp < maxAge) {
+                    return data;
+                }
+            }
+        } catch (error) {
+            console.warn(`캐시 데이터 읽기 실패: ${key}`, error);
+        }
+        return null;
+    };
+
+    const setCachedData = (key: string, data: any) => {
+        try {
+            localStorage.setItem(key, JSON.stringify({
+                data,
+                timestamp: Date.now()
+            }));
+        } catch (error) {
+            console.warn(`캐시 데이터 저장 실패: ${key}`, error);
+        }
+    };
+    
     const [showWeather, setShowWeather] = useState(false);
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [loadingWeather, setLoadingWeather] = useState(false);
@@ -71,121 +163,1438 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
     const [taf, setTaf] = useState<string | null>(null);
     const [loadingMetarTaf, setLoadingMetarTaf] = useState(false);
     const [metarTafError, setMetarTafError] = useState<string | null>(null);
-    const [showDecoded, setShowDecoded] = useState(false);
+    const [showDecoded, setShowDecoded] = useState(true); // 기본적으로 디코딩된 정보 표시
+    const [showDatis, setShowDatis] = useState(false);
+    const [datisInfo, setDatisInfo] = useState<string | null>(null);
+    const [loadingDatis, setLoadingDatis] = useState(false);
+    const [datisError, setDatisError] = useState<string | null>(null);
     const [zuluTime, setZuluTime] = useState('');
     const [showScrollbar, setShowScrollbar] = useState(false);
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [airPollution, setAirPollution] = useState<any | null>(null);
+    const [loadingAirPollution, setLoadingAirPollution] = useState(false);
+    const [airPollutionError, setAirPollutionError] = useState<string | null>(null);
 
-    // METAR 해석 함수
-    const decodeMetar = (metarText: string) => {
-        const parts = metarText.split(' ');
-        let wind = '';
-        let visibility = '';
-        let clouds = '';
-        let temp = '';
-        let pressure = '';
-        
-        parts.forEach((part) => {
-            if (/^\d{3}\d{2,3}KT$/.test(part)) {
-                const direction = part.substring(0, 3);
-                const speed = part.substring(3, part.length - 2);
-                wind = `${direction}° ${speed}kt`;
-            } else if (/^\d{4}$/.test(part)) {
-                if (part === '9999') {
-                    visibility = '10km+';
-                } else {
-                    visibility = `${part}m`;
+    // AQI 데이터 가져오기 함수
+    const fetchAQIData = async (city: string, cityInfo: any) => {
+        if (cityInfo?.lat && cityInfo?.lon) {
+            try {
+                // 캐시된 데이터 확인
+                const cachedData = getCachedData(`air_pollution_${city}`);
+                if (cachedData) {
+                    setAirPollution(cachedData);
+                        return;
                 }
-            } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(part)) {
-                const type = part.substring(0, 3);
-                const height = parseInt(part.substring(3)) * 100;
-                const typeMap: { [key: string]: string } = {
-                    'FEW': 'Few',
-                    'SCT': 'Scattered',
-                    'BKN': 'Broken',
-                    'OVC': 'Overcast'
-                };
-                clouds += `${typeMap[type]} ${height}ft `;
-            } else if (/^\d{2}\/\d{2}$/.test(part)) {
-                const tempVal = part.split('/')[0];
-                const dewVal = part.split('/')[1];
-                temp = `${tempVal}°C / ${dewVal}°C`;
-            } else if (/^Q\d{4}$/.test(part)) {
-                pressure = `${part.substring(1)} hPa`;
-            }
-        });
-        
-        return { wind, visibility, clouds: clouds.trim(), temp, pressure };
-    };
 
-    // TAF 해석 함수
-    const decodeTaf = (tafText: string) => {
-        const parts = tafText.split(' ');
-        let wind = '';
-        let visibility = '';
-        let clouds = '';
-        let maxTemp = '';
-        let minTemp = '';
-        
-        parts.forEach((part, index) => {
-            if (/^\d{3}\d{2,3}KT$/.test(part)) {
-                const direction = part.substring(0, 3);
-                const speed = part.substring(3, part.length - 2);
-                wind = `${direction}° ${speed}kt`;
-            } else if (/^\d{4}$/.test(part)) {
-                if (part === '9999') {
-                    visibility = '10km+';
+                const aqiResponse = await fetch(`/api/air-pollution?lat=${cityInfo.lat}&lon=${cityInfo.lon}`);
+                
+                if (aqiResponse.ok) {
+                    const aqiData = await aqiResponse.json();
+                    setAirPollution(aqiData);
+                    
+                    setCachedData(`air_pollution_${city}`, aqiData);
                 } else {
-                    visibility = `${part}m`;
+                    const errorText = await aqiResponse.text();
+                    console.error('🔍 AQI API 오류:', { 
+                        city, 
+                        status: aqiResponse.status, 
+                        statusText: aqiResponse.statusText,
+                        error: errorText,
+                        lat: cityInfo.lat,
+                        lon: cityInfo.lon
+                    });
                 }
-            } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(part)) {
-                const type = part.substring(0, 3);
-                const height = parseInt(part.substring(3)) * 100;
-                const typeMap: { [key: string]: string } = {
-                    'FEW': 'Few',
-                    'SCT': 'Scattered',
-                    'BKN': 'Broken',
-                    'OVC': 'Overcast'
-                };
-                clouds += `${typeMap[type]} ${height}ft `;
-            } else if (/^TX\d{2}\/\d{4}Z$/.test(part)) {
-                const temp = part.substring(2, 4);
-                const day = part.substring(5, 7);
-                const hour = part.substring(7, 9);
-                maxTemp = `${temp}°C (${day} ${hour}00)`;
-            } else if (/^TN\d{2}\/\d{4}Z$/.test(part)) {
-                const temp = part.substring(2, 4);
-                const day = part.substring(5, 7);
-                const hour = part.substring(7, 9);
-                minTemp = `${temp}°C (${day} ${hour}00)`;
+            } catch (error) {
+                console.error('🔍 AQI 데이터를 가져올 수 없습니다:', { 
+                    city, 
+                    error: error instanceof Error ? error.message : error,
+                    lat: cityInfo?.lat,
+                    lon: cityInfo?.lon
+                });
             }
-        });
-        
-        return { wind, visibility, clouds: clouds.trim(), maxTemp, minTemp };
-    };
-
-    // 일출/일몰 시간을 현지시간으로 변환하는 함수
-    const getLocalSunTime = (timestamp: number, cityCode: string) => {
-        try {
-            const cityInfo = getCityInfo(cityCode);
-            if (!cityInfo) return null;
-            
-            // UTC 시간을 해당 도시의 현지시간으로 변환
-            const utcDate = new Date(timestamp * 1000);
-            const localDate = new Date(utcDate.toLocaleString("en-US", { timeZone: cityInfo.timezone }));
-            
-            return localDate.toLocaleTimeString('ko-KR', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-            });
-        } catch (error) {
-            console.error('현지시간 변환 오류:', error);
-            return null;
+        } else {
+            console.warn('도시 정보에 위도/경도가 없습니다:', { city, cityInfo });
         }
     };
 
+    // RMK 섹션 디코딩 함수
+    const decodeRemarks = (rmkParts: string[]) => {
+        let decodedRemarks: string[] = [];
+        
+        rmkParts.forEach(part => {
+            // AO1, AO2 - 자동 관측 장비
+            if (/^AO[12]$/.test(part)) {
+                decodedRemarks.push(`${part}: Automatic observation ${part === 'AO1' ? 'without precipitation sensor' : 'with precipitation sensor'}`);
+            }
+            // SLP - 해면기압
+                else if (/^SLP\d{3}$/.test(part)) {
+                const pressure = part.substring(3);
+                // SLP236 -> 1023.6 hPa (앞자리 10, 뒤 2자리.마지막자리)
+                const hPa = `10${pressure.substring(0, 2)}.${pressure.substring(2)}`;
+                decodedRemarks.push(`SLP: Sea level pressure ${hPa} hPa`);
+            }
+            // T - 상세 기온/이슬점
+                else if (/^T\d{4}\d{4}$/.test(part)) {
+                const temp = part.substring(1, 5);
+                const dew = part.substring(5, 9);
+                // T01780156 -> 17.8°C, 15.6°C (첫 자리가 0이면 양수, 1이면 음수)
+                const tempC = temp.startsWith('0') ? `${temp.substring(1, 3)}.${temp.substring(3)}` : `-${temp.substring(1, 3)}.${temp.substring(3)}`;
+                const dewC = dew.startsWith('0') ? `${dew.substring(1, 3)}.${dew.substring(3)}` : `-${dew.substring(1, 3)}.${dew.substring(3)}`;
+                decodedRemarks.push(`T: Temperature ${tempC}°C, Dew point ${dewC}°C`);
+            }
+            // 5 - 기압 변화
+            else if (/^5\d{4}$/.test(part)) {
+                const change = part.substring(1);
+                const direction = change.startsWith('0') ? 'rising' : 'falling';
+                const amount = change.substring(1);
+                decodedRemarks.push(`5: Pressure ${direction} ${amount} hPa in last 3 hours`);
+            }
+            // 6 - 강수량
+            else if (/^6\d{4}$/.test(part)) {
+                const amount = part.substring(1);
+                decodedRemarks.push(`6: Precipitation ${amount} mm in last 3 hours`);
+            }
+            // 7 - 강수량 (24시간)
+            else if (/^7\d{4}$/.test(part)) {
+                const amount = part.substring(1);
+                decodedRemarks.push(`7: Precipitation ${amount} mm in last 24 hours`);
+            }
+            // 8 - 구름 형태
+            else if (/^8\d{3}$/.test(part)) {
+                const cloudType = part.substring(1);
+                const cloudTypes: { [key: string]: string } = {
+                    '000': 'No clouds',
+                    '001': 'Cumulonimbus',
+                    '002': 'Cumulonimbus with anvil',
+                    '003': 'Cumulonimbus mammatus',
+                    '004': 'Cumulonimbus with funnel cloud',
+                    '005': 'Cumulonimbus with tornado',
+                    '010': 'Cumulus',
+                    '011': 'Cumulus congestus',
+                    '012': 'Cumulus with tower',
+                    '020': 'Stratocumulus',
+                    '021': 'Stratocumulus cumulogenitus',
+                    '022': 'Stratocumulus stratiformis',
+                    '030': 'Stratus',
+                    '031': 'Stratus fractus',
+                    '032': 'Stratus nebulosus',
+                    '040': 'Altocumulus',
+                    '041': 'Altocumulus castellanus',
+                    '042': 'Altocumulus floccus',
+                    '043': 'Altocumulus stratiformis',
+                    '050': 'Altostratus',
+                    '051': 'Altostratus translucidus',
+                    '052': 'Altostratus opacus',
+                    '060': 'Nimbostratus',
+                    '070': 'Cirrus',
+                    '071': 'Cirrus fibratus',
+                    '072': 'Cirrus uncinus',
+                    '073': 'Cirrus spissatus',
+                    '080': 'Cirrostratus',
+                    '090': 'Cirrocumulus'
+                };
+                decodedRemarks.push(`8: Cloud type ${cloudTypes[cloudType] || cloudType}`);
+            }
+            // 9 - 구름 높이
+            else if (/^9\d{3}$/.test(part)) {
+                const height = part.substring(1);
+                const heightFt = parseInt(height) * 100;
+                decodedRemarks.push(`9: Cloud base ${heightFt} ft`);
+            }
+            // PWINO - 강수량 센서 고장
+            else if (part === 'PWINO') {
+                decodedRemarks.push('PWINO: Precipitation sensor inoperative');
+            }
+            // PNO - 강수량 센서 없음
+            else if (part === 'PNO') {
+                decodedRemarks.push('PNO: No precipitation sensor');
+            }
+            // FZRANO - 동결비 센서 고장
+            else if (part === 'FZRANO') {
+                decodedRemarks.push('FZRANO: Freezing rain sensor inoperative');
+            }
+            // TSNO - 천둥 센서 없음
+            else if (part === 'TSNO') {
+                decodedRemarks.push('TSNO: No thunderstorm sensor');
+            }
+            // VISNO - 시정 센서 고장
+            else if (part === 'VISNO') {
+                decodedRemarks.push('VISNO: Visibility sensor inoperative');
+            }
+            // CHINO - 구름 높이 센서 고장
+            else if (part === 'CHINO') {
+                decodedRemarks.push('CHINO: Cloud height sensor inoperative');
+            }
+            // $ - 정비 필요
+            else if (part === '$') {
+                decodedRemarks.push('$: Maintenance needed');
+            }
+            // 1 - 기압 변화 (1시간)
+                else if (/^1\d{4}$/.test(part)) {
+                const change = part.substring(1);
+                const direction = change.startsWith('0') ? 'rising' : 'falling';
+                const amount = change.substring(1);
+                decodedRemarks.push(`1: Pressure ${direction} ${amount} hPa in last 1 hour`);
+            }
+            // 2 - 기압 변화 (3시간)
+                else if (/^2\d{4}$/.test(part)) {
+                const change = part.substring(1);
+                const direction = change.startsWith('0') ? 'rising' : 'falling';
+                const amount = change.substring(1);
+                decodedRemarks.push(`2: Pressure ${direction} ${amount} hPa in last 3 hours`);
+            }
+            // 3 - 기압 변화 (24시간)
+            else if (/^3\d{4}$/.test(part)) {
+                const change = part.substring(1);
+                const direction = change.startsWith('0') ? 'rising' : 'falling';
+                const amount = change.substring(1);
+                decodedRemarks.push(`3: Pressure ${direction} ${amount} hPa in last 24 hours`);
+            }
+            // 4 - 기압 변화 (기타)
+            else if (/^4\d{4}$/.test(part)) {
+                const change = part.substring(1);
+                const direction = change.startsWith('0') ? 'rising' : 'falling';
+                const amount = change.substring(1);
+                decodedRemarks.push(`4: Pressure ${direction} ${amount} hPa`);
+            }
+            // 4 - 온도 정보 (최고/최저 기온) - 북미 표준화된 규칙
+            else if (/^4\d{8}$/.test(part)) {
+                const tempData = part.substring(1);
+                // 402610183 -> 02610183
+                // 4 / 0 261 / 0 183
+                // ① 4: 그룹 식별자 (지난 6시간 동안의 최고/최저 기온)
+                // ② 0: 최고 기온의 부호 (0=영상, 1=영하)
+                // ③ 261: 최고 기온 값 (26.1℃)
+                // ④ 0: 최저 기온의 부호 (0=영상, 1=영하)
+                // ⑤ 183: 최저 기온 값 (18.3℃)
+                
+                const maxTempSign = tempData.substring(0, 1); // 0
+                const maxTempValue = tempData.substring(1, 4); // 261
+                const minTempSign = tempData.substring(4, 5); // 0
+                const minTempValue = tempData.substring(5, 8); // 183
+                
+                // 최고 기온: 부호 + 값
+                const maxTempC = maxTempSign === '0' 
+                    ? `${(parseInt(maxTempValue) / 10).toFixed(1)}` 
+                    : `-${(parseInt(maxTempValue) / 10).toFixed(1)}`;
+                
+                // 최저 기온: 부호 + 값
+                const minTempC = minTempSign === '0' 
+                    ? `${(parseInt(minTempValue) / 10).toFixed(1)}` 
+                    : `-${(parseInt(minTempValue) / 10).toFixed(1)}`;
+                
+                decodedRemarks.push(`4: 지난 6시간 동안의 최고 기온은 ${maxTempC}℃, 최저 기온은 ${minTempC}℃였음`);
+            }
+            // R - 활주로 시정
+            else if (/^R\d{2}\/\d{4}$/.test(part)) {
+                const runway = part.substring(1, 3);
+                const visibility = part.substring(4);
+                decodedRemarks.push(`R: Runway ${runway} visibility ${visibility}m`);
+            }
+            // P - 활주로 시정 (분수형)
+            else if (/^R\d{2}\/\d+\/\d+$/.test(part)) {
+                const runway = part.substring(1, 3);
+                const visibility = part.substring(4);
+                decodedRemarks.push(`R: Runway ${runway} visibility ${visibility}`);
+            }
+            // W - 활주로 상태
+            else if (/^W\d{2}\/\d+$/.test(part)) {
+                const runway = part.substring(1, 3);
+                const condition = part.substring(4);
+                const conditions: { [key: string]: string } = {
+                    '0': 'Clear and dry',
+                    '1': 'Damp',
+                    '2': 'Wet',
+                    '3': 'Rime or frost covered',
+                    '4': 'Dry snow',
+                    '5': 'Wet snow',
+                    '6': 'Slush',
+                    '7': 'Ice',
+                    '8': 'Compacted or rolled snow',
+                    '9': 'Frozen ruts or ridges'
+                };
+                decodedRemarks.push(`W: Runway ${runway} condition ${conditions[condition] || condition}`);
+            }
+            // 기타 알려진 코드들
+            else if (part === 'NOSIG') {
+                decodedRemarks.push('NOSIG: No significant change expected');
+            }
+            else if (part === 'CAVOK') {
+                decodedRemarks.push('CAVOK: Ceiling and visibility OK');
+            }
+            else if (part === 'NSW') {
+                decodedRemarks.push('NSW: No significant weather');
+            }
+            else if (part === 'AUTO') {
+                decodedRemarks.push('AUTO: Automatic observation');
+            }
+            else if (part === 'COR') {
+                decodedRemarks.push('COR: Corrected observation');
+            }
+            else if (part === 'AMD') {
+                decodedRemarks.push('AMD: Amended observation');
+            }
+            else if (part === 'NIL') {
+                decodedRemarks.push('NIL: No significant weather');
+            }
+            // 알 수 없는 코드는 그대로 표시
+                else {
+                decodedRemarks.push(part);
+            }
+        });
+        
+        return decodedRemarks.join('; ');
+    };
+
+    // METAR 완전 해석 함수
+    const decodeMetar = (metarText: string) => {
+        const parts = metarText.split(' ');
+        let airport = '';
+        let time = '';
+        let wind = '';
+        let visibility = '';
+        let weather = '';
+        let clouds = '';
+        let temp = '';
+        let pressure = '';
+        let remarks = '';
+        let auto = false;
+        let corrected = false;
+        
+        parts.forEach((part, index) => {
+            // 공항 코드 (METAR 다음 부분)
+            if (index === 1 && /^[A-Z]{4}$/.test(part)) {
+                airport = part;
+            }
+            // 시간 (Z로 끝나는 6자리 숫자)
+                else if (/^\d{6}Z$/.test(part)) {
+                const day = part.substring(0, 2);
+                const hour = part.substring(2, 4);
+                const minute = part.substring(4, 6);
+                time = `${day}일 ${hour}:${minute} UTC`;
+            }
+            // AUTO 표시
+            else if (part === 'AUTO') {
+                auto = true;
+            }
+            // COR 표시 (수정된 관측)
+            else if (part === 'COR') {
+                corrected = true;
+            }
+            // 바람 (3자리 방향 + 2-3자리 속도 + KT)
+                else if (/^\d{3}\d{2,3}KT$/.test(part)) {
+                    const direction = part.substring(0, 3);
+                    const speed = part.substring(3, part.length - 2);
+                        wind = `${direction}° ${speed}kt`;
+                    }
+            // 바람 (G 포함 - 돌풍)
+            else if (/^\d{3}\d{2,3}G\d{2,3}KT$/.test(part)) {
+                const direction = part.substring(0, 3);
+                const speed = part.substring(3, part.indexOf('G'));
+                const gust = part.substring(part.indexOf('G') + 1, part.length - 2);
+                wind = `${direction}° ${speed}G${gust}kt`;
+            }
+            // 바람 (VRB - 가변)
+            else if (/^VRB\d{2,3}KT$/.test(part)) {
+                    const speed = part.substring(3, part.length - 2);
+                    wind = `Variable ${speed}kt`;
+                }
+            // 시정 (4자리 숫자)
+                else if (/^\d{4}$/.test(part)) {
+                    if (part === '9999') {
+                    visibility = '10km+';
+                    } else {
+                    visibility = `${part}m`;
+                }
+            }
+            // 시정 (SM 단위)
+            else if (/^\d+SM$/.test(part)) {
+                const value = part.substring(0, part.length - 2);
+                visibility = `${value}SM`;
+            }
+            // 시정 (분수형)
+            else if (/^\d+\/\d+SM$/.test(part)) {
+                visibility = `${part}`;
+            }
+            // 시정 (M으로 시작 - 1000m 미만)
+            else if (/^M\d{4}$/.test(part)) {
+                const value = part.substring(1);
+                visibility = `<${value}m`;
+            }
+            // WS - 윈드시어 (돌풍) 경보
+            else if (part === 'WS') {
+                // 다음 부분이 활주로 정보인지 확인
+                if (index + 1 < parts.length && /^R\d{2}[LCR]?$/.test(parts[index + 1])) {
+                    const runway = parts[index + 1];
+                    weather += `WS ${runway}: ${runway}번 활주로 부근에 윈드시어(Wind Shear, 돌풍) 경보가 있습니다. `;
+                } else {
+                    weather += 'WS: Wind Shear warning ';
+                }
+            }
+            // NOSIG - 특별한 기상 변화 없음
+            else if (part === 'NOSIG') {
+                weather += 'NOSIG ';
+            }
+            // RMK는 날씨 현상이 아니므로 건너뛰기
+            else if (part === 'RMK') {
+                const rmkParts = parts.slice(index + 1);
+                remarks = decodeRemarks(rmkParts);
+            }
+            // 날씨 현상 (강도 + 현상)
+            else if (/^[+-]?[A-Z]{2,3}$/.test(part)) {
+                const weatherMap: { [key: string]: string } = {
+                    // 강수
+                    'RA': 'Rain', 'SN': 'Snow', 'DZ': 'Drizzle', 'SG': 'Snow Grains',
+                    'IC': 'Ice Crystals', 'PL': 'Ice Pellets', 'GR': 'Hail', 'GS': 'Small Hail',
+                    'UP': 'Unknown Precipitation', 'PE': 'Ice Pellets',
+                    // 안개/시정
+                    'BR': 'Mist', 'FG': 'Fog', 'FU': 'Smoke', 'VA': 'Volcanic Ash',
+                    'DU': 'Dust', 'SA': 'Sand', 'HZ': 'Haze', 'PY': 'Spray',
+                    // 폭풍/바람
+                    'PO': 'Dust/Sand Whirls', 'SQ': 'Squalls', 'FC': 'Funnel Cloud',
+                    'SS': 'Sandstorm', 'DS': 'Duststorm', 'SH': 'Shower', 'TS': 'Thunderstorm',
+                    // 수식어
+                    'FZ': 'Freezing', 'MI': 'Shallow', 'PR': 'Partial', 'BC': 'Patches',
+                    'DR': 'Low Drifting', 'BL': 'Blowing', 'VC': 'In Vicinity',
+                    'RE': 'Recent', 'NSW': 'No Significant Weather'
+                };
+                const intensity = part.startsWith('+') ? 'Heavy ' : part.startsWith('-') ? 'Light ' : '';
+                const code = part.replace(/^[+-]/, '');
+                weather += intensity + (weatherMap[code] || code) + ' ';
+            }
+            // 복합 날씨 현상 (예: -TSRA, +SHSN 등)
+            else if (/^[+-]?[A-Z]{2,3}[A-Z]{2,3}$/.test(part)) {
+                const intensity = part.startsWith('+') ? 'Heavy ' : part.startsWith('-') ? 'Light ' : '';
+                const code = part.replace(/^[+-]/, '');
+                const weatherMap: { [key: string]: string } = {
+                    'TSRA': 'Thunderstorm with Rain', 'TSSN': 'Thunderstorm with Snow',
+                    'SHRA': 'Shower Rain', 'SHSN': 'Shower Snow', 'SHDZ': 'Shower Drizzle',
+                    'FZRA': 'Freezing Rain', 'FZDZ': 'Freezing Drizzle', 'FZFG': 'Freezing Fog',
+                    'BLSN': 'Blowing Snow', 'BLSA': 'Blowing Sand', 'BLDU': 'Blowing Dust'
+                };
+                weather += intensity + (weatherMap[code] || code) + ' ';
+            }
+            // 구름 (FEW, SCT, BKN, OVC + 높이 + CB/TCU)
+                else if (/^(FEW|SCT|BKN|OVC)\d{3}(CB|TCU)?$/.test(part)) {
+                    const type = part.substring(0, 3);
+                    const height = parseInt(part.substring(3, 6)) * 100;
+                    const cloudType = part.substring(6);
+                    const typeMap: { [key: string]: string } = {
+                        'FEW': 'Few',
+                        'SCT': 'Scattered',
+                        'BKN': 'Broken',
+                        'OVC': 'Overcast'
+                    };
+                    const cloudTypeMap: { [key: string]: string } = {
+                        'CB': ' Cumulonimbus', 'TCU': ' Towering Cumulus'
+                    };
+                    clouds += `${typeMap[type]} ${height}ft${cloudTypeMap[cloudType] || ''} `;
+                }
+            // 구름 (CAVOK)
+            else if (part === 'CAVOK') {
+                clouds = 'CAVOK (Ceiling and Visibility OK)';
+            }
+            // 구름 (NSC - No Significant Clouds)
+            else if (part === 'NSC') {
+                clouds = 'NSC (No Significant Clouds)';
+            }
+            // 구름 (NCD - No Cloud Detected)
+            else if (part === 'NCD') {
+                clouds = 'NCD (No Cloud Detected)';
+            }
+            // 기온/이슬점
+                else if (/^M?\d{2}\/M?\d{2}$/.test(part)) {
+                const [tempVal, dewVal] = part.split('/');
+                const tempC = tempVal.startsWith('M') ? `-${tempVal.substring(1)}` : tempVal;
+                const dewC = dewVal.startsWith('M') ? `-${dewVal.substring(1)}` : dewVal;
+                temp = `${tempC}°C / ${dewC}°C`;
+            }
+            // 기압 (QNH - hPa)
+                else if (/^Q\d{4}$/.test(part)) {
+                pressure = `QNH ${part.substring(1)} hPa`;
+            }
+            // 기압 (A - inHg)
+            else if (/^A\d{4}$/.test(part)) {
+                const value = part.substring(1);
+                const inHg = `${value.substring(0, 2)}.${value.substring(2)}`;
+                pressure = `Altimeter ${inHg} inHg`;
+            }
+        });
+        
+        return { 
+            airport,
+            time,
+            wind: wind || '',
+            visibility: visibility || '',
+            weather: weather.trim() || 'No significant weather',
+            clouds: clouds.trim() || '',
+            temp: temp || '',
+            pressure: pressure || '',
+            remarks: remarks || '',
+            auto,
+            corrected
+        };
+    };
+
+    // TAF 완전 해석 함수
+    const decodeTaf = (tafText: string) => {
+        const parts = tafText.split(' ');
+        let airport = '';
+        let issueTime = '';
+        let validPeriod = '';
+        let forecasts: any[] = [];
+        
+        // TAF를 구간별로 분리 - 더 정확한 파싱
+        let sections: string[] = [];
+        let currentSection = '';
+        let i = 0;
+        
+        while (i < parts.length) {
+            const part = parts[i];
+            
+            if (/^[A-Z]{4}$/.test(part) && !['TAF', 'AMD', 'COR', 'AUTO'].includes(part)) {
+                airport = part;
+                i++;
+            } else if (/^\d{6}Z$/.test(part)) {
+                const day = part.substring(0, 2);
+                const hour = part.substring(2, 4);
+                const minute = part.substring(4, 6);
+                issueTime = `${day}일 ${hour}:${minute} UTC`;
+                i++;
+            } else if (/^\d{4}\/\d{4}$/.test(part)) {
+                const startDay = part.substring(0, 2);
+                const startHour = part.substring(2, 4);
+                const endDay = part.substring(5, 7);
+                const endHour = part.substring(7, 9);
+                validPeriod = `${startDay}일 ${startHour}00 - ${endDay}일 ${endHour}00 UTC`;
+                
+                // 메인 구간 시작 (유효 기간 + 메인 예보 데이터)
+                if (currentSection) {
+                    sections.push(currentSection.trim());
+                }
+                currentSection = part;
+                i++;
+                
+                // 유효 기간 다음에 오는 메인 예보 데이터를 같은 구간에 포함
+                while (i < parts.length && !/^(FM|TEMPO|BECMG|PROB)/.test(parts[i])) {
+                    currentSection += ' ' + parts[i];
+                    i++;
+                }
+                
+            } else if (/^(FM|TEMPO|BECMG|PROB)/.test(part)) {
+                // 새로운 구간 시작
+                if (currentSection) {
+                    sections.push(currentSection.trim());
+                }
+                
+                // FM, TEMPO, BECMG, PROB 다음에 시간 정보가 올 수 있음
+                let sectionStart = part;
+                i++;
+                
+                // 다음 토큰이 시간 형식인지 확인
+                if (i < parts.length && /^\d{4}\/\d{4}$/.test(parts[i])) {
+                    sectionStart += ' ' + parts[i];
+                    i++;
+                } else if (i < parts.length && /^\d{4}$/.test(parts[i])) {
+                    sectionStart += ' ' + parts[i];
+                    i++;
+                }
+                
+                currentSection = sectionStart;
+                    } else {
+                // 현재 구간에 추가
+                currentSection += ' ' + part;
+                i++;
+            }
+        }
+        
+        // 마지막 구간 추가
+        if (currentSection) {
+            sections.push(currentSection.trim());
+        }
+        
+        // 각 구간 파싱
+        let mainForecast: any = null;
+        
+        sections.forEach((section, index) => {
+            const sectionParts = section.split(' ');
+            let forecast: any = {
+                wind: '',
+                visibility: '',
+                weather: '',
+                clouds: '',
+                probability: '',
+                type: 'Main'
+            };
+            
+            // 구간 타입 결정
+            if (index === 0) {
+                // 첫 번째 구간은 메인 예보 (유효 기간 + 메인 예보 데이터)
+                forecast.time = validPeriod;
+                forecast.type = 'Main';
+                mainForecast = forecast;
+                
+                // 메인 예보 데이터 파싱 - 유효 기간 다음의 메인 예보 부분만 파싱
+                // TAF KJFK 190527Z 1906/2012 26006KT P6SM SKC 에서 메인 예보는 26006KT P6SM SKC
+                const validPeriodIndex = sectionParts.findIndex(part => /^\d{4}\/\d{4}$/.test(part));
+                const mainForecastParts = validPeriodIndex >= 0 
+                    ? sectionParts.slice(validPeriodIndex + 1)
+                    : sectionParts.slice(1); // 유효 기간이 없으면 첫 번째 이후부터
+                
+                // BECMG, TEMPO, FM, PROB로 시작하는 부분은 제외
+                const filteredParts = mainForecastParts.filter(part => 
+                    !part.startsWith('BECMG') && 
+                    !part.startsWith('TEMPO') && 
+                    !part.startsWith('FM') && 
+                    !part.startsWith('PROB')
+                );
+                
+                filteredParts.forEach(part => {
+                    // 공항 코드, TAF 키워드, AMD, 유효 기간, 발표 시간은 건너뛰기
+                    if (/^[A-Z]{4}$/.test(part) || part === 'TAF' || part === 'AMD' || /^\d{4}\/\d{4}$/.test(part) || /^\d{6}Z$/.test(part)) {
+                        return;
+                    }
+                        
+                    // 바람
+                    if (/^\d{3}\d{2,3}KT$/.test(part)) {
+                        const direction = part.substring(0, 3);
+                        const speed = part.substring(3, part.length - 2);
+                        mainForecast.wind = `${direction}° ${speed}kt`;
+                    } else if (/^\d{3}\d{2,3}G\d{2,3}KT$/.test(part)) {
+                        const direction = part.substring(0, 3);
+                        const speed = part.substring(3, part.indexOf('G'));
+                        const gust = part.substring(part.indexOf('G') + 1, part.length - 2);
+                        mainForecast.wind = `${direction}° ${speed}G${gust}kt`;
+                    } else if (/^VRB\d{2,3}KT$/.test(part)) {
+                        const speed = part.substring(3, part.length - 2);
+                        mainForecast.wind = `Variable ${speed}kt`;
+                    }
+                    // 시정
+                    else if (/^\d{4}$/.test(part)) {
+                        if (part === '9999') {
+                            mainForecast.visibility = '10km+';
+                    } else {
+                            mainForecast.visibility = `${part}m`;
+                        }
+                    } else if (/^\d+SM$/.test(part)) {
+                        const value = part.substring(0, part.length - 2);
+                        mainForecast.visibility = `${value}SM`;
+                    } else if (/^\d+\/\d+SM$/.test(part)) {
+                        mainForecast.visibility = `${part}`;
+                    } else if (/^P\d+SM$/.test(part)) {
+                        const value = part.substring(1, part.length - 2);
+                        mainForecast.visibility = `>${value}SM`;
+                    }
+                    // 날씨 현상 (AMD, COR 등은 제외)
+                    else if (/^[+-]?[A-Z]{2,3}$/.test(part) && !['AMD', 'COR', 'AUTO'].includes(part)) {
+                    const weatherMap: { [key: string]: string } = {
+                            'RA': 'Rain', 'SN': 'Snow', 'DZ': 'Drizzle', 'SG': 'Snow Grains',
+                            'IC': 'Ice Crystals', 'PL': 'Ice Pellets', 'GR': 'Hail', 'GS': 'Small Hail',
+                            'UP': 'Unknown Precipitation', 'BR': 'Mist', 'FG': 'Fog', 'FU': 'Smoke',
+                        'VA': 'Volcanic Ash', 'DU': 'Dust', 'SA': 'Sand', 'HZ': 'Haze',
+                            'PY': 'Spray', 'PO': 'Dust/Sand Whirls', 'SQ': 'Squalls', 'FC': 'Funnel Cloud',
+                            'SS': 'Sandstorm', 'DS': 'Duststorm', 'SH': 'Shower', 'TS': 'Thunderstorm',
+                            'FZ': 'Freezing', 'MI': 'Shallow', 'PR': 'Partial', 'BC': 'Patches',
+                            'DR': 'Low Drifting', 'BL': 'Blowing', 'VC': 'In Vicinity', 'NSW': 'No Significant Weather'
+                        };
+                        const intensity = part.startsWith('+') ? 'Heavy ' : part.startsWith('-') ? 'Light ' : '';
+                        const code = part.replace(/^[+-]/, '');
+                        mainForecast.weather += intensity + (weatherMap[code] || code) + ' ';
+                    } else if (/^[+-]?[A-Z]{2,3}[A-Z]{2,3}$/.test(part)) {
+                        const intensity = part.startsWith('+') ? 'Heavy ' : part.startsWith('-') ? 'Light ' : '';
+                        const code = part.replace(/^[+-]/, '');
+                        const weatherMap: { [key: string]: string } = {
+                            'TSRA': 'Thunderstorm with Rain', 'TSSN': 'Thunderstorm with Snow',
+                            'SHRA': 'Shower Rain', 'SHSN': 'Shower Snow', 'SHDZ': 'Shower Drizzle',
+                            'FZRA': 'Freezing Rain', 'FZDZ': 'Freezing Drizzle', 'FZFG': 'Freezing Fog',
+                            'BLSN': 'Blowing Snow', 'BLSA': 'Blowing Sand', 'BLDU': 'Blowing Dust'
+                        };
+                        mainForecast.weather += intensity + (weatherMap[code] || code) + ' ';
+                    }
+                    // 구름
+                    else if (/^(FEW|SCT|BKN|OVC)\d{3}(CB|TCU)?$/.test(part)) {
+                        const type = part.substring(0, 3);
+                        const height = parseInt(part.substring(3, 6)) * 100;
+                        const cloudType = part.substring(6);
+                    const typeMap: { [key: string]: string } = {
+                            'FEW': 'Few', 'SCT': 'Scattered', 'BKN': 'Broken', 'OVC': 'Overcast'
+                        };
+                        const cloudTypeMap: { [key: string]: string } = {
+                            'CB': ' Cumulonimbus', 'TCU': ' Towering Cumulus'
+                        };
+                        mainForecast.clouds += `${typeMap[type]} ${height}ft${cloudTypeMap[cloudType] || ''} `;
+                    } else if (part === 'CAVOK') {
+                        mainForecast.clouds = 'CAVOK';
+                    } else if (part === 'NSC') {
+                        mainForecast.clouds = 'NSC';
+                    } else if (part === 'SKC') {
+                        mainForecast.clouds = 'SKC (Sky Clear)';
+                    }
+                    // 기온
+                    else if (/^TX\d{2}\/\d{4}Z$/.test(part)) {
+                        const temp = part.substring(2, 4);
+                        const day = part.substring(5, 7);
+                        const hour = part.substring(7, 9);
+                        mainForecast.maxTemp = `Max ${temp}°C (${day}일 ${hour}00 UTC)`;
+                    } else if (/^TN\d{2}\/\d{4}Z$/.test(part)) {
+                        const temp = part.substring(2, 4);
+                        const day = part.substring(5, 7);
+                        const hour = part.substring(7, 9);
+                        mainForecast.minTemp = `Min ${temp}°C (${day}일 ${hour}00 UTC)`;
+                    }
+                });
+                
+                // 메인 예보는 실제 데이터만 표시 (기본값 제거)
+                mainForecast.wind = mainForecast.wind || '';
+                mainForecast.visibility = mainForecast.visibility || '';
+                mainForecast.weather = (mainForecast.weather || '').trim() || '';
+                mainForecast.clouds = (mainForecast.clouds || '').trim() || '';
+                
+            } else if (sectionParts[0].startsWith('FM')) {
+                const day = sectionParts[0].substring(2, 4);
+                const hour = sectionParts[0].substring(4, 6);
+                forecast.time = `From ${day}일 ${hour}00 UTC`;
+                forecast.type = 'From';
+            } else if (sectionParts[0].startsWith('TEMPO')) {
+                // TEMPO 다음에 시간 정보가 있는지 확인
+                if (sectionParts.length > 1 && /^\d{4}\/\d{4}$/.test(sectionParts[1])) {
+                    const timeRange = sectionParts[1];
+                    const startDay = timeRange.substring(0, 2);
+                    const startHour = timeRange.substring(2, 4);
+                    const endDay = timeRange.substring(5, 7);
+                    const endHour = timeRange.substring(7, 9);
+                    forecast.time = `Temporary ${startDay}일 ${startHour}00 - ${endDay}일 ${endHour}00 UTC`;
+                } else {
+                    forecast.time = 'Temporary';
+                }
+                forecast.type = 'Temporary';
+            } else if (sectionParts[0].startsWith('BECMG')) {
+                // BECMG 다음에 시간 정보가 있는지 확인
+                if (sectionParts.length > 1 && /^\d{4}\/\d{4}$/.test(sectionParts[1])) {
+                    // BECMG DDHH/DDHH 형식
+                    const timePart = sectionParts[1];
+                    const startDay = timePart.substring(0, 2);
+                    const startHour = timePart.substring(2, 4);
+                    const endDay = timePart.substring(5, 7);
+                    const endHour = timePart.substring(7, 9);
+                    forecast.time = `Becoming ${startDay}일 ${startHour}00 - ${endDay}일 ${endHour}00 UTC`;
+                } else if (sectionParts.length > 1 && /^\d{4}$/.test(sectionParts[1])) {
+                    // BECMG DDHH 형식 (시작 시간만)
+                    const timePart = sectionParts[1];
+                    const startDay = timePart.substring(0, 2);
+                    const startHour = timePart.substring(2, 4);
+                    forecast.time = `Becoming from ${startDay}일 ${startHour}00 UTC`;
+                } else {
+                    // BECMG만 있는 경우
+                    forecast.time = 'Becoming (gradual change)';
+                }
+                forecast.type = 'Becoming';
+            } else if (sectionParts[0].startsWith('PROB')) {
+                // PROB30 1701/1706 형식
+                const probValue = sectionParts[0].substring(4, 6);
+                if (sectionParts.length > 1 && /^\d{4}\/\d{4}$/.test(sectionParts[1])) {
+                    const timePart = sectionParts[1];
+                    const startDay = timePart.substring(0, 2);
+                    const startHour = timePart.substring(2, 4);
+                    const endDay = timePart.substring(5, 7);
+                    const endHour = timePart.substring(7, 9);
+                    forecast.time = `Probability ${probValue}% ${startDay}일 ${startHour}00 - ${endDay}일 ${endHour}00 UTC`;
+                } else {
+                    forecast.time = `Probability ${probValue}%`;
+                }
+                forecast.type = 'Probability';
+                forecast.probability = `${probValue}% probability`;
+            }
+            
+            // 기상 요소 파싱을 위한 weatherParts 설정
+            let weatherParts = sectionParts.slice(1);
+            
+            // BECMG, TEMPO, FM, PROB 다음에 시간 정보가 있으면 건너뛰기
+            if (sectionParts[0].startsWith('BECMG') || sectionParts[0].startsWith('TEMPO') || sectionParts[0].startsWith('FM') || sectionParts[0].startsWith('PROB')) {
+                if (weatherParts.length > 0 && /^\d{4}(\/\d{4})?$/.test(weatherParts[0])) {
+                    weatherParts = weatherParts.slice(1);
+                }
+            }
+            
+            // 기상 요소 파싱
+            weatherParts.forEach(part => {
+                // 공항 코드와 TAF 키워드, AMD는 건너뛰기
+                if (/^[A-Z]{4}$/.test(part) || part === 'TAF' || part === 'AMD') {
+                    return;
+                }
+                
+                // 바람
+                if (/^\d{3}\d{2,3}KT$/.test(part)) {
+                    const direction = part.substring(0, 3);
+                    const speed = part.substring(3, part.length - 2);
+                    forecast.wind = `${direction}° ${speed}kt`;
+                } else if (/^\d{3}\d{2,3}G\d{2,3}KT$/.test(part)) {
+                    const direction = part.substring(0, 3);
+                    const speed = part.substring(3, part.indexOf('G'));
+                    const gust = part.substring(part.indexOf('G') + 1, part.length - 2);
+                    forecast.wind = `${direction}° ${speed}G${gust}kt`;
+                } else if (/^VRB\d{2,3}KT$/.test(part)) {
+                    const speed = part.substring(3, part.length - 2);
+                    forecast.wind = `Variable ${speed}kt`;
+                }
+                // 시정
+                else if (/^\d{4}$/.test(part)) {
+                    if (part === '9999') {
+                        forecast.visibility = '10km+';
+                    } else {
+                        forecast.visibility = `${part}m`;
+                    }
+                } else if (/^\d+SM$/.test(part)) {
+                    const value = part.substring(0, part.length - 2);
+                    forecast.visibility = `${value}SM`;
+                } else if (/^\d+\/\d+SM$/.test(part)) {
+                    forecast.visibility = `${part}`;
+                } else if (/^P\d+SM$/.test(part)) {
+                    const value = part.substring(1, part.length - 2);
+                    forecast.visibility = `>${value}SM`;
+                }
+                // 날씨 현상 (AMD, COR 등은 제외)
+                else if (/^[+-]?[A-Z]{2,3}$/.test(part) && !['AMD', 'COR', 'AUTO'].includes(part)) {
+                    const weatherMap: { [key: string]: string } = {
+                        'RA': 'Rain', 'SN': 'Snow', 'DZ': 'Drizzle', 'SG': 'Snow Grains',
+                        'IC': 'Ice Crystals', 'PL': 'Ice Pellets', 'GR': 'Hail', 'GS': 'Small Hail',
+                        'UP': 'Unknown Precipitation', 'BR': 'Mist', 'FG': 'Fog', 'FU': 'Smoke',
+                        'VA': 'Volcanic Ash', 'DU': 'Dust', 'SA': 'Sand', 'HZ': 'Haze',
+                        'PY': 'Spray', 'PO': 'Dust/Sand Whirls', 'SQ': 'Squalls', 'FC': 'Funnel Cloud',
+                        'SS': 'Sandstorm', 'DS': 'Duststorm', 'SH': 'Shower', 'TS': 'Thunderstorm',
+                        'FZ': 'Freezing', 'MI': 'Shallow', 'PR': 'Partial', 'BC': 'Patches',
+                        'DR': 'Low Drifting', 'BL': 'Blowing', 'VC': 'In Vicinity', 'NSW': 'No Significant Weather'
+                    };
+                    const intensity = part.startsWith('+') ? 'Heavy ' : part.startsWith('-') ? 'Light ' : '';
+                    const code = part.replace(/^[+-]/, '');
+                    forecast.weather += intensity + (weatherMap[code] || code) + ' ';
+                } else if (/^[+-]?[A-Z]{2,3}[A-Z]{2,3}$/.test(part)) {
+                    const intensity = part.startsWith('+') ? 'Heavy ' : part.startsWith('-') ? 'Light ' : '';
+                    const code = part.replace(/^[+-]/, '');
+                    const weatherMap: { [key: string]: string } = {
+                        'TSRA': 'Thunderstorm with Rain', 'TSSN': 'Thunderstorm with Snow',
+                        'SHRA': 'Shower Rain', 'SHSN': 'Shower Snow', 'SHDZ': 'Shower Drizzle',
+                        'FZRA': 'Freezing Rain', 'FZDZ': 'Freezing Drizzle', 'FZFG': 'Freezing Fog',
+                        'BLSN': 'Blowing Snow', 'BLSA': 'Blowing Sand', 'BLDU': 'Blowing Dust'
+                    };
+                    forecast.weather += intensity + (weatherMap[code] || code) + ' ';
+                }
+                // 구름
+                else if (/^(FEW|SCT|BKN|OVC)\d{3}(CB|TCU)?$/.test(part)) {
+                    const type = part.substring(0, 3);
+                    const height = parseInt(part.substring(3, 6)) * 100;
+                    const cloudType = part.substring(6);
+                    const typeMap: { [key: string]: string } = {
+                        'FEW': 'Few', 'SCT': 'Scattered', 'BKN': 'Broken', 'OVC': 'Overcast'
+                    };
+                    const cloudTypeMap: { [key: string]: string } = {
+                        'CB': ' Cumulonimbus', 'TCU': ' Towering Cumulus'
+                    };
+                    forecast.clouds += `${typeMap[type]} ${height}ft${cloudTypeMap[cloudType] || ''} `;
+                } else if (part === 'CAVOK') {
+                    forecast.clouds = 'CAVOK';
+                } else if (part === 'NSC') {
+                    forecast.clouds = 'NSC';
+                }
+                // 기온
+                else if (/^TX\d{2}\/\d{4}Z$/.test(part)) {
+                    const temp = part.substring(2, 4);
+                    const day = part.substring(5, 7);
+                    const hour = part.substring(7, 9);
+                    forecast.maxTemp = `Max ${temp}°C (${day}일 ${hour}00 UTC)`;
+                } else if (/^TN\d{2}\/\d{4}Z$/.test(part)) {
+                    const temp = part.substring(2, 4);
+                    const day = part.substring(5, 7);
+                    const hour = part.substring(7, 9);
+                    forecast.minTemp = `Min ${temp}°C (${day}일 ${hour}00 UTC)`;
+                }
+            });
+            
+            // 메인 예보가 아닌 구간들만 추가
+            if (index !== 0 && !(index === 1 && !sectionParts[0].startsWith('FM') && !sectionParts[0].startsWith('TEMPO') && !sectionParts[0].startsWith('BECMG') && !sectionParts[0].startsWith('PROB'))) {
+                forecasts.push({
+                    ...forecast,
+                    wind: forecast.wind || '',
+                    visibility: forecast.visibility || '',
+                    weather: (forecast.weather || '').trim() || '',
+                    clouds: (forecast.clouds || '').trim() || ''
+                });
+            }
+        });
+        
+        // 메인 예보가 있으면 맨 앞에 추가 (데이터가 없어도 표시)
+        if (mainForecast) {
+            forecasts.unshift(mainForecast);
+            } else {
+            // 메인 예보가 없으면 기본 메인 예보 생성
+            forecasts.unshift({
+                time: validPeriod,
+                type: 'Main',
+                wind: '',
+                visibility: '',
+                weather: '',
+                clouds: '',
+                    probability: ''
+            });
+        }
+        
+        return {
+            airport,
+            issueTime,
+            validPeriod,
+            forecasts
+        };
+    };
+
+    // Sub-functions for efficiency and readability
+    const parseRmk = (rmkContent: string) => {
+        const decoded = [];
+        if (rmkContent.includes('AO2')) decoded.push('Automated Weather Station (AO2)');
+        
+        const pkWndMatch = rmkContent.match(/PK\s+WND\s+(\d{3})(\d{2})\/(\d{4})/i);
+        if (pkWndMatch) decoded.push(`Peak Wind: ${pkWndMatch[1]}° at ${pkWndMatch[2]}kt at ${pkWndMatch[3]}Z`);
+        
+        const slpMatch = rmkContent.match(/SLP(\d{3})/i);
+        if (slpMatch) {
+            const pressure = (parseInt(slpMatch[1], 10) / 10 + (parseInt(slpMatch[1], 10) < 500 ? 1000 : 900)).toFixed(1); // FAA standard for SLP
+            decoded.push(`Sea Level Pressure: ${pressure} hPa`);
+        }
+        
+        // FAA AIM 7-1-9 기준: T 코드는 온도/이슬점을 나타냄 (T02110178 = 온도 2.1°C, 이슬점 1.8°C)
+        const tMatch = rmkContent.match(/T(\d{4})(\d{4})/i);
+        if (tMatch) {
+            const temp = parseInt(tMatch[1], 10) / 10;
+            const dew = parseInt(tMatch[2], 10) / 10;
+            decoded.push(`Temperature: ${temp.toFixed(1)}°C, Dew Point: ${dew.toFixed(1)}°C`);
+        }
+        
+        // Pressure Tendency (5xxxx) per FAA AIM
+        const pressureMatch = rmkContent.match(/5(\d)(\d{3})/);
+        if (pressureMatch) {
+            const tendencyCode = pressureMatch[1];
+            const change = (parseInt(pressureMatch[2], 10) / 10).toFixed(1);
+            const tendencies = ['Increasing then decreasing', 'Increasing then steady', 'Increasing', 'Decreasing or steady then increasing', 'Steady', 'Decreasing then increasing', 'Decreasing then steady', 'Decreasing', 'Steady or increasing then decreasing', 'Unsteady'];
+            decoded.push(`Pressure Tendency: ${tendencies[parseInt(tendencyCode)] || 'Unknown'}, Change: ${change} hPa`);
+        }
+        
+        return [...new Set(decoded)]; // Deduplicate
+    };
+
+    const parseApproach = (text: string) => {
+        // FAA AIM 7-1-9 기준: ATIS Approach 정보 디코딩
+        const approachPatterns = [
+            // 복합 패턴 (활주로 번호 포함)
+            { type: 'INST APCHS AND RNAV RNP APCHS', pattern: /INST\s+APCHS?\s+AND\s+RNAV\s+RNP\s+APCHS?\s+R(?:WY?|Y)\s+([0-9]{2}[LRC]?\s+(?:AND|and)\s+[0-9]{2}[LRC]?)/gi },
+            { type: 'RNAV RNP APCHS', pattern: /RNAV\s+RNP\s+APCHS?\s+R(?:WY?|Y)\s+([0-9]{2}[LRC]?\s+(?:AND|and)\s+[0-9]{2}[LRC]?)/gi },
+            
+            // 개별 ILS 패턴
+            { type: 'ILS', pattern: /ILS\s+R(?:WY?|Y)\s+([0-9]{2}[LRC]?)/gi },
+            
+            // Visual Approach 패턴
+            { type: 'VISUAL APCH', pattern: /VISUAL\s+APCH\s+R(?:WY?|Y)\s+([0-9]{2}[LRC]?)/gi },
+            
+            // 일반적인 패턴 (활주로 번호 없음)
+            { type: 'OR VCTR FOR VISUAL APCH', pattern: /OR\s+VCTR\s+FOR\s+VISUAL\s+APCH\s+WILL\s+BE\s+PROVIDED/gi },
+            { type: 'SIMUL VISUAL APCHS TO ALL RWYS', pattern: /SIMUL\s+VISUAL\s+APCHS?\s+TO\s+ALL\s+RWYS\s+ARE\s+IN\s+PROG/gi }
+        ];
+        
+        const approaches: string[] = [];
+        approachPatterns.forEach(({ type, pattern }) => {
+            const matches = [...text.matchAll(pattern)];
+            matches.forEach(match => {
+                if (match[1]) {
+                    // 활주로 번호가 있는 경우
+                    const runways = match[1].replace(/\s+AND\s+/gi, ' and ').trim();
+                    approaches.push(`${type} RWY ${runways}`);
+                } else {
+                    // 활주로 번호가 없는 경우
+                    approaches.push(type);
+                }
+            });
+        });
+        
+        return [...new Set(approaches)]; // Deduplicate
+    };
+
+    const parseDeparture = (text: string) => {
+        // FAA AIM 7-1-9 기준: ATIS Departure 정보 디코딩
+        const matches = [...text.matchAll(/SIMUL\s+INSTR\s+DEPARTURES\s+IN\s+PROG\s+RWYS\s+([^\.]+)/gi)];
+        return matches.map(m => m[1].replace(/\s+AND\s+/gi, ' and ').trim());
+    };
+
+    const parseNotams = (text: string, matchedTexts: Set<string>) => {
+        // FAA AIM 7-1-9 기준: NOTAM 정보 디코딩
+        const notamContent: string[] = [];
+        
+        // TWY CLSD BTN 패턴 (FAA AIM 표준) - 더 정확한 패턴
+        const twyClsdBtwnMatches = [...text.matchAll(/\bTWY\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)\s+(?:BTN|BETWEEN)\s+([^\.]+?)(?=\s*,\s*|\.|$)/gi)];
+        twyClsdBtwnMatches.forEach(match => {
+            const fullMatch = match[0];
+            if (!matchedTexts.has(fullMatch)) {
+                matchedTexts.add(fullMatch);
+                let cleanedText = match[2].replace(/\s+/g, ' ').replace(/,\s*/g, ' ').replace(/\bAND\b/g, 'and').trim();
+                notamContent.push(`TWY ${match[1]} Closed Between ${cleanedText}`);
+            }
+        });
+        
+        // PAPI OTS (FAA AIM 표준)
+        const papiOtsMatches = [...text.matchAll(/\bPAPI\s+OTS\s+([0-9]{2}[LRC]?)/gi)];
+        papiOtsMatches.forEach(match => {
+            const fullMatch = match[0];
+            if (!matchedTexts.has(fullMatch)) {
+                matchedTexts.add(fullMatch);
+                notamContent.push(`PAPI OTS on RWY ${match[1]}`);
+            }
+        });
+        
+        // VOR OTS (FAA AIM 표준)
+        const vorOtsMatches = [...text.matchAll(/\b([A-Z]+)\s+VOR\s+OTS\b/gi)];
+        vorOtsMatches.forEach(match => {
+            const fullMatch = match[0];
+            if (!matchedTexts.has(fullMatch)) {
+                matchedTexts.add(fullMatch);
+                notamContent.push(`${match[1]} VOR OTS`);
+            }
+        });
+        
+        return notamContent;
+    };
+
+    const parseAdvisories = (text: string) => {
+        // FAA AIM 7-1-9 기준: ATIS Advisory 정보 디코딩
+        const advisoryPatterns = [
+            /HAZD\s+WX\s+INFO\s+FOR\s+[A-Z]+\s+AREA\s+AVBL\s+FM\s+FSS/i,
+            /BIRD\s+ACTIVITY\s+VICINITY\s+ARPT/i,
+            /CAUTION/i,
+            /RUNWAY\s+INCURSIONS\s+HAVE\s+OCCURRED\s+AT\s+TAXIWAYS\s+([^\.]+)/i,
+            /PILOTS\s+MUST\s+HOLD\s+SHORT\s+WHEN\s+INSTRUCTED/i,
+            /READBACK\s+ALL\s+HOLD\s+SHORT\s+CLEARANCES/i,
+            /REMAIN\s+ALERT\s+AND\s+EXERCISE\s+EXTREME\s+CAUTION/i
+        ];
+        const advisories = advisoryPatterns.map(p => text.match(p)?.[0]?.trim()).filter(Boolean);
+        return [...new Set(advisories)]; // Deduplicate
+    };
+
+
+    // DATIS 디코더: FAA AIM 7-1-9 기준에 따른 ATIS 문구 파싱
+    const decodeDatis = (datisText: string) => {
+        const text = (datisText || '').replace(/\n/g, ' ').trim();
+        const normText = text
+            .replace(/\bRY\b/gi, 'RWY')
+            .replace(/AND,/gi, 'AND')
+            .replace(/\s+,/g, ',')
+            .replace(/,\s+/g, ', ')
+            .replace(/\s{2,}/g, ' ');
+
+        const infoMatch = text.match(/\bINFO\s+([A-Z])\s+(\d{3,4})Z/i);
+        const windParts = text.match(/\b(VRB|\d{3})(\d{2,3})(?:G(\d{2,3}))?KT\b/);
+        const visMatch = text.match(/\b(P6|\d{1,2})SM\b/);
+        const cloudMatches = [...text.matchAll(/\b(FEW|SCT|BKN|OVC)(\d{3})\b/gi)].map(m => ({
+            amount: m[1].toUpperCase(), heightFt: parseInt(m[2], 10) * 100
+        }));
+        const tempDewMatch = text.match(/\b(\d{1,2})\/(\d{1,2})\b/);
+        const altimMatchA = text.match(/\bA(\d{4})\b/i); // inHg
+        const altimMatchQ = text.match(/\bQ(\d{4})\b/i); // hPa
+        // 다양한 approach 패턴 검색
+        // APPROACH IN USE ILS RY 4R, ILS RY 4L 패턴을 모두 매칭
+        const approachMatch = text.match(/APPROACH IN USE\s+([^\.]+?)(?=\s*\.|$)/i);
+        // 추가 approach 패턴들
+        const ilsApproachMatch = text.match(/ILS\s+APPROACH\s+([^\.,]+)/i);
+        
+        // ILS RWY XX APP IN USE 패턴
+        const ilsRwyAppMatch = text.match(/ILS\s+RY\s+([0-9]{2}[LRC]?)\s+APP\s+IN\s+USE/i);
+        
+        const visualApproachMatch = text.match(/VISUAL\s+APPROACH\s+([^\.,]+)/i);
+        
+        const rnavApproachMatch = text.match(/RNAV\s+APPROACH\s+([^\.,]+)/i);
+        
+        // SIMUL CHARTED VISUAL FLIGHT PROCEDURES 추출
+        const simulVisualMatch = text.match(/SIMUL CHARTED VISUAL FLIGHT PROCEDURES RWYS?\s+([^\.]+)/i);
+        
+        // INST APCHS AND RNAV RNP APCHS 패턴 추출
+        const instRnavApchsMatch = text.match(/INST\s+APCHS\s+AND\s+RNAV\s+RNP\s+APCHS\s+RY\s+([^\.]+)/i);
+        
+        // 복합 접근 방식 정보를 한 번에 파싱
+        const approachInfo = {
+            simulInstApchs: null,
+            rnavRnp: null,
+            simulApchsBtwn: null,
+            simulInstrDep: null
+        };
+        
+        // SIMUL INST APCHS AND RNAV RNP RWYS 24R AND 25L APCHS 패턴 처리
+        const simulInstRnavMatch = text.match(/SIMUL INST APCHS AND RNAV RNP RWYS?\s+([^\.]+)/i);
+        
+        if (simulInstRnavMatch) {
+            approachInfo.simulInstApchs = simulInstRnavMatch[1];
+            approachInfo.rnavRnp = simulInstRnavMatch[1];
+        } else {
+            // 개별 패턴 매칭
+            const simulInstMatch = text.match(/SIMUL INST APCHS[^\.]*?RWYS?\s+([^\.]+?)(?:\s+APCHS?)?/i);
+            if (simulInstMatch) approachInfo.simulInstApchs = simulInstMatch[1];
+            
+            const rnavMatch = text.match(/RNAV RNP RWYS?\s+([^\.]+?)(?:\s+APCHS?)?/i);
+            if (rnavMatch) approachInfo.rnavRnp = rnavMatch[1];
+        }
+        
+        // SIMUL APCHS IN PROG BTWN 추출
+        const simulApchsBtwnMatch = text.match(/SIMUL APCHS IN PROG BTWN\s+([^\.]+?)(?:\s+APCHS?)?/i);
+        if (simulApchsBtwnMatch) approachInfo.simulApchsBtwn = simulApchsBtwnMatch[1];
+        
+        // SIMUL INSTR DEPARTURES 추출
+        const simulInstrDepMatch = text.match(/SIMUL INSTR DEPARTURES[^\.]*?RWYS?\s+([^\.]+?)(?:\s+IN\s+PROG)?/i);
+        
+        // SIMUL INSTR DEPARTURES IN PROG RWYS 패턴 추출
+        const simulInstrDepProgMatch = text.match(/SIMUL INSTR DEPARTURES IN PROG RWYS\s+([^\.]+)/i);
+        if (simulInstrDepMatch) approachInfo.simulInstrDep = simulInstrDepMatch[1];
+        
+        // CTC L A GC (지상 관제 연락) 추출
+        const ctcGcMatch = text.match(/CTC L A GC ON\s+([^\.]+)/i);
+        
+        // DEPG (이륙 활주로) 추출
+        // DEPG / DEPARTURES 문구 모두 허용, 콤마/AND 정규화
+        const depgMatch = text.match(/DEPG\s+RWYS?\s+([^\.]*)/i) || text.match(/DEPARTURES\s+IN\s+PROG\s+RWYS?\s+([^\.]*)/i) || text.match(/DEPARTURES\s+RWY[S]?\s+([^\.]*)/i);
+        
+        // RMK (비고) 섹션 추출 및 디코딩
+        const rmkMatch = text.match(/\bRMK\s+([^\.]+)/i);
+        const rmkContent = rmkMatch ? rmkMatch[1] : null;
+        
+        // 전체 텍스트에서 기압 경향 코드 검색 (RMK 외부에서도)
+        const allPressureChangeMatches = [...text.matchAll(/(\d{5})/g)];
+        
+        // 기압 경향 코드가 있는지 확인
+        const pressureTendencyCodes = allPressureChangeMatches.filter(m => m[1].startsWith('5'));
+        
+        
+        // CLSD (폐쇄) 패턴 추출 - 더 정확한 패턴 매칭
+        const clsdMatches = [...normText.matchAll(/\b(TWY|RWY|RY)\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)[^\.]*\.?/gi)];
+        
+        // TWY CLSD 상세 정보 추출 (CLSD|CLOSED, BTN|BETWEEN 모두 허용)
+        const twyClsdMatches = [...normText.matchAll(/\bTWY\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)\s+(?:BTN|BETWEEN)\s+([^\.]+)/gi)];
+        const ilsRunwayMatches = [...text.matchAll(/\bILS\s+RY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
+        console.log('ILS Runway Matches:', ilsRunwayMatches);
+        
+        const visualApproachMatches = [...normText.matchAll(/\bVISUAL\s+APCH\s+RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
+        console.log('Visual Approach Matches:', visualApproachMatches);
+        
+        const rnavGpsMatches = [...normText.matchAll(/\bRNAV\s+GPS\s+([A-Z]?)\s*RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => ({ type: m[1] || 'Z', runway: m[2] }));
+        console.log('RNAV GPS Matches:', rnavGpsMatches);
+        
+        const depRunwayMatches = [...normText.matchAll(/\bDEP(?:G|ARTURE)?\s+RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
+        console.log('Departure Runway Matches:', depRunwayMatches);
+
+        const hasNotamsWord = /\bNOTAMS?\b/i.test(normText);
+        const explicitNoNotams = /\bNO\s+NOTAMS?\b/i.test(normText);
+        const hasClsdInfo = /\b(TWY|RWY|RY|GAT|HELIPAD)[^\.]*\b(CLSD|CLOSED)\b/i.test(normText);
+        // NOTAM은 반드시 디코딩 - CLSD 정보가 있으면 NOTAM으로 처리
+        const hasNotams = hasClsdInfo || (hasNotamsWord && !explicitNoNotams);
+        
+        console.log('- hasNotamsWord:', hasNotamsWord);
+        console.log('- explicitNoNotams:', explicitNoNotams);
+        console.log('- hasClsdInfo:', hasClsdInfo);
+        console.log('- hasNotams:', hasNotams);
+        
+        // NOTAM 내용 추출 (시설/장비 관련 공식 통지만)
+        const notamContent = [];
+        if (hasNotams) {
+            // 중복을 방지하기 위해 매칭된 텍스트를 추적
+            const matchedTexts = new Set();
+            
+            // TWY CLSD BTN 패턴을 개별적으로 처리
+            // 더 정확한 패턴: TWY N CLSD BTN RY 28L AND F 형태
+            // 쉼표로 구분된 여러 TWY CLSD 정보를 각각 처리
+            const twyClsdBtwnMatches = [...normText.matchAll(/\bTWY\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)\s+(?:BTN|BETWEEN)\s+([^\.]+?)(?=\s*,\s*|\.|$)/gi)];
+            console.log('TWY CLSD BTN Matches:', twyClsdBtwnMatches);
+            
+            // 추가로 쉼표로 연결된 TWY CLSD 패턴도 처리
+            const twyClsdCommaMatches = [...normText.matchAll(/\bTWY\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)\s+(?:BTN|BETWEEN)\s+([^,]+?),\s*TWY\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)\s+(?:BTN|BETWEEN)\s+([^\.]+?)(?:\.|$)/gi)];
+            console.log('TWY CLSD Comma Matches:', twyClsdCommaMatches);
+            // 개별 TWY CLSD BTN 처리
+            twyClsdBtwnMatches.forEach(match => {
+                const fullMatch = match[0];
+                if (!matchedTexts.has(fullMatch)) {
+                    matchedTexts.add(fullMatch);
+                    // 텍스트 정리: 불필요한 공백 제거하고 일관된 형식으로 변환
+                    let cleanedText = match[2].replace(/\s+/g, ' ').trim();
+                    // "AND"를 "and"로 통일
+                    cleanedText = cleanedText.replace(/\bAND\b/g, 'and');
+                    const finalText = `TWY ${match[1]} Closed Between ${cleanedText}`;
+                    notamContent.push(finalText);
+                }
+            });
+            
+            // 쉼표로 연결된 TWY CLSD BTN 처리
+            twyClsdCommaMatches.forEach(match => {
+                const fullMatch = match[0];
+                if (!matchedTexts.has(fullMatch)) {
+                    matchedTexts.add(fullMatch);
+                    
+                    // 첫 번째 TWY CLSD
+                    let cleanedText1 = match[2].replace(/\s+/g, ' ').trim();
+                    cleanedText1 = cleanedText1.replace(/\bAND\b/g, 'and');
+                    const finalText1 = `TWY ${match[1]} Closed Between ${cleanedText1}`;
+                    notamContent.push(finalText1);
+                    
+                    // 두 번째 TWY CLSD
+                    let cleanedText2 = match[4].replace(/\s+/g, ' ').trim();
+                    cleanedText2 = cleanedText2.replace(/\bAND\b/g, 'and');
+                    const finalText2 = `TWY ${match[3]} Closed Between ${cleanedText2}`;
+                    notamContent.push(finalText2);
+                }
+            });
+            
+            // RWY CLSD/CLOSED 패턴 처리
+            const rwyClsdMatches = [...normText.matchAll(/\bRWY\s+([0-9]{2}[LRC]?)\s+CLSD\b/gi)];
+            const rwyClosedMatches2 = [...normText.matchAll(/\bRWY\s+([0-9]{2}[LRC]?)\s+CLOSED\b/gi)];
+            rwyClsdMatches.forEach(match => {
+                const fullMatch = match[0];
+                if (!matchedTexts.has(fullMatch)) {
+                    matchedTexts.add(fullMatch);
+                    notamContent.push(`RWY ${match[1]} Closed`);
+                }
+            });
+            rwyClosedMatches2.forEach(match => {
+                const fullMatch = match[0];
+                if (!matchedTexts.has(fullMatch)) {
+                    matchedTexts.add(fullMatch);
+                    notamContent.push(`RWY ${match[1]} Closed`);
+                }
+            });
+            
+            // 기타 NOTAM 패턴들 - 동적 추출
+            const otherPatterns = [
+                { pattern: /\bGAT\s+([A-Z0-9\s]+?)\s+(?:CLSD|CLOSED)\b/gi, text: 'GAT $1 Closed' },
+                { pattern: /\b(TERMINAL\s+HELIPAD|HELIPAD)\b[^\.]*\b(?:CLSD|CLOSED)\b/gi, text: 'Helipad Closed' },
+                { pattern: /\bRY\s+([0-9]{2}[LRC]?)\s+SFL\s+OTS\b/gi, text: 'RWY $1 SFL OTS' },
+                { pattern: /\b([A-Z]+)\s+VOR\s+OTS\b/gi, text: '$1 VOR OTS' },
+                { pattern: /\bRWY\s+([0-9]{2}[LRC]?)\s+LOC\s+OTS\b/gi, text: 'RWY $1 LOC OTS' },
+                { pattern: /\bRWY\s+([0-9]{2}[LRC]?)\s+GS\s+OTS\b/gi, text: 'RWY $1 GS OTS' },
+                { pattern: /\bRWY\s+([0-9]{2}[LRC]?)\s+ALS\s+OTS\b/gi, text: 'RWY $1 ALS OTS' },
+                { pattern: /\bRWY\s+([0-9]{2}[LRC]?)\s+PAPI\s+OTS\b/gi, text: 'RWY $1 PAPI OTS' },
+                { pattern: /\bRUNWAY INCURSIONS HAVE OCCURRED AT TAXIWAYS\s+([^\.]+?)(?:\.|$)/gi, text: 'Runway Incursions at Taxiways $1' }
+            ];
+            
+            otherPatterns.forEach(({ pattern, text: notamText }) => {
+                const matches = [...normText.matchAll(pattern)];
+                matches.forEach(match => {
+                    const fullMatch = match[0];
+                    if (!matchedTexts.has(fullMatch)) {
+                        matchedTexts.add(fullMatch);
+                        let finalText = notamText;
+                        if (finalText.includes('$1') && match[1]) {
+                            finalText = finalText.replace('$1', match[1]);
+                        }
+                        notamContent.push(finalText);
+                    }
+                });
+            });
+        }
+        
+        
+        const birdActivity = /\bBIRD ACTIVITY\b/i.test(text);
+        const readbackRequired = /READBACK ALL RWY ASSIGNMENTS/i.test(text);
+        const hazardWx = /HAZD WX/i.test(text) || /HAZARDOUS WEATHER/i.test(text);
+        const cranesLine = text.match(/NUM CRANES[^\.]*\./i)?.[0]?.replace(/\.$/, '') || null;
+        const cranesOperating = /NUM CRANES OPERATING/i.test(text);
+        
+        // 추가 Advisories 패턴
+        const runwayIncursion = /RUNWAY INCURSIONS HAVE OCCURRED/i.test(text);
+        const holdShortRequired = /HOLD SHORT WHEN INSTRUCTED/i.test(text);
+        const readbackClearances = /READBACK ALL HOLD SHORT CLEARANCES/i.test(text);
+        const remainAlert = /REMAIN ALERT AND EXERCISE EXTREME CAUTION/i.test(text);
+        const fssInfo = /HAZD WX INFO.*?AVBL FM FSS/i.test(text);
+
+        // 추가 키워드 매칭 (항공 약어 디코딩 포함)
+        const llwsMatches = [...text.matchAll(/\b(LLWS|LOW LEVEL WIND SHEAR)[^\.]*?(?:RWY\s*([0-9]{2}[LRC]?))?/gi)];
+        const microburst = /\bMICROBURST\b/i.test(text);
+        const windshearGeneric = /\bWIND SHEAR\b/i.test(text);
+        const brakingMatches = [...text.matchAll(/\bBRAKING ACTION\s+(GOOD|FAIR|POOR|NIL)[^\.]*?(?:RWY\s*([0-9]{2}[LRC]?))?/gi)];
+        const rvrMatches = [...text.matchAll(/\bRVR\s*(?:RWY\s*)?([0-9]{2}[LRC]?)\s*(\d{3,4})(?:V(\d{3,4}))?\s*FT\b/gi)];
+        const rwyClosedMatches = [...text.matchAll(/\bRWY\s*([0-9]{2}[LRC]?)\s*(?:CLSD|CLOSED)\b/gi)];
+        const navaidOtsMatches = [...text.matchAll(/\b(ILS|GLIDESLOPE|LOCALIZER)\s*(?:FOR\s*RWY\s*([0-9]{2}[LRC]?))?\s*(?:OUT OF SERVICE|OTS)\b/gi)];
+        const runwayCondMatches = [...text.matchAll(/\bRWY\s*([0-9]{2}[LRC]?).*?\b(WET|DRY|SLIPPERY)\b/gi)];
+        const lightningVicinity = /\bLIGHTNING\b/i.test(text);
+        const thunderstorm = /\bTHUNDERSTORM\b|\bTS\b/i.test(text);
+        const windShearOnFinal = [...text.matchAll(/WIND SHEAR.*?(FINAL|DEPARTURE).*?RWY\s*([0-9]{2}[LRC]?)/gi)];
+        const cautionSnippets = [...text.matchAll(/USE CAUTION[^\.]*\./gi)].map(m => m[0].replace(/\.$/, ''));
+        
+        // 항공 약어 디코딩
+        const aviationAbbreviations = {
+            'SFL': 'Sequenced Flashing Lights',
+            'OTS': 'Out of Service',
+            'CLSD': 'Closed',
+            'RWY': 'Runway',
+            'RY': 'Runway',
+            'GAT': 'General Aviation Terminal',
+            'RVR': 'Runway Visual Range',
+            'ILS': 'Instrument Landing System',
+            'LLWS': 'Low Level Wind Shear',
+            'TS': 'Thunderstorm',
+            'SM': 'Statute Miles',
+            'KT': 'Knots',
+            'VRB': 'Variable',
+            'SCT': 'Scattered',
+            'BKN': 'Broken',
+            'OVC': 'Overcast',
+            'FEW': 'Few'
+        };
+
+        let wind: string | null = null;
+        if (windParts) {
+            const dir = windParts[1];
+            const spd = windParts[2];
+            const gust = windParts[3];
+            wind = dir === 'VRB' ? `VRB ${spd}kt${gust ? ` gust ${gust}kt` : ''}` : `${dir}° ${spd}kt${gust ? ` gust ${gust}kt` : ''}`;
+        }
+
+        let visibility: string | null = null;
+        if (visMatch) visibility = visMatch[1] === 'P6' ? '6+ SM' : `${visMatch[1]} SM`;
+
+        const clouds = cloudMatches.length > 0
+            ? cloudMatches.map(c => `${c.amount} ${c.heightFt.toLocaleString()} ft`).join(', ')
+            : null;
+
+        let altimeterInHg: string | null = null;
+        let altimeterHpa: string | null = null;
+        if (altimMatchA) {
+            const inHg = (parseInt(altimMatchA[1], 10) / 100).toFixed(2);
+            altimeterInHg = `${inHg} inHg`;
+        } else if (altimMatchQ) {
+            altimeterHpa = `${parseInt(altimMatchQ[1], 10)} hPa`;
+        }
+
+        const temperature = tempDewMatch ? `${tempDewMatch[1]}°C` : null;
+        const dewpoint = tempDewMatch ? `${tempDewMatch[2]}°C` : null;
+
+        // Use sub-functions for better organization
+        const rmkDecoded = parseRmk(rmkContent || '');
+        
+        const matchedTexts = new Set<string>();
+        const approaches = parseApproach(normText);
+        const departures = parseDeparture(normText);
+        const notams = parseNotams(normText, matchedTexts);
+        const advisories = parseAdvisories(normText);
+
+        return {
+            infoLetter: infoMatch ? infoMatch[1] : null,
+            timeZulu: infoMatch ? `${infoMatch[2]}Z` : null,
+            wind,
+            visibility,
+            clouds,
+            temperature,
+            dewpoint,
+            altimeterInHg,
+            altimeterHpa,
+            rmkContent,
+            rmkDecoded,
+            approach: approachMatch ? approachMatch[1] : (ilsRwyAppMatch ? `ILS RWY ${ilsRwyAppMatch[1]}` : (instRnavApchsMatch ? `INST APCHS AND RNAV RNP APCHS RWY ${instRnavApchsMatch[1]}` : null)),
+            simulVisual: simulVisualMatch ? simulVisualMatch[1] : null,
+            simulInstApchs: approachInfo.simulInstApchs,
+            rnavRnp: approachInfo.rnavRnp,
+            simulApchsBtwn: approachInfo.simulApchsBtwn,
+            simulInstrDep: approachInfo.simulInstrDep || (simulInstrDepProgMatch ? `SIMUL INSTR DEPARTURES IN PROG RWYS ${simulInstrDepProgMatch[1]}` : null),
+            ctcGc: (() => {
+                if (!ctcGcMatch) return null;
+                // 주파수만 추출 (예: 121.75, 121, 121.7 등) → 원본 그대로 유지
+                const freq = (ctcGcMatch[1] || '').match(/(\d{3}(?:\.\d{1,2})?)/);
+                if (!freq) return ctcGcMatch[1];
+                return freq[1];
+            })(),
+            departureRunways: depgMatch ? depgMatch[1].replace(/\s+/g, ' ').replace(/\band\b/gi, 'and').trim() : null,
+            runways: { 
+                ils: ilsRunwayMatches, 
+                visual: visualApproachMatches,
+                rnavGps: rnavGpsMatches,
+                dep: depRunwayMatches 
+            },
+            hasNotams,
+            notams,
+            advisories,
+            approaches,
+            departures: departures.length > 0 ? departures.join(', ') : null,
+        } as const;
+    };
+
+
+    // 일출/일몰 시간 상태
+    const [sunTimes, setSunTimes] = useState<{sunrise: string | null, sunset: string | null}>({sunrise: null, sunset: null});
+    const [loadingSun, setLoadingSun] = useState(false);
+    
+
+    // 일출/일몰 시간을 API로 가져오기
+    const fetchSunTimes = async (cityCode: string) => {
+        try {
+            setLoadingSun(true);
+            const cityInfo = getCityInfo(cityCode);
+            if (!cityInfo) {
+                setSunTimes({ sunrise: null, sunset: null });
+                return;
+            }
+
+            // 온라인 상태에서만 API 호출
+            if (networkDetector.getStatus().isOnline) {
+                const response = await fetch(`/api/sunrise?lat=${cityInfo.lat}&lng=${cityInfo.lon}&date=${new Date().toISOString().split('T')[0]}`);
+                
+                if (!response.ok) {
+                    throw new Error('일출/일몰 API 호출 실패');
+                }
+                
+                const data = await response.json();
+                
+                if (data.results) {
+                    // API에서 받은 시간을 그대로 파싱 (이미 해당 도시의 현지시간)
+                    const sunriseTime = data.results.sunrise;
+                    const sunsetTime = data.results.sunset;
+                    
+                    // ISO 8601 형식에서 시간 부분만 추출 (예: "2025-09-06T06:40:54+02:00" → "06:40")
+                    const sunriseFormatted = sunriseTime.split('T')[1].split(':').slice(0, 2).join(':');
+                    const sunsetFormatted = sunsetTime.split('T')[1].split(':').slice(0, 2).join(':');
+                    
+                    setSunTimes({ sunrise: sunriseFormatted, sunset: sunsetFormatted });
+                } else {
+                    throw new Error('API 응답에 results가 없습니다');
+                }
+            } else {
+                // 오프라인 상태에서는 일출/일몰 정보 없음
+                setSunTimes({ sunrise: null, sunset: null });
+            }
+        } catch (error) {
+            console.error('일출/일몰 API 오류:', error);
+            // API 실패 시 일출/일몰 정보 없음
+            setSunTimes({ sunrise: null, sunset: null });
+        } finally {
+            setLoadingSun(false);
+        }
+    };
+
+    // 일출/일몰 직접 계산 함수 삭제됨
+
+    // 타임존 오프셋 계산 함수 (cityData.ts의 getUTCOffset 사용)
+    const getTimezoneOffset = (cityCode: string): number => {
+        try {
+            const cityInfo = getCityInfo(cityCode);
+            if (!cityInfo) return 0;
+            
+            const now = new Date();
+            const utcTime = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+            const localTime = new Date(now.toLocaleString('en-US', { timeZone: cityInfo.timezone }));
+            const offset = (localTime.getTime() - utcTime.getTime()) / (1000 * 60 * 60);
+            return offset;
+        } catch (error) {
+            console.error('타임존 오프셋 계산 오류:', error);
+            return 0;
+        }
+    };
+
+
+    // 월출/월몰 함수 삭제됨
+
     const WeatherIcon = ({ icon, className, size = '' }: { icon: string; className?: string; size?: '' | '@2x' | '@4x' }) => {
+        // icon 값이 없거나 undefined인 경우 기본 아이콘 반환
+        if (!icon) {
+            return <WiDaySunny size={48} color="#9ca3af" />;
+        }
+        
         // 현재 날씨 아이콘인지 확인 (size prop이 '@4x'인 경우)
         const isCurrentWeather = size === '@4x';
         // 작은 화면에서는 더 작은 크기 사용
@@ -235,8 +1644,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         );
     };
 
-    const API_KEY = '0bd6961a7147dd577607789285c3a30c';
-    const CHECKWX_API_KEY = "0b2ff44a840748d48e8edb039bb181a1";
+    // API 키는 이제 Vercel 서버리스 함수에서 환경변수로 관리됩니다
 
     // 도시 정보를 가져오는 함수들
     const getIcaoCode = (airportCode: string): string => {
@@ -274,50 +1682,61 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 const cityName = getCityNameFromCode(city);
                 
                 try {
-                    // 먼저 로컬 스토리지에서 확인
-                    const cachedWeather = localStorage.getItem(`weather_${city}`);
-                    if (cachedWeather) {
-                        const { data, timestamp } = JSON.parse(cachedWeather);
-                        // 30분 이내 데이터면 캐시 사용
-                        if (Date.now() - timestamp < 30 * 60 * 1000) {
-                            setWeather(data);
+                    // 캐시된 데이터 확인
+                    const cachedData = getCachedData(`weather_${city}`);
+                    if (cachedData) {
+                        setWeather(cachedData);
                             setLoadingWeather(false);
                             return;
-                        }
                     }
 
                     // 온라인 상태에서만 API 호출
                     if (networkDetector.getStatus().isOnline) {
-                        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${API_KEY}&units=metric`);
+                        // Vercel 서버리스 함수 사용 (OpenWeatherMap 2.5 Forecast API)
+                        const cityInfo = getCityInfo(city);
+                        const cityId = cityInfo?.openWeatherId || 1843564; // 기본값: 인천
+                        
+                        const response = await fetch(`/api/weather?id=${cityId}`);
                         if (!response.ok) {
                             const errorData = await response.json();
-                            throw new Error(errorData.message || '날씨 정보를 가져올 수 없습니다.');
+                            throw new Error(errorData.error || '날씨 정보를 가져올 수 없습니다.');
                         }
-                        const data = await response.json();
-                        setWeather(data);
+                        const weatherData = await response.json();
                         
-                        // 로컬 스토리지에 저장
-                        localStorage.setItem(`weather_${city}`, JSON.stringify({
-                            data,
-                            timestamp: Date.now()
-                        }));
+                        setWeather(weatherData);
+                        
+                        // AQI 데이터도 가져오기
+                        await fetchAQIData(city, cityInfo);
+                        
+                        setCachedData(`weather_${city}`, weatherData);
                     } else {
                         // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                        if (cachedWeather) {
-                            const { data } = JSON.parse(cachedWeather);
-                            setWeather(data);
+                        const offlineCachedData = getCachedData(`weather_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                        if (offlineCachedData) {
+                            setWeather(offlineCachedData);
                             setWeatherError('오프라인 모드: 캐시된 데이터를 표시합니다.');
                         } else {
                             setWeatherError('오프라인 상태에서 캐시된 날씨 정보가 없습니다.');
                         }
+                        
+                        // 캐시된 AQI 데이터도 확인
+                        const cachedAQIData = getCachedData(`air_pollution_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                        if (cachedAQIData) {
+                            setAirPollution(cachedAQIData);
+                        }
                     }
                 } catch (err) {
                     // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                    const cachedWeather = localStorage.getItem(`weather_${city}`);
-                    if (cachedWeather && !networkDetector.getStatus().isOnline) {
-                        const { data } = JSON.parse(cachedWeather);
-                        setWeather(data);
+                    const offlineCachedData = getCachedData(`weather_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                    if (offlineCachedData && !networkDetector.getStatus().isOnline) {
+                        setWeather(offlineCachedData);
                         setWeatherError('오프라인 모드: 캐시된 데이터를 표시합니다.');
+                        
+                        // 캐시된 AQI 데이터도 확인
+                        const cachedAQIData = getCachedData(`air_pollution_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                        if (cachedAQIData) {
+                            setAirPollution(cachedAQIData);
+                        }
                     } else {
                         setWeatherError('날씨 정보를 불러오는 데 실패했습니다.');
                     }
@@ -326,8 +1745,18 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 }
             };
             fetchWeather();
+            // 일출/일몰 시간 가져오기
+            fetchSunTimes(city);
         }
     }, [showWeather, city, weather]);
+
+    // AQI 데이터를 별도로 관리하는 useEffect
+    useEffect(() => {
+        if (showWeather && city && !airPollution) {
+            const cityInfo = getCityInfo(city);
+            fetchAQIData(city, cityInfo);
+        }
+    }, [showWeather, city, airPollution]);
 
     useEffect(() => {
         if (showWeather && city && !forecast && !forecastError) {
@@ -337,16 +1766,13 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 const cityName = getCityNameFromCode(city);
                 
                 try {
-                    // 먼저 로컬 스토리지에서 확인
-                    const cachedForecast = localStorage.getItem(`forecast_${city}`);
-                    if (cachedForecast) {
-                        const { data, timestamp } = JSON.parse(cachedForecast);
-                        // 30분 이내 데이터면 캐시 사용
-                        if (Date.now() - timestamp < 30 * 60 * 1000) {
+                    // 캐시된 데이터 확인
+                    const cachedData = getCachedData(`forecast_${city}`);
+                    if (cachedData) {
                             // 캐시된 데이터를 현지시간으로 다시 계산
                             const cityInfo = getCityInfo(city);
-                            if (data.next24hForecast && cityInfo) {
-                                const updatedNext24hForecast = data.next24hForecast.map((item: any) => {
+                            if (cachedData.next24hForecast && cityInfo) {
+                                const updatedNext24hForecast = cachedData.next24hForecast.map((item: any) => {
                                     // 원본 UTC 시간을 현지시간으로 변환
                                     const localTime = new Date(item.dt * 1000).toLocaleString("en-US", { timeZone: cityInfo.timezone });
                                     const localHour = new Date(localTime).getHours();
@@ -357,22 +1783,39 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                 });
                                 setThreeHourForecast(updatedNext24hForecast);
                             } else {
-                                setThreeHourForecast(data.next24hForecast);
+                                setThreeHourForecast(cachedData.next24hForecast);
                             }
-                            setForecast(data.processedForecast);
+                            setForecast(cachedData.processedForecast);
                             setLoadingForecast(false);
                             return;
-                        }
                     }
 
                     // 온라인 상태에서만 API 호출
                     if (networkDetector.getStatus().isOnline) {
-                        const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${API_KEY}&units=metric`);
-                        if (!response.ok) throw new Error('예보 정보를 가져올 수 없습니다.');
-                        const data = await response.json();
+                        // Vercel 서버리스 함수 사용 (OpenWeatherMap 2.5 Forecast API)
+                        const cityInfo = getCityInfo(city);
+                        const cityId = cityInfo?.openWeatherId || 1843564; // 기본값: 인천
+                        
+                        
+                        const response = await fetch(`/api/weather?id=${cityId}`);
+                        
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error('API 오류 응답:', errorText);
+                            throw new Error(`예보 정보를 가져올 수 없습니다. (${response.status})`);
+                        }
+                        
+                        const weatherData = await response.json();
+                        
+                        // 현재 날씨 정보 설정
+                        if (weatherData.main && weatherData.weather) {
+                            setWeather(weatherData);
+                        }
+                        
+                        const data = weatherData.forecastData; // Forecast API 원본 데이터
 
+                        // Forecast API의 list 데이터를 사용 (24시간 예보)
                         const next24hForecast = data.list.slice(0, 8).map((item: any) => {
-                            const cityInfo = getCityInfo(city);
                             const localTime = cityInfo ? 
                                 new Date(item.dt * 1000).toLocaleString("en-US", { timeZone: cityInfo.timezone }) :
                                 new Date(item.dt * 1000);
@@ -387,11 +1830,12 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                         });
                         setThreeHourForecast(next24hForecast);
 
+                        // Forecast API의 list 데이터를 일별로 그룹화
                         const dailyData: { [key: string]: { temps: number[], icon?: string } } = {};
                         const today = new Date().toISOString().split('T')[0];
 
                         data.list.forEach((item: any) => {
-                            const date = item.dt_txt.split(' ')[0];
+                            const date = new Date(item.dt * 1000).toISOString().split('T')[0];
                             if (date === today) return; // 오늘 데이터는 제외
 
                             if (!dailyData[date]) {
@@ -403,8 +1847,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                             }
                         });
 
-                        const processedForecast = Object.keys(dailyData).slice(0, 5).map(date => {
-                            const dayData = dailyData[date];
+                        const processedForecast = Object.entries(dailyData).map(([date, dayData]) => {
                             return {
                                 date,
                                 day: new Date(date).toLocaleDateString('ko-KR', { weekday: 'short' }),
@@ -416,22 +1859,19 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                         
                         setForecast(processedForecast);
 
-                        // 로컬 스토리지에 저장
-                        localStorage.setItem(`forecast_${city}`, JSON.stringify({
-                            data: {
+                        setCachedData(`forecast_${city}`, {
                                 processedForecast,
                                 next24hForecast
-                            },
-                            timestamp: Date.now()
-                        }));
+                        });
+                        
                     } else {
                         // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                        if (cachedForecast) {
-                            const { data } = JSON.parse(cachedForecast);
+                        const offlineCachedData = getCachedData(`forecast_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                        if (offlineCachedData) {
                             // 캐시된 데이터를 현지시간으로 다시 계산
                             const cityInfo = getCityInfo(city);
-                            if (data.next24hForecast && cityInfo) {
-                                const updatedNext24hForecast = data.next24hForecast.map((item: any) => {
+                            if (offlineCachedData.next24hForecast && cityInfo) {
+                                const updatedNext24hForecast = offlineCachedData.next24hForecast.map((item: any) => {
                                     if (item.dt) {
                                         // 원본 UTC 시간을 현지시간으로 변환
                                         const localTime = new Date(item.dt * 1000).toLocaleString("en-US", { timeZone: cityInfo.timezone });
@@ -445,9 +1885,9 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                 });
                                 setThreeHourForecast(updatedNext24hForecast);
                             } else {
-                                setThreeHourForecast(data.next24hForecast);
+                                setThreeHourForecast(offlineCachedData.next24hForecast);
                             }
-                            setForecast(data.processedForecast);
+                            setForecast(offlineCachedData.processedForecast);
                             setForecastError('오프라인 모드: 캐시된 데이터를 표시합니다.');
                         } else {
                             setForecastError('오프라인 상태에서 캐시된 예보 정보가 없습니다.');
@@ -455,14 +1895,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                     }
 
                 } catch (err) {
+                    console.error('날씨 API 오류:', err);
                     // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                    const cachedForecast = localStorage.getItem(`forecast_${city}`);
-                    if (cachedForecast && !networkDetector.getStatus().isOnline) {
-                        const { data } = JSON.parse(cachedForecast);
+                    const offlineCachedData = getCachedData(`forecast_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                    if (offlineCachedData && !networkDetector.getStatus().isOnline) {
                         // 캐시된 데이터를 현지시간으로 다시 계산
                         const cityInfo = getCityInfo(city);
-                        if (data.next24hForecast && cityInfo) {
-                            const updatedNext24hForecast = data.next24hForecast.map((item: any) => {
+                        if (offlineCachedData.next24hForecast && cityInfo) {
+                            const updatedNext24hForecast = offlineCachedData.next24hForecast.map((item: any) => {
                                 if (item.dt) {
                                     // 원본 UTC 시간을 현지시간으로 변환
                                     const localTime = new Date(item.dt * 1000).toLocaleString("en-US", { timeZone: cityInfo.timezone });
@@ -476,9 +1916,9 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                             });
                             setThreeHourForecast(updatedNext24hForecast);
                         } else {
-                            setThreeHourForecast(data.next24hForecast);
+                            setThreeHourForecast(offlineCachedData.next24hForecast);
                         }
-                        setForecast(data.processedForecast);
+                        setForecast(offlineCachedData.processedForecast);
                         setForecastError('오프라인 모드: 캐시된 데이터를 표시합니다.');
                     } else {
                         setForecastError('예보 정보 로딩 실패');
@@ -500,60 +1940,39 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 const icaoCode = getIcaoCode(city); // ICAO 코드로 변환
                 
                 try {
-                    // 먼저 로컬 스토리지에서 확인
-                    const cachedMetar = localStorage.getItem(`metar_${city}`);
-                    const cachedTaf = localStorage.getItem(`taf_${city}`);
+                    // 캐시된 데이터 확인 (15분 캐시)
+                    const cachedMetarData = getCachedData(`metar_${city}`, 15 * 60 * 1000);
+                    const cachedTafData = getCachedData(`taf_${city}`, 15 * 60 * 1000);
                     
-                    if (cachedMetar && cachedTaf) {
-                        const { data: metarData, timestamp: metarTimestamp } = JSON.parse(cachedMetar);
-                        const { data: tafData, timestamp: tafTimestamp } = JSON.parse(cachedTaf);
-                        
-                        // 15분 이내 데이터면 캐시 사용
-                        if (Date.now() - metarTimestamp < 15 * 60 * 1000 && 
-                            Date.now() - tafTimestamp < 15 * 60 * 1000) {
-                            setMetar(metarData);
-                            setTaf(tafData);
+                    if (cachedMetarData && cachedTafData) {
+                        setMetar(cachedMetarData);
+                        setTaf(cachedTafData);
                             setLoadingMetarTaf(false);
                             return;
-                        }
                     }
 
                     // 온라인 상태에서만 API 호출
                     if (networkDetector.getStatus().isOnline) {
-                        const metarResponse = await fetch(`https://api.checkwx.com/metar/${icaoCode}/decoded`, {
-                            headers: { 'X-API-Key': CHECKWX_API_KEY }
-                        });
-                        if (!metarResponse.ok) throw new Error('METAR 정보를 가져올 수 없습니다.');
-                        const metarData = await metarResponse.json();
-                        const metarText = metarData.data.length > 0 ? metarData.data[0].raw_text : 'METAR 정보 없음';
-                        setMetar(metarText);
+                        // Vercel 서버리스 함수 사용 (API 키 보호)
+                        const response = await fetch(`/api/metar?icao=${icaoCode}`);
+                        if (!response.ok) throw new Error('METAR/TAF 정보를 가져올 수 없습니다.');
+                        const data = await response.json();
                         
-                        // 로컬 스토리지에 저장
-                        localStorage.setItem(`metar_${city}`, JSON.stringify({
-                            data: metarText,
-                            timestamp: Date.now()
-                        }));
-
-                        const tafResponse = await fetch(`https://api.checkwx.com/taf/${icaoCode}/decoded`, {
-                            headers: { 'X-API-Key': CHECKWX_API_KEY }
-                        });
-                        if (!tafResponse.ok) throw new Error('TAF 정보를 가져올 수 없습니다.');
-                        const tafData = await tafResponse.json();
-                        const tafText = tafData.data.length > 0 ? tafData.data[0].raw_text : 'TAF 정보 없음';
+                        const metarText = data.metar ? data.metar.raw_text : 'METAR 정보 없음';
+                        const tafText = data.taf ? data.taf.raw_text : 'TAF 정보 없음';
+                        
+                        setMetar(metarText);
                         setTaf(tafText);
                         
-                        // 로컬 스토리지에 저장
-                        localStorage.setItem(`taf_${city}`, JSON.stringify({
-                            data: tafText,
-                            timestamp: Date.now()
-                        }));
+                        setCachedData(`metar_${city}`, metarText);
+                        setCachedData(`taf_${city}`, tafText);
                     } else {
                         // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                        if (cachedMetar && cachedTaf) {
-                            const { data: metarData } = JSON.parse(cachedMetar);
-                            const { data: tafData } = JSON.parse(cachedTaf);
-                            setMetar(metarData);
-                            setTaf(tafData);
+                        const offlineCachedMetarData = getCachedData(`metar_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                        const offlineCachedTafData = getCachedData(`taf_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                        if (offlineCachedMetarData && offlineCachedTafData) {
+                            setMetar(offlineCachedMetarData);
+                            setTaf(offlineCachedTafData);
                             setMetarTafError('오프라인 모드: 캐시된 데이터를 표시합니다.');
                         } else {
                             setMetarTafError('오프라인 상태에서 캐시된 METAR/TAF 정보가 없습니다.');
@@ -561,13 +1980,11 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                     }
                 } catch (err) {
                     // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                    const cachedMetar = localStorage.getItem(`metar_${city}`);
-                    const cachedTaf = localStorage.getItem(`taf_${city}`);
-                    if (cachedMetar && cachedTaf && !networkDetector.getStatus().isOnline) {
-                        const { data: metarData } = JSON.parse(cachedMetar);
-                        const { data: tafData } = JSON.parse(cachedTaf);
-                        setMetar(metarData);
-                        setTaf(tafData);
+                    const offlineCachedMetarData = getCachedData(`metar_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                    const offlineCachedTafData = getCachedData(`taf_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                    if (offlineCachedMetarData && offlineCachedTafData && !networkDetector.getStatus().isOnline) {
+                        setMetar(offlineCachedMetarData);
+                        setTaf(offlineCachedTafData);
                         setMetarTafError('오프라인 모드: 캐시된 데이터를 표시합니다.');
                     } else {
                         setMetarTafError('METAR/TAF 정보를 불러올 수 없습니다. (오프라인 또는 서버 오류)');
@@ -580,6 +1997,98 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         }
     }, [showMetar, city, metar, taf]);
 
+    // DATIS API를 사용한 정보 가져오기
+    useEffect(() => {
+        console.log('DATIS useEffect 체크:', {
+            showDatis,
+            city,
+            datisInfo: !!datisInfo,
+            cityInfo: cityInfo,
+            country: cityInfo?.country,
+            condition: showDatis && city && !datisInfo && cityInfo?.country === 'United States'
+        });
+        
+        if (showDatis && city && !datisInfo && cityInfo?.country === 'United States') {
+            const fetchDatis = async () => {
+                setLoadingDatis(true);
+                setDatisError(null);
+                
+                try {
+                    // 항상 실제 API를 우선 호출
+                    console.log('🚀 DATIS API 호출 시작:', cityInfo.icao);
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000);
+                    
+                    const datisUrl = `https://datis.clowd.io/api/${cityInfo.icao}`;
+                    const response = await fetch(datisUrl, {
+                        signal: controller.signal,
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json',
+                        }
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // 디버깅: 실제 응답 구조 확인
+                    console.log('DATIS API Response:', data);
+                    console.log('Is Array:', Array.isArray(data));
+                    console.log('Data length:', data?.length);
+                    
+                    // DATIS 정보 포맷팅 (실제 DATIS API 응답)
+                    let formattedDatis = '';
+                    if (Array.isArray(data) && data.length > 0) {
+                        // DATIS API는 배열 형태로 응답
+                        const datisInfo = data[0];
+                        console.log('DATIS Info for', cityInfo.icao, ':', datisInfo);
+                        if (datisInfo.datis) {
+                            // DATIS 내용에서 공항 코드가 올바른지 확인
+                            console.log('DATIS Content:', datisInfo.datis);
+                            formattedDatis = `DATIS (${cityInfo.icao}) - INFO ${datisInfo.code || 'N/A'} ${datisInfo.time || ''}Z:\n\n${datisInfo.datis}`;
+                        } else {
+                            formattedDatis = `DATIS (${cityInfo.icao}):\n정보를 사용할 수 없습니다.`;
+                        }
+                    } else if (data.error) {
+                        formattedDatis = `DATIS (${cityInfo.icao}):\n정보를 사용할 수 없습니다.\n\n오류: ${data.error}`;
+                    } else {
+                        formattedDatis = `DATIS (${cityInfo.icao}):\n정보를 사용할 수 없습니다.\n\n예상치 못한 응답 형식입니다.`;
+                    }
+                    
+                    console.log('🎯 setDatisInfo 호출됨:', formattedDatis);
+                    setDatisInfo(formattedDatis);
+                } catch (err) {
+                    // API 호출 실패 시 대체 메시지 표시
+                    console.error('❌ DATIS API 오류:', err);
+                    const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
+                    
+                    // CORS 오류인 경우 특별 처리
+                    if (errorMessage.includes('CORS') || errorMessage.includes('fetch')) {
+                        setDatisInfo(`DATIS (${cityInfo.icao}):\n⚠️ 브라우저 보안 정책으로 인해 직접 접근이 제한됩니다.\n\n대안: https://datis.clowd.io/${cityInfo.icao} 에서 직접 확인하세요.\n\n또는 잠시 후 다시 시도해보세요.`);
+                    } else {
+                        setDatisInfo(`DATIS (${cityInfo.icao}):\n현재 DATIS 정보를 사용할 수 없습니다.\n\n오류: ${errorMessage}\n\nDATIS는 미국 공항의 디지털 자동 터미널 정보 서비스입니다.\n실시간 공항 정보, 활주로 상태, 기상 정보 등을 제공합니다.\n\n자세한 정보는 https://datis.clowd.io/${cityInfo.icao} 에서 확인하세요.`);
+                    }
+                } finally {
+                    setLoadingDatis(false);
+                }
+            };
+            fetchDatis();
+        }
+    }, [showDatis, city, datisInfo, cityInfo]);
+
+    // 공항이 변경될 때 DATIS 정보 초기화
+    useEffect(() => {
+        if (city) {
+            setDatisInfo(null);
+            setDatisError(null);
+        }
+    }, [city]);
+
     useEffect(() => {
         if (showWeather && city && !exchangeRate && !exchangeRateError) {
             const fetchExchangeRate = async () => {
@@ -590,55 +2099,92 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 setExchangeRateError(null);
                 
                 try {
-                    // 먼저 로컬 스토리지에서 확인
-                    const cachedExchange = localStorage.getItem(`exchange_${city}`);
-                    if (cachedExchange) {
-                        const { data, timestamp } = JSON.parse(cachedExchange);
-                        // 1시간 이내 데이터면 캐시 사용
-                        if (Date.now() - timestamp < 60 * 60 * 1000) {
-                            setExchangeRate(data);
+                    // 캐시된 데이터 확인 (1시간 캐시)
+                    const cachedData = getCachedData(`exchange_${city}`, 60 * 60 * 1000);
+                    if (cachedData) {
+                        setExchangeRate(cachedData);
                             setLoadingExchangeRate(false);
                             return;
-                        }
                     }
 
                     // 온라인 상태에서만 API 호출
                     if (networkDetector.getStatus().isOnline) {
-                        const response = await fetch(getExchangeRateUrl(targetCurrency));
-                        if (!response.ok) throw new Error('환율 정보를 가져올 수 없습니다.');
-                        const data = await response.json();
-                        if (data.result === 'success') {
-                            const exchangeRateText = `1 ${targetCurrency} ≈ ${Math.round(data.conversion_rate).toLocaleString('ko-KR')} KRW`;
-                            setExchangeRate(exchangeRateText);
+                        try {
+                            // Vercel API 엔드포인트를 통해 환율 정보 가져오기
+                            const response = await fetch(`/api/exchange?fromCurrency=${targetCurrency}&toCurrency=KRW`, {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/json',
+                                },
+                                // 10초 타임아웃 설정
+                                signal: AbortSignal.timeout(10000)
+                            });
                             
-                            // 로컬 스토리지에 저장
-                            localStorage.setItem(`exchange_${city}`, JSON.stringify({
-                                data: exchangeRateText,
-                                timestamp: Date.now()
-                            }));
-                        } else {
-                            throw new Error(data['error-type'] || '환율 API 오류');
+                            if (!response.ok) {
+                                throw new Error(`환율 API 응답 오류: ${response.status} ${response.statusText}`);
+                            }
+                            
+                            const data = await response.json();
+                            
+                            if (data.success && data.conversion_rate) {
+                                let exchangeRateText;
+                                if (targetCurrency === 'JPY') {
+                                    // 엔화는 100엔 기준으로 표시
+                                    const rate100Yen = Math.round(data.conversion_rate * 100);
+                                    exchangeRateText = `100 ${targetCurrency} ≈ ${rate100Yen.toLocaleString('ko-KR')} KRW`;
+                                } else {
+                                    // 다른 통화는 1 단위 기준으로 표시
+                                    exchangeRateText = `1 ${targetCurrency} ≈ ${Math.round(data.conversion_rate).toLocaleString('ko-KR')} KRW`;
+                                }
+                                setExchangeRate(exchangeRateText);
+                                
+                                setCachedData(`exchange_${city}`, exchangeRateText);
+                            } else {
+                                throw new Error(data['error-type'] || `환율 API 오류: ${JSON.stringify(data)}`);
+                            }
+                        } catch (apiError) {
+                            // API 키 관련 오류 처리
+                            if (apiError instanceof Error && apiError.message.includes('환율 API 키가 설정되지 않았습니다')) {
+                                setExchangeRateError('환율 API 키가 설정되지 않았습니다.');
+                                return;
+                            }
+                            throw apiError; // 다른 오류는 상위 catch로 전달
                         }
                     } else {
                         // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                        if (cachedExchange) {
-                            const { data } = JSON.parse(cachedExchange);
-                            setExchangeRate(data);
+                        const offlineCachedData = getCachedData(`exchange_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                        if (offlineCachedData) {
+                            setExchangeRate(offlineCachedData);
                             setExchangeRateError('오프라인 모드: 캐시된 데이터를 표시합니다.');
                         } else {
                             setExchangeRateError('오프라인 상태에서 캐시된 환율 정보가 없습니다.');
                         }
                     }
                 } catch (err) {
+                    console.error('환율 API 호출 실패:', err);
+                    
                     // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                    const cachedExchange = localStorage.getItem(`exchange_${city}`);
-                    if (cachedExchange && !networkDetector.getStatus().isOnline) {
-                        const { data } = JSON.parse(cachedExchange);
-                        setExchangeRate(data);
+                    const offlineCachedData = getCachedData(`exchange_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                    if (offlineCachedData && !networkDetector.getStatus().isOnline) {
+                        setExchangeRate(offlineCachedData);
                         setExchangeRateError('오프라인 모드: 캐시된 데이터를 표시합니다.');
+                    } else if (offlineCachedData) {
+                        // 온라인 상태이지만 API 실패 시 캐시된 데이터 사용
+                        setExchangeRate(offlineCachedData);
+                        setExchangeRateError('네트워크 오류: 캐시된 데이터를 표시합니다.');
                     } else {
-                        setExchangeRateError('환율 정보 로딩 실패');
-                        console.error(err);
+                        // 캐시된 데이터도 없는 경우
+                        if (err instanceof Error) {
+                            if (err.name === 'TimeoutError') {
+                                setExchangeRateError('환율 정보 로딩 시간 초과');
+                            } else if (err.message.includes('Failed to fetch')) {
+                                setExchangeRateError('네트워크 연결 실패');
+                            } else {
+                                setExchangeRateError(`환율 정보 로딩 실패: ${err.message}`);
+                            }
+                        } else {
+                            setExchangeRateError('환율 정보 로딩 실패');
+                        }
                     }
                 } finally {
                     setLoadingExchangeRate(false);
@@ -661,7 +2207,9 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             setMetar(null);
             setTaf(null);
             setMetarTafError(null);
-        setShowDecoded(false);
+            setShowDecoded(false);
+            setAirPollution(null);
+            setAirPollutionError(null);
         }
     }, [isOpen]);
 
@@ -692,32 +2240,77 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         return null;
     }
 
-    const sortedFlights = [...flights].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // 실제 비행만 필터링하고 날짜 내림차순으로 정렬
+    const sortedFlights = [...flights]
+        .filter(isActualFlight)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[90] p-4" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg p-6 relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-[100] p-4 pt-safe" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg p-6 relative animate-fade-in-up z-[101] city-schedule-modal-container" onClick={(e) => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 dark:text-gray-300">
                     <XIcon className="w-6 h-6" />
                 </button>
                 
+                
                 <div className="mb-4">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
-                        <span>{city} 정보 {city ? getUTCOffset(city) || '(UTC)' : '(UTC)'}</span>
+                        <span className="mr-2">{getCountryFlag(city ? getCountry(city) : null)}</span>
+                        <span><span className="text-xl">{city} 정보</span> <span className="text-sm">{city ? getUTCOffset(city) || '(UTC)' : '(UTC)'}</span></span>
+                        <button 
+                            onClick={() => onMemoClick && onMemoClick(city || '')} 
+                            title="도시 메모 작성/수정" 
+                            className="ml-2"
+                        >
+                            <MemoIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                        </button>
                         <button 
                             onClick={() => setShowWeather(!showWeather)} 
                             title="날씨 정보 보기/숨기기" 
                             className="ml-2"
                         >
-                            <InfoIcon className="w-5 h-5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors" />
+                            <InfoIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                         </button>
                         <button
                             onClick={() => setShowMetar(!showMetar)}
                             title="METAR/TAF 정보 보기/숨기기"
-                            className="ml-2"
+                            className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-700 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-600 transition-colors"
                         >
-                            <MetarIcon className="w-5 h-5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors" />
+                            TAF
                         </button>
+                {/* 미국 도시에만 DATIS 버튼 표시 */}
+                {(() => {
+                    const shouldShowDatis = cityInfo?.country === 'United States';
+                    console.log('🔍 DATIS 버튼 표시 조건:', {
+                        city: city,
+                        country: cityInfo?.country,
+                        icao: cityInfo?.icao,
+                        shouldShowDatis
+                    });
+                    return shouldShowDatis;
+                })() && (
+                    <button
+                        onClick={() => {
+                            console.log('🔘 DATIS 버튼 클릭됨:', { 
+                                currentShowDatis: showDatis, 
+                                newShowDatis: !showDatis,
+                                cityInfo: cityInfo 
+                            });
+                            
+                            // DATIS 토글 시 기존 데이터 초기화
+                            if (!showDatis) {
+                                setDatisInfo(null);
+                                setDatisError(null);
+                            }
+                            
+                            setShowDatis(!showDatis);
+                        }}
+                        title="DATIS 정보 보기/숨기기"
+                        className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-600 transition-colors"
+                    >
+                        DATIS
+                    </button>
+                )}
                     </h2>
                 </div>
 
@@ -725,6 +2318,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                     className={`max-h-[70vh] overflow-y-auto ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
                     onScroll={handleScroll}
                 >
+                    
                     {showMetar && (
                         <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
                             <div className="flex justify-between items-center mb-2">
@@ -733,7 +2327,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                     {(metar || taf) && (
                                         <button
                                             onClick={() => setShowDecoded(!showDecoded)}
-                                            className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                                            className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
                                         >
                                             {showDecoded ? 'RAW' : 'DECODE'}
                                         </button>
@@ -750,147 +2344,435 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                             {metar && (
                                                 <div>
                                                     <h4 className="font-semibold text-blue-600 dark:text-blue-400 mb-2">METAR</h4>
-                                                    <div className="grid grid-cols-2 gap-2 text-sm">
                                                         {(() => {
-                                                            const decoded = decodeMetar(metar);
+													const d = decodeMetar(metar);
                                                             return (
-                                                                <>
+														<div className="space-y-3">
+															{d.time && (
+																<div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-700">
+																	<div className="text-gray-600 dark:text-gray-400 text-xs">Observation Time</div>
+																	<div className="font-semibold text-blue-800 dark:text-blue-200 text-sm">{d.time}</div>
+																</div>
+															)}
+															<div className="grid grid-cols-2 gap-2 text-xs">
+																{d.wind && (
+                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
+																		<div className="text-gray-600 dark:text-gray-400">Wind</div>
+																		<div className="font-semibold text-blue-800 dark:text-blue-200">{d.wind}</div>
+                                                                        </div>
+                                                                    )}
+																{d.visibility && (
+                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
+																		<div className="text-gray-600 dark:text-gray-400">Visibility</div>
+																		<div className="font-semibold text-blue-800 dark:text-blue-200">{d.visibility}</div>
+                                                                        </div>
+                                                                    )}
+																{d.temp && (
+                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
+																		<div className="text-gray-600 dark:text-gray-400">Temperature</div>
+																		<div className="font-semibold text-blue-800 dark:text-blue-200">{d.temp}</div>
+                                                                        </div>
+                                                                    )}
+																{d.pressure && (
+                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
+																		<div className="text-gray-600 dark:text-gray-400">Pressure</div>
+																		<div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.pressure}</div>
+                                                                        </div>
+                                                                    )}
+																{d.weather && d.weather !== 'No significant weather' && (
+                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
+																		<div className="text-gray-600 dark:text-gray-400">Weather</div>
+																		<div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.weather}</div>
+                                                                        </div>
+                                                                    )}
+																{d.clouds && (
+                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
+																		<div className="text-gray-600 dark:text-gray-400">Clouds</div>
+																		<div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.clouds}</div>
+                                                                        </div>
+                                                                    )}
+															</div>
+															{d.remarks && (
+																<div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-700 col-span-2">
+																	<div className="text-gray-600 dark:text-gray-400">Remarks (RMK)</div>
+																	<ul className="list-disc ml-4 space-y-1 text-yellow-800 dark:text-yellow-200">
+																		{d.remarks.split('; ').map((remark, idx) => (
+																			<li key={idx}>{remark}</li>
+																		))}
+																	</ul>
+                                                                        </div>
+                                                                    )}
+															{(d.auto || d.corrected) && (
+																<div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+																	<div className="text-gray-600 dark:text-gray-400 text-xs">Status</div>
+																	<div className="font-semibold text-gray-800 dark:text-gray-200 text-xs">
+																		{d.auto && <span className="text-blue-600 dark:text-blue-400">AUTO</span>}
+																		{d.auto && d.corrected && <span className="mx-1">•</span>}
+																		{d.corrected && <span className="text-green-600 dark:text-green-400">COR</span>}
+																	</div>
+                                                                        </div>
+                                                                    )}
+														</div>
+													);
+												})()}
+                                                                        </div>
+                                                                    )}
+										{taf && (
+											<div>
+												<h4 className="font-semibold text-green-600 dark:text-green-400 mb-2">TAF</h4>
+												{(() => {
+													const d = decodeTaf(taf);
+													return (
+														<div className="space-y-3">
+															<div className="bg-green-50 dark:bg-green-900/20 p-2 rounded border border-green-200 dark:border-green-700">
+																<div className="text-gray-600 dark:text-gray-400 text-xs">Valid Period</div>
+																<div className="font-semibold text-green-800 dark:text-green-200 text-sm">{d.validPeriod}</div>
+                                                                        </div>
+															{d.forecasts.map((f: any, idx: number) => (
+																<div key={idx} className={`p-3 rounded border ${
+																	f.type === 'Main' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
+																	f.type === 'Temporary' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700' :
+																	f.type === 'Becoming' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
+																	f.type === 'Probability' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700' :
+																	f.type === 'From' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
+																	'bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+																}`}>
+																	<div className="flex justify-between items-center mb-2">
+																		<div className="flex items-center gap-2">
+																			<span className={`font-semibold text-sm ${
+																				f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+																				f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+																				f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+																				f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+																				f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+																				'text-green-800 dark:text-green-200'
+																			}`}>
+																				{f.time}
+																			</span>
+																			{f.type && (
+																				<span className={`text-xs px-1 py-0.5 rounded ${
+																					f.type === 'Main' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
+																					f.type === 'Temporary' ? 'bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200' :
+																					f.type === 'Becoming' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
+																					f.type === 'Probability' ? 'bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200' :
+																					f.type === 'From' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
+																					'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
+																				}`}>
+																					{f.type}
+																				</span>
+																			)}
+																		</div>
+																	</div>
+																	<div className="grid grid-cols-3 gap-2 text-xs">
+																		{f.wind && (
+																			<div className="bg-white dark:bg-gray-800 p-2 rounded">
+																				<div className="text-gray-600 dark:text-gray-400">Wind</div>
+																				<div className={`font-semibold ${
+																					f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+																					f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+																					f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+																					f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+																					f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+																					'text-green-800 dark:text-green-200'
+																				}`}>
+																					{f.wind}
+																				</div>
+                                                                        </div>
+                                                                    )}
+																		{f.visibility && (
+																			<div className="bg-white dark:bg-gray-800 p-2 rounded">
+																				<div className="text-gray-600 dark:text-gray-400">Visibility</div>
+																				<div className={`font-semibold ${
+																					f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+																					f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+																					f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+																					f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+																					f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+																					'text-green-800 dark:text-green-200'
+																				}`}>
+																					{f.visibility}
+																				</div>
+                                                                        </div>
+                                                                    )}
+																		{f.weather && (
+																			<div className="bg-white dark:bg-gray-800 p-2 rounded">
+																				<div className="text-gray-600 dark:text-gray-400">Weather</div>
+																				<div className={`font-semibold ${
+																					f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+																					f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+																					f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+																					f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+																					f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+																					'text-green-800 dark:text-green-200'
+																				}`}>
+																					{f.weather}
+																				</div>
+                                                                        </div>
+                                                                    )}
+																		{f.clouds && (
+																			<div className="bg-white dark:bg-gray-800 p-2 rounded col-span-3">
+																				<div className="text-gray-600 dark:text-gray-400">Clouds</div>
+																				<div className={`font-semibold ${
+																					f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+																					f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+																					f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+																					f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+																					f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+																					'text-green-800 dark:text-green-200'
+																				}`}>
+																					{f.clouds}
+																				</div>
+                                                                        </div>
+                                                                    )}
+																	</div>
+																</div>
+															))}
+														</div>
+													);
+												})()}
+                                                                        </div>
+                                                                    )}
+									</div>
+								) : (
+									<div className="font-mono text-sm">
+										{metar && (
+											<div className="mb-2">
+												<span className="font-semibold">METAR</span>: <span className="break-all">{metar}</span>
+                                                                        </div>
+                                                                    )}
+										{taf && (
+											<div className="whitespace-pre-line break-words">
+												<span className="font-semibold">TAF</span>: {taf.replace(/BECMG/g, '\nBECMG').replace(/FM/g, '\nFM').replace(/TEMPO/g, '\nTEMPO')}
+                                                                        </div>
+                                                                    )}
+                                                    </div>
+								)}
+                                                </div>
+                                            )}
+					</div>
+						)}
+                    {/* DATIS 정보 섹션 */}
+                    {showDatis && (
+                        <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <div className="flex justify-between items-center mb-2">
+                                <div className="flex items-center space-x-2">
+                                    <h3 className="font-bold text-gray-800 dark:text-gray-200 text-sm">DATIS</h3>
+                                    {datisInfo && (
+                                        <button
+                                            onClick={() => setShowDecoded(!showDecoded)}
+                                            className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
+                                        >
+                                            {showDecoded ? 'RAW' : 'DECODE'}
+                                        </button>
+                                    )}
+                                </div>
+                                {zuluTime && <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{zuluTime}</span>}
+                            </div>
+                            {loadingDatis && <p className="text-center text-sm text-gray-600 dark:text-gray-400">DATIS 정보를 불러오는 중...</p>}
+                            {datisError && <p className="text-red-500 dark:text-red-400 text-center text-sm">{datisError}</p>}
+                            {datisInfo && (
+                                <div className="space-y-2 text-xs bg-gray-100 dark:bg-gray-900/50 p-3 rounded text-gray-800 dark:text-gray-300">
+                                    {showDecoded ? (
+                                        <div className="space-y-4">
+                                                <div>
+                                                <h4 className="font-semibold text-blue-600 dark:text-blue-400 mb-2">DATIS Information</h4>
+                                                <div className="space-y-2">
+                                                    {(() => {
+                                                        console.log('🚀 decodeDatis 호출 전 - datisInfo:', datisInfo);
+                                                        console.log('🚀 decodeDatis 호출 전 - datisInfo 타입:', typeof datisInfo);
+                                                        // datisInfo는 이미 포맷팅된 문자열이므로 그대로 사용
+                                                        const decoded = decodeDatis(datisInfo || '');
+                                                        return (
+                                                            <>
+                                                                <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-700">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="font-bold text-blue-800 dark:text-blue-200">
+                                                                            {cityInfo?.icao}
+                                                                        </span>
+                                                                        {decoded.infoLetter && decoded.timeZulu && (
+                                                                            <span className="text-sm font-normal text-blue-600 dark:text-blue-300">
+                                                                                INFO {decoded.infoLetter} {decoded.timeZulu}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-2 text-xs">
                                                                     {decoded.wind && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Wind:</span>
-                                                                            <span className="ml-1 font-semibold">{decoded.wind}</span>
-                                                                        </div>
-                                                                    )}
+                                                                            <div className="text-gray-600 dark:text-gray-400">Wind</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{decoded.wind}</div>
+                                                                            </div>
+                                                                        )}
                                                                     {decoded.visibility && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Visibility:</span>
-                                                                            <span className="ml-1 font-semibold">{decoded.visibility}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {decoded.temp && (
+                                                                            <div className="text-gray-600 dark:text-gray-400">Visibility</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{decoded.visibility}</div>
+                                                                                </div>
+                                                                            )}
+                                                                    {decoded.temperature && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Temp/Dew:</span>
-                                                                            <span className="ml-1 font-semibold">{decoded.temp}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {decoded.pressure && (
+                                                                            <div className="text-gray-600 dark:text-gray-400">Temp</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{decoded.temperature}</div>
+                                                                                </div>
+                                                                            )}
+                                                                    {decoded.dewpoint && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Pressure:</span>
-                                                                            <span className="ml-1 font-semibold">{decoded.pressure}</span>
-                                                                        </div>
-                                                                    )}
+                                                                            <div className="text-gray-600 dark:text-gray-400">Dew</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{decoded.dewpoint}</div>
+                                                                                </div>
+                                                                            )}
+                                                                    {(decoded.altimeterInHg || decoded.altimeterHpa) && (
+                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
+                                                                            <div className="text-gray-600 dark:text-gray-400">Altimeter</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">
+                                                                                {decoded.altimeterInHg || decoded.altimeterHpa}
+                                                                            </div>
+                                                                                </div>
+                                                                            )}
+                                                                    {decoded.rmkDecoded && decoded.rmkDecoded.length > 0 && (
+                                                                        <div className="bg-gray-100 dark:bg-gray-900/20 p-2 rounded col-span-2">
+                                                                            <div className="text-gray-600 dark:text-gray-400">Remarks (RMK)</div>
+                                                                            <div className="space-y-1">
+                                                                                {decoded.rmkDecoded.map((remark, i) => (
+                                                                                    <div key={i} className="font-semibold text-gray-800 dark:text-gray-200 text-xs">
+                                                                                        {remark}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                                </div>
+                                                                            )}
                                                                     {decoded.clouds && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Clouds:</span>
-                                                                            <span className="ml-1 font-semibold">{decoded.clouds}</span>
+                                                                            <div className="text-gray-600 dark:text-gray-400">Clouds</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{decoded.clouds}</div>
+                                                                                </div>
+                                                                            )}
+                                                                    {(decoded.departures || decoded.approaches?.length > 0 || decoded.ctcGc || decoded.departureRunways || decoded.runways?.ils?.length > 0 || decoded.runways?.visual?.length > 0 || decoded.runways?.dep?.length > 0) && (
+                                                                        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded border border-indigo-200 dark:border-indigo-700 col-span-2">
+                                                                            <div className="text-gray-600 dark:text-gray-400">Runways</div>
+                                                                            <div className="text-xs text-indigo-800 dark:text-indigo-200 font-semibold space-y-1">
+                                                                                {(decoded.departures || decoded.departureRunways || decoded.runways?.dep?.length > 0) && (
+                                                                                    <div>Departure: {decoded.departures || decoded.departureRunways || decoded.runways?.dep?.join(', ')}</div>
+                                                                                )}
+                                                                                {(decoded.approaches?.length > 0 || decoded.runways?.ils?.length > 0 || decoded.runways?.visual?.length > 0) && (
+                                                                                    <div>
+                                                                                        Approach: {(() => {
+                                                                                            const allApproaches = [];
+                                                                                            if (decoded.approaches?.length > 0) {
+                                                                                                allApproaches.push(...decoded.approaches);
+                                                                                            }
+                                                                                            if (decoded.runways?.ils?.length > 0) {
+                                                                                                allApproaches.push(`ILS RWY ${decoded.runways.ils.join(', RWY ')}`);
+                                                                                            }
+                                                                                            if (decoded.runways?.visual?.length > 0) {
+                                                                                                allApproaches.push(`VISUAL RWY ${decoded.runways.visual.join(', RWY ')}`);
+                                                                                            }
+                                                                                            return allApproaches.join(', ');
+                                                                                        })()}
+                                                                                    </div>
+                                                                                )}
+                                                                                {decoded.ctcGc && (
+                                                                                    <div>Ground Control: {decoded.ctcGc}</div>
+                                                                            )}
                                                                         </div>
+                                                                    </div>
                                                                     )}
-                                                                </>
-                                                            );
-                                                        })()}
-                                                    </div>
+                                                                    {decoded.notams && decoded.notams.length > 0 && (
+                                                                        <div className="bg-orange-50 dark:bg-orange-900/20 p-2 rounded border border-orange-200 dark:border-orange-700 col-span-2">
+                                                                            <div className="text-gray-600 dark:text-gray-400">NOTAMs (Notices to Airmen)</div>
+                                                                            <ul className="list-disc ml-4 space-y-1 text-orange-800 dark:text-orange-200">
+                                                                                {decoded.notams.map((notam, i) => (
+                                                                                    <li key={i}>{notam}</li>
+                                                                                ))}
+                                                                            </ul>
+                                                            </div>
+                                                                    )}
+                                                                    {decoded.advisories.length > 0 && (
+                                                                         <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-700 col-span-2">
+                                                                             <div className="text-gray-600 dark:text-gray-400">Advisories (Operational Information)</div>
+                                                                             <ul className="list-disc ml-4 space-y-1 text-yellow-800 dark:text-yellow-200">
+                                                                                 {decoded.advisories.map((a, i) => (
+                                                                                     <li key={i}>{a}</li>
+                                                                                 ))}
+                                                                             </ul>
+                                                                         </div>
+                                                                     )}
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
-                                            )}
-                                            {taf && (
-                                                <div>
-                                                    <h4 className="font-semibold text-green-600 dark:text-green-400 mb-2">TAF</h4>
-                                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                                        {(() => {
-                                                            const decoded = decodeTaf(taf);
-                                                            return (
-                                                                <>
-                                                                    {decoded.wind && (
-                                                                        <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Wind:</span>
-                                                                            <span className="ml-1 font-semibold">{decoded.wind}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {decoded.visibility && (
-                                                                        <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Visibility:</span>
-                                                                            <span className="ml-1 font-semibold">{decoded.visibility}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {decoded.maxTemp && (
-                                                                        <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Max Temp:</span>
-                                                                            <span className="ml-1 font-semibold break-words">{decoded.maxTemp}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {decoded.minTemp && (
-                                                                        <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Min Temp:</span>
-                                                                            <span className="ml-1 font-semibold break-words">{decoded.minTemp}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {decoded.clouds && (
-                                                                        <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded col-span-2">
-                                                                            <span className="text-gray-600 dark:text-gray-400">Clouds:</span>
-                                                                            <span className="ml-1 font-semibold">{decoded.clouds}</span>
-                                                                        </div>
-                                                                    )}
-
-                                                                </>
-                                                            );
-                                                        })()}
                                                     </div>
-                                                </div>
-                                            )}
                                         </div>
                                     ) : (
-                                        <div className="font-mono text-base">
-                                            {metar && (
-                                                <div>
-                                                    <span className="font-semibold">METAR:</span>
-                                                    <br />
-                                                    <span className="break-all">{metar}</span>
-                                                </div>
-                                            )}
-                                            {taf && (
-                                                <div className="mt-3">
-                                                    <span className="font-semibold">TAF:</span>
-                                                    <br />
-                                                    <span className="break-all whitespace-pre-line">
-                                                        {taf.replace(/BECMG/g, '\nBECMG').replace(/FM/g, '\nFM').replace(/TEMPO/g, '\nTEMPO')}
-                                                    </span>
+                                        <div className="whitespace-pre-line font-mono">{datisInfo}</div>
+                                    )}
                                                 </div>
                                             )}
                                         </div>
                                     )}
-                                </div>
-                            )}
-                        </div>
-                    )}
+
                     {showWeather && (
-                        <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 relative">
+                        <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 relative">
                             {loadingWeather && <p className="text-center text-gray-600 dark:text-gray-400">날씨 정보를 불러오는 중...</p>}
                             {weatherError && <p className="text-red-500 dark:text-red-400 text-center">{weatherError}</p>}
                             {weather && (
                                 <>
                                     <div className="space-y-4">
-                                        <div className={`flex items-center text-center space-x-2 sm:space-x-4 ${window.innerWidth >= 400 ? 'justify-center' : 'justify-end'}`}>
+                                        {/* 현재 날씨 정보 - 가운데 정렬 */}
+                                        <div className="flex items-center justify-center text-center space-x-2 sm:space-x-4">
                                             <WeatherIcon 
                                                 icon={weather.weather[0].icon}
                                                 size="@4x"
                                                 className="w-20 h-20 sm:w-32 sm:h-32 -my-2 sm:-my-4"
                                             />
-                                            <div className={`${window.innerWidth >= 400 ? 'text-center' : 'text-right'}`}>
+                                            <div className="text-center">
                                                 <p className="text-3xl sm:text-5xl font-bold dark:text-gray-100">{Math.round(weather.main.temp)}°C</p>
                                                 <p className="text-sm sm:text-lg text-gray-600 dark:text-gray-400 capitalize">{weather.weather[0].description}</p>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-sm">
                                             <div className="bg-gray-200 dark:bg-gray-900/50 p-2 rounded-lg">
                                                 <p className="font-semibold text-gray-500 dark:text-gray-400">체감</p>
                                                 <p className="text-lg font-bold dark:text-gray-200">{Math.round(weather.main.feels_like)}°C</p>
                                             </div>
                                             <div className="bg-gray-200 dark:bg-gray-900/50 p-2 rounded-lg">
-                                                <p className="font-semibold text-gray-500 dark:text-gray-400">최저/최고</p>
-                                                <p className="text-lg font-bold dark:text-gray-200">{Math.round(weather.main.temp_min)}°/{Math.round(weather.main.temp_max)}°</p>
+                                                <p className="font-semibold text-gray-500 dark:text-gray-400">최고/최저</p>
+                                                <p className="text-lg font-bold dark:text-gray-200">
+                                                    {forecast && forecast.length > 0 
+                                                        ? `${Math.round(forecast[0].maxTemp)}°/${Math.round(forecast[0].minTemp)}°`
+                                                        : `${Math.round(weather.main.temp_max)}°/${Math.round(weather.main.temp_min)}°`
+                                                    }
+                                                </p>
                                             </div>
                                             <div className="bg-gray-200 dark:bg-gray-900/50 p-2 rounded-lg">
                                                 <p className="font-semibold text-gray-500 dark:text-gray-400">습도</p>
                                                 <p className="text-lg font-bold dark:text-gray-200">{weather.main.humidity}%</p>
+                                            </div>
+                                            <div className="bg-gray-200 dark:bg-gray-900/50 p-2 rounded-lg">
+                                                <p className="font-semibold text-gray-500 dark:text-gray-400">AQI</p>
+                                                <p className={`text-lg font-bold ${
+                                                    airPollution?.aqiInfo?.color === 'green' ? 'text-green-600 dark:text-green-400' :
+                                                    airPollution?.aqiInfo?.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' :
+                                                    airPollution?.aqiInfo?.color === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                                                    airPollution?.aqiInfo?.color === 'red' ? 'text-red-600 dark:text-red-400' :
+                                                    airPollution?.aqiInfo?.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
+                                                    airPollution?.aqiInfo?.color === 'brown' ? 'text-amber-800 dark:text-amber-600' :
+                                                    'text-gray-600 dark:text-gray-400'
+                                                }`}>
+                                                    {airPollution ? (
+                                                        <>
+                                                            {airPollution.aqiInfo.description} 
+                                                            <span className="text-xs opacity-75">({airPollution.internationalAQI || airPollution.aqiInfo.value})</span>
+                                                        </>
+                                                    ) : '--'}
+                                                </p>
+                                                {airPollution && (
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                        PM2.5: {airPollution.components.pm2_5} | PM10: {airPollution.components.pm10}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                         
@@ -899,26 +2781,17 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                             <div className="flex items-center space-x-1 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded-md border border-orange-200 dark:border-orange-800">
                                                 <HeroSunIcon className="w-3 h-3 text-orange-500" />
                                                 <span className="text-orange-700 dark:text-orange-300 font-medium">
-                                                    {getLocalSunTime(weather.sys.sunrise, city) || 
-                                                     new Date(weather.sys.sunrise * 1000).toLocaleTimeString('ko-KR', { 
-                                                        hour: '2-digit', 
-                                                        minute: '2-digit',
-                                                        hour12: false 
-                                                    })}
+                                                    {loadingSun ? '로딩중...' : (sunTimes.sunrise || '--:--')}
                                                 </span>
                                             </div>
                                             <div className="flex items-center space-x-1 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded-md border border-purple-200 dark:border-purple-800">
-                                                <HeroMoonIcon className="w-3 h-3 text-purple-500" />
+                                                <HeroSunIcon className="w-3 h-3 text-purple-500" />
                                                 <span className="text-purple-700 dark:text-purple-300 font-medium">
-                                                    {getLocalSunTime(weather.sys.sunset, city) || 
-                                                     new Date(weather.sys.sunset * 1000).toLocaleTimeString('ko-KR', { 
-                                                        hour: '2-digit', 
-                                                        minute: '2-digit',
-                                                        hour12: false 
-                                                    })}
+                                                    {loadingSun ? '로딩중...' : (sunTimes.sunset || '--:--')}
                                                 </span>
                                             </div>
                                         </div>
+
                                     </div>
 
                                     {(loadingForecast || forecastError || threeHourForecast) && (
@@ -984,11 +2857,11 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                 {sortedFlights.map(flight => (
                                     <li 
                                         key={flight.id} 
-                                        className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                        className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer"
                                         onClick={() => onFlightClick(flight)}
                                     >
                                         <p className="font-semibold text-gray-800 dark:text-gray-200">{flight.date}</p>
-                                        <p className="text-base text-gray-600 dark:text-gray-400">{flight.flightNumber}편: {flight.route.replace('/', ' → ')}</p>
+                                        <p className="text-base text-gray-600 dark:text-gray-400">{flight.flightNumber}편: {flight.route?.replace('/', ' → ')}</p>
                                     </li>
                                 ))}
                             </ul>

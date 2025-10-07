@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, memo, useCallback, useReducer } from 'react';
+import { saveRestInfo, getRestInfo, subscribeToRestInfo, RestInfo } from '../src/firebase/database';
+import { getCurrentUser } from '../src/firebase/auth';
 
 // --- 타입 정의 ---
 interface TimelineSegment {
@@ -143,7 +145,7 @@ const DisplayInput = memo(({ label, value, onClick, warning, isDark }: { label: 
   <div>
     <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{label}</label>
     <div
-      className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] ${
+                    className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] ${
         isDark 
           ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-100' 
           : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-900'
@@ -371,6 +373,8 @@ const reducer = (state: any, action: any) => {
             const roundedMinutes = Math.ceil(currentMinutes / 3) * 3;
             return { ...state, flightTime3Pilot: minutesToHHMM(roundedMinutes) };
         }
+        case 'LOAD_FROM_FIREBASE':
+            return { ...state, ...action.payload };
         default:
             return state;
     }
@@ -379,6 +383,10 @@ const reducer = (state: any, action: any) => {
 const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const [state, dispatch] = useReducer(reducer, defaultState, loadInitialState);
     const { activeTab, twoSetMode, flightTime, flightTime3Pilot, departureTime, crz1Time, afterTakeoff, afterTakeoff1교대, afterTakeoff3Pilot, beforeLanding, beforeLanding1교대, timeZone, threePilotCase } = state;
+    
+    // Firebase 동기화를 위한 상태
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
 
 
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -412,6 +420,15 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const [isCrz1ScrollingState, setIsCrz1ScrollingState] = useState(false);
     const [isAfterTakeoffScrollingState, setIsAfterTakeoffScrollingState] = useState(false);
     const [isBeforeLandingScrollingState, setIsBeforeLandingScrollingState] = useState(false);
+    // 편집 취소 시 복원용 상태 스냅샷
+    const preEditStateRef = useRef<any | null>(null);
+
+    const handleCancelEdit = useCallback(() => {
+        if (preEditStateRef.current) {
+            dispatch({ type: 'UPDATE_STATE', payload: preEditStateRef.current });
+        }
+        setShowTimeline(true);
+    }, []);
     
     useEffect(() => {
         const timer = setInterval(() => {
@@ -439,6 +456,116 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             document.head.removeChild(styleElement);
         };
     }, []);
+
+    // 사용자 정보 가져오기
+    useEffect(() => {
+        const getUser = async () => {
+            try {
+                const user = await getCurrentUser();
+                setCurrentUser(user);
+            } catch (error) {
+                console.error('사용자 정보 가져오기 실패:', error);
+            }
+        };
+        getUser();
+    }, []);
+
+    // Firebase에서 REST 정보 불러오기
+    useEffect(() => {
+        if (!currentUser?.uid) return;
+
+        const loadRestInfo = async () => {
+            try {
+                const savedRestInfo = await getRestInfo(currentUser.uid);
+                if (savedRestInfo) {
+                    dispatch({ type: 'LOAD_FROM_FIREBASE', payload: savedRestInfo });
+                }
+            } catch (error) {
+                console.error('REST 정보 불러오기 실패:', error);
+            }
+        };
+
+        loadRestInfo();
+    }, [currentUser]);
+
+    // Firebase 실시간 동기화 구독
+    useEffect(() => {
+        if (!currentUser?.uid) return;
+
+        const unsubscribe = subscribeToRestInfo(currentUser.uid, (restInfo) => {
+            if (restInfo) {
+                dispatch({ type: 'LOAD_FROM_FIREBASE', payload: restInfo });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [currentUser]);
+
+    // REST 정보를 Firebase에 저장
+    const saveToFirebase = useCallback(async (restState: any) => {
+        if (!currentUser?.uid || isSyncing) return;
+
+        try {
+            setIsSyncing(true);
+            const restInfo: RestInfo = {
+                activeTab: restState.activeTab,
+                twoSetMode: restState.twoSetMode,
+                flightTime: restState.flightTime,
+                flightTime3Pilot: restState.flightTime3Pilot,
+                departureTime: restState.departureTime,
+                crz1Time: restState.crz1Time,
+                afterTakeoff: restState.afterTakeoff,
+                afterTakeoff1교대: restState.afterTakeoff1교대,
+                afterTakeoff3Pilot: restState.afterTakeoff3Pilot,
+                beforeLanding: restState.beforeLanding,
+                beforeLanding1교대: restState.beforeLanding1교대,
+                timeZone: restState.timeZone,
+                threePilotCase: restState.threePilotCase,
+                lastUpdated: new Date().toISOString()
+            };
+
+            await saveRestInfo(currentUser.uid, restInfo);
+        } catch (error) {
+            console.error('REST 정보 저장 실패:', error);
+        } finally {
+            setIsSyncing(false);
+        }
+    }, [currentUser, isSyncing]);
+
+    // 수동 저장을 위한 함수 (완료 버튼에서 호출)
+    const handleSaveToFirebase = useCallback(async () => {
+        if (!currentUser?.uid) {
+            alert('로그인이 필요합니다.');
+            return;
+        }
+
+        try {
+            setIsSyncing(true);
+            const restInfo: RestInfo = {
+                activeTab: state.activeTab,
+                twoSetMode: state.twoSetMode,
+                flightTime: state.flightTime,
+                flightTime3Pilot: state.flightTime3Pilot,
+                departureTime: state.departureTime,
+                crz1Time: state.crz1Time,
+                afterTakeoff: state.afterTakeoff,
+                afterTakeoff1교대: state.afterTakeoff1교대,
+                afterTakeoff3Pilot: state.afterTakeoff3Pilot,
+                beforeLanding: state.beforeLanding,
+                beforeLanding1교대: state.beforeLanding1교대,
+                timeZone: state.timeZone,
+                threePilotCase: state.threePilotCase,
+                lastUpdated: new Date().toISOString()
+            };
+
+            await saveRestInfo(currentUser.uid, restInfo);
+        } catch (error) {
+            console.error('REST 정보 저장 실패:', error);
+            alert('저장에 실패했습니다. 다시 시도해주세요.');
+        } finally {
+            setIsSyncing(false);
+        }
+    }, [currentUser, state]);
 
     const flightTimeMinutes = useMemo(() => {
         return timeToMinutes(activeTab === '3pilot' ? flightTime3Pilot : flightTime);
@@ -1085,7 +1212,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                 ? 'bg-gray-700/60 hover:bg-gray-700/80' 
                                 : 'bg-gray-100 hover:bg-gray-200'
                         }`}
-                        onClick={() => setShowTimeline(false)}
+                        onClick={() => { preEditStateRef.current = { ...state }; setShowTimeline(false); }}
                     >
                         <div className="text-left text-sm font-mono">
                             <p className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>이륙</p>
@@ -1177,11 +1304,11 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
                 {/* 입력 폼 모달 */}
                 {!showTimeline && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
-                        <div className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-4 max-h-[90vh] overflow-y-auto ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe" onClick={handleCancelEdit}>
+                        <div className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-4 max-h-[90vh] overflow-y-auto ${isDark ? 'bg-gray-800' : 'bg-white'}`} onClick={(e) => e.stopPropagation()}>
                             <div className="p-6 sm:p-8 relative">
                                 <button 
-                                    onClick={() => setShowTimeline(true)} 
+                                    onClick={handleCancelEdit} 
                                     className={`absolute top-4 right-4 transition-colors z-10 ${
                                         isDark 
                                             ? 'text-gray-500 hover:text-white' 
@@ -1196,7 +1323,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 {/* 타임존 피커 모달 */}
                 {showTimeZonePicker && (
                     <div 
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300"
+                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
                         onClick={() => setShowTimeZonePicker(false)}
                     >
                         <div 
@@ -1274,10 +1401,18 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                     취소
                                 </button>
                                 <button
-                                    onClick={() => setShowTimeZonePicker(false)}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                                    onClick={async () => {
+                                        await handleSaveToFirebase();
+                                        setShowTimeZonePicker(false);
+                                    }}
+                                    disabled={isSyncing}
+                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
+                                        isSyncing 
+                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                                    }`}
                                 >
-                                    완료
+                                    {isSyncing ? '저장 중...' : '완료'}
                                 </button>
                             </div>
                         </div>
@@ -1287,7 +1422,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 {/* CRZ1 피커 모달 */}
                 {showCrz1Picker && (
                     <div 
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300"
+                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
                         onClick={() => setShowCrz1Picker(false)}
                     >
                         <div 
@@ -1365,10 +1500,18 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                     취소
                                 </button>
                                 <button
-                                    onClick={() => setShowCrz1Picker(false)}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                                    onClick={async () => {
+                                        await handleSaveToFirebase();
+                                        setShowCrz1Picker(false);
+                                    }}
+                                    disabled={isSyncing}
+                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
+                                        isSyncing 
+                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                                    }`}
                                 >
-                                    완료
+                                    {isSyncing ? '저장 중...' : '완료'}
                                 </button>
                             </div>
                         </div>
@@ -1378,7 +1521,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 {/* 이륙 후 드럼 픽커 모달 */}
                 {showAfterTakeoffPicker && (
                     <div 
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300"
+                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
                         onClick={() => setShowAfterTakeoffPicker(false)}
                     >
                         <div 
@@ -1466,10 +1609,18 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                     취소
                                 </button>
                                 <button
-                                    onClick={() => setShowAfterTakeoffPicker(false)}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                                    onClick={async () => {
+                                        await handleSaveToFirebase();
+                                        setShowAfterTakeoffPicker(false);
+                                    }}
+                                    disabled={isSyncing}
+                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
+                                        isSyncing 
+                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                                    }`}
                                 >
-                                    완료
+                                    {isSyncing ? '저장 중...' : '완료'}
                                 </button>
                             </div>
                         </div>
@@ -1483,7 +1634,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 {/* 착륙 전 드럼 픽커 모달 */}
                 {showBeforeLandingPicker && (
                     <div 
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300"
+                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
                         onClick={() => setShowBeforeLandingPicker(false)}
                     >
                         <div 
@@ -1562,10 +1713,18 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                     취소
                                 </button>
                                 <button
-                                    onClick={() => setShowBeforeLandingPicker(false)}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                                    onClick={async () => {
+                                        await handleSaveToFirebase();
+                                        setShowBeforeLandingPicker(false);
+                                    }}
+                                    disabled={isSyncing}
+                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
+                                        isSyncing 
+                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                                    }`}
                                 >
-                                    완료
+                                    {isSyncing ? '저장 중...' : '완료'}
                                 </button>
                             </div>
                         </div>
@@ -1740,10 +1899,18 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
                                     <div className="flex justify-end mt-8">
                                         <button 
-                                            onClick={() => setShowTimeline(true)} 
-                                            className="py-2 px-6 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+                                            onClick={async () => {
+                                                await handleSaveToFirebase();
+                                                setShowTimeline(true);
+                                            }}
+                                            disabled={isSyncing}
+                                            className={`py-2 px-6 rounded-lg font-semibold transition-colors ${
+                                                isSyncing 
+                                                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                                                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                                            }`}
                                         >
-                                            완료
+                                            {isSyncing ? '저장 중...' : '완료'}
                                         </button>
                                     </div>
                                 </div>

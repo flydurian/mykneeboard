@@ -12,5 +12,3 @@ export const getTodayString = (): string => {
   return format(koreaTime, 'yyyy-MM-dd', { timeZone: KOREA_TIME_ZONE });
 };
 
-// 오늘 날짜를 동적으로 가져오는 상수 (사용하지 않음 - getTodayString() 함수를 직접 호출하세요)
-export const TODAY_STR = getTodayString();

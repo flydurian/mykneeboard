@@ -162,36 +162,30 @@ export class CacheManager {
   // 만료된 캐시 정리
   async cleanupExpiredCaches(userId: string): Promise<void> {
     try {
-      console.log('🧹 만료된 캐시 정리 시작...');
       
       const status = await this.getAllCacheStatus(userId);
       let cleanedCount = 0;
 
       // localStorage 정리
       if (status.localStorage.exists && status.localStorage.expiry && Date.now() > status.localStorage.expiry) {
-        console.log('🗑️ localStorage 캐시 만료됨, 정리 중...');
-        simpleCache.clearCache(userId);
+        simpleCache.clearCache();
         cleanedCount++;
       }
 
       // IndexedDB 정리
       if (status.indexedDB.exists && status.indexedDB.expiry && Date.now() > status.indexedDB.expiry) {
-        console.log('🗑️ IndexedDB 캐시 만료됨, 정리 중...');
         await indexedDBCache.clearCache(userId);
         cleanedCount++;
       }
 
       // 분리된 캐시 정리
       if (status.separated.exists && status.separated.expiry && Date.now() > status.separated.expiry) {
-        console.log('🗑️ 분리된 캐시 만료됨, 정리 중...');
         await separatedCache.clearSeparatedCache(userId);
         cleanedCount++;
       }
 
       if (cleanedCount > 0) {
-        console.log(`✅ ${cleanedCount}개 만료된 캐시 정리 완료`);
       } else {
-        console.log('✅ 만료된 캐시 없음');
       }
     } catch (error) {
       console.error('❌ 캐시 정리 실패:', error);
@@ -201,15 +195,13 @@ export class CacheManager {
   // 모든 캐시 강제 정리
   async clearAllCaches(userId: string): Promise<void> {
     try {
-      console.log('🗑️ 모든 캐시 강제 정리 시작...');
       
       await Promise.all([
-        simpleCache.clearCache(userId),
+        simpleCache.clearCache(),
         indexedDBCache.clearCache(userId),
         separatedCache.clearSeparatedCache(userId)
       ]);
 
-      console.log('✅ 모든 캐시 정리 완료');
     } catch (error) {
       console.error('❌ 모든 캐시 정리 실패:', error);
     }
@@ -218,18 +210,15 @@ export class CacheManager {
   // 캐시 최적화 (가장 효율적인 캐시만 유지)
   async optimizeCaches(userId: string): Promise<void> {
     try {
-      console.log('⚡ 캐시 최적화 시작...');
       
       const status = await this.getAllCacheStatus(userId);
       
       // IndexedDB가 가장 효율적이므로 우선 사용
       if (status.indexedDB.exists) {
-        console.log('✅ IndexedDB 캐시 사용 (가장 효율적)');
         
         // localStorage 정리 (용량 절약)
         if (status.localStorage.exists) {
-          console.log('🗑️ localStorage 캐시 정리 (용량 절약)');
-          simpleCache.clearCache(userId);
+          simpleCache.clearCache();
         }
         
         return;
@@ -237,11 +226,9 @@ export class CacheManager {
 
       // IndexedDB가 없으면 localStorage 사용
       if (status.localStorage.exists) {
-        console.log('✅ localStorage 캐시 사용');
         return;
       }
 
-      console.log('⚠️ 사용 가능한 캐시 없음');
     } catch (error) {
       console.error('❌ 캐시 최적화 실패:', error);
     }
@@ -257,7 +244,6 @@ export class CacheManager {
       }
     }, this.CLEANUP_INTERVAL);
 
-    console.log('🔄 자동 캐시 정리 시작 (24시간마다)');
   }
 
   // 현재 사용자 ID 가져오기 (간단한 구현)
@@ -289,25 +275,14 @@ export class CacheManager {
     try {
       const status = await this.getAllCacheStatus(userId);
       
-      console.log('📊 캐시 상태 통계:');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
       Object.entries(status).forEach(([key, info]) => {
         const statusIcon = info.exists ? '✅' : '❌';
         const expiryText = info.expiry ? 
           new Date(info.expiry).toLocaleString('ko-KR') : 'N/A';
         
-        console.log(`${statusIcon} ${key}:`);
-        console.log(`   존재: ${info.exists ? '예' : '아니오'}`);
-        console.log(`   데이터 수: ${info.count.toLocaleString()}개`);
-        console.log(`   크기: ${info.size}`);
-        console.log(`   마지막 업데이트: ${info.lastUpdated ? 
-          new Date(info.lastUpdated).toLocaleString('ko-KR') : 'N/A'}`);
-        console.log(`   만료 시간: ${expiryText}`);
-        console.log('');
       });
       
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     } catch (error) {
       console.error('❌ 캐시 통계 출력 실패:', error);
     }

@@ -45,14 +45,13 @@ class SimpleCache {
         localStorage.setItem(chunkKey, JSON.stringify(compressedChunk));
       });
       
-      console.log(`✅ 캐시 저장 성공: ${flights.length}개 항공편을 ${chunks.length}개 청크로 분할하여 저장`);
+      // 캐시 저장 성공
       
     } catch (error) {
       console.error('캐시 저장 실패:', error);
       
       // 용량 초과 시 기존 캐시 정리 후 재시도
       if (error.name === 'QuotaExceededError') {
-        console.log('⚠️ localStorage 용량 초과, 기존 캐시 정리 후 재시도');
         this.clearCache();
         
         try {
@@ -84,7 +83,6 @@ class SimpleCache {
             localStorage.setItem(chunkKey, JSON.stringify(compressedChunk));
           });
           
-          console.log(`✅ 재시도 성공: ${flights.length}개 항공편을 ${smallerChunks.length}개 작은 청크로 저장`);
         } catch (retryError) {
           console.error('재시도 실패:', retryError);
         }
@@ -149,7 +147,6 @@ class SimpleCache {
         }
       }
 
-      console.log(`✅ 캐시 로드 성공: ${allFlights.length}개 항공편을 ${metadata.chunks}개 청크에서 복원`);
       return allFlights;
       
     } catch (error) {
@@ -180,7 +177,6 @@ class SimpleCache {
       // 기존 단일 캐시도 삭제 (하위 호환성)
       localStorage.removeItem(this.CACHE_KEY);
       
-      console.log('🗑️ 캐시 정리 완료');
     } catch (error) {
       console.error('캐시 정리 실패:', error);
     }

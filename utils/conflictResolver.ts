@@ -112,7 +112,7 @@ export class ConflictResolver {
         finalData: {
           status: selectedData.status,
           lastModified: selectedData.lastModified, // 원본 시간 정보 보존
-          version: (selectedData.version || 0) + 1
+          version: 1
         }
       };
     });

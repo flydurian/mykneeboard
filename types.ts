@@ -14,17 +14,30 @@ export interface FlightStatus {
 
 export interface Flight {
   id: number;
-  date: string;
+  date: string; // 기본 날짜 (출발일)
+  departureDateTimeUtc?: string; // 출발일시 UTC (ISO 8601 형식: 2025-05-10T18:05:00Z)
+  arrivalDateTimeUtc?: string; // 도착일시 UTC (ISO 8601 형식: 2025-05-11T06:05:00Z)
+  showUpDateTimeUtc?: string; // Show Up 시간 UTC (ISO 8601 형식: 2025-05-10T16:45:00Z)
   flightNumber: string;
   route: string;
-  std: string;
-  sta: string;
+  std?: string; // Scheduled Time of Departure (출발 예정 시간)
+  sta?: string; // Scheduled Time of Arrival (도착 예정 시간)
   block: number;
   status: FlightStatus;
   crew: CrewMember[];
-  monthlyTotalBlock?: number; // 월별 총 BLOCK 시간
+  cabinCrew?: CrewMember[]; // 객실 승무원 목록
+  monthlyTotalBlock?: string; // 월별 총 BLOCK 시간 (HH:MM 형식)
   lastModified?: string; // 최종 수정 시간 (ISO 문자열)
+  lastUpdated?: string; // Firebase 저장용 최종 업데이트 시간 (ISO 문자열)
   version?: number; // 데이터 버전
+  scheduleType?: string; // 스케줄 타입 (FLIGHT, RDO, OTHRDUTY, STANDBY 등)
+  acType?: string; // 항공기 타입 (A/C Type)
+  regNo?: string; // 등록 번호 (Registration Number)
+  _storagePath?: { // Firebase 저장 경로 정보
+    year: number;
+    month: string;
+    firebaseKey: string;
+  };
 }
 
 export interface DDayInfo {
@@ -43,6 +56,7 @@ export interface CurrencyInfo {
 export interface CurrencyModalData {
     title: string;
     events: Flight[];
+    graphEvents?: Flight[]; // 그래프용 6개월 데이터
 }
 
 export interface MonthlyModalData {
@@ -50,6 +64,17 @@ export interface MonthlyModalData {
     flights: Flight[];
     blockTime: string;
 }
+
+// 항공편 스케줄 데이터 타입
+export interface FlightSchedule {
+  airlineFlightNumber: string;  // 항공편 번호 (예: KE1001, OZ1001)
+  route: string;                // 경로 (예: ICN/IST, IST/ICN)
+  std: string;                  // Scheduled Time of Departure (출발 예정 시간)
+  sta: string;                  // Scheduled Time of Arrival (도착 예정 시간)
+}
+
+// 압축된 스케줄 데이터 타입 (배열 형태)
+export type CompressedFlightSchedule = [string, string]; // [항공편번호, 경로]
 
 // Firebase 관련 타입 정의
 declare global {
@@ -62,25 +87,3 @@ declare global {
   }
 }
 
-// 구글 스프레드시트 항공편 데이터 타입
-export interface GoogleSheetFlightData {
-  date: string;
-  flightNumber: string;
-  departure: string;
-  arrival: string;
-  departureTime: string;
-  arrivalTime: string;
-  aircraft: string;
-  captain: string;
-  firstOfficer: string;
-  flightTime: string;
-  restTime: string;
-  notes?: string;
-}
-
-// 구글 스프레드시트 메타데이터
-export interface GoogleSheetMetadata {
-  lastUpdated: string;
-  version: string;
-  totalRecords: number;
-}

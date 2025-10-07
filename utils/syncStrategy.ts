@@ -227,7 +227,7 @@ class SyncStrategy {
           
           // 4. Firebase 문서를 업데이트합니다.
           const { updateFlight } = await import('../src/firebase/database');
-          await updateFlight(conflict.flightId.toString(), dataToUpdate, userId);
+          await updateFlight(conflict.flightId, dataToUpdate, userId);
           
   
           result.resolvedConflicts++;

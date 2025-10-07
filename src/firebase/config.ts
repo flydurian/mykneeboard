@@ -6,15 +6,32 @@ import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBqCk8phg_Bd8_3sz2Qnvy4WRRvH8Mf5k0",
-  authDomain: "flightdashboard-159bc.firebaseapp.com",
-  databaseURL: "https://flightdashboard-159bc-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "flightdashboard-159bc",
-  storageBucket: "flightdashboard-159bc.firebasestorage.app",
-  messagingSenderId: "834175395337",
-  appId: "1:834175395337:web:839e1d56796b621a97fad8",
-  measurementId: "G-X2FMMSY232"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
+
+// Firebase 설정 검증
+const requiredEnvVars = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_DATABASE_URL',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID'
+];
+
+const missingVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
+if (missingVars.length > 0) {
+  console.error('❌ Firebase 환경변수가 설정되지 않았습니다:', missingVars);
+  throw new Error(`Firebase 환경변수가 설정되지 않았습니다: ${missingVars.join(', ')}`);
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

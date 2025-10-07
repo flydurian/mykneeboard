@@ -1,13 +1,6 @@
 import { worldAirlines, AIRLINE_DATA_LAST_MODIFIED, AirlineInfo } from '../data/worldAirlines';
 
-export interface AirlineInfo {
-  iata: string;
-  icao: string;
-  name: string;
-  koreanName: string;
-  callsign: string;
-  country: string;
-}
+export type { AirlineInfo };
 
 export interface AirlineDataInfo {
   airlines: AirlineInfo[];
