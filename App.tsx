@@ -733,6 +733,13 @@ const App: React.FC = () => {
     // 사용자가 로그인한 후에만 경고 확인
     if (user) {
       checkPassportVisaWarnings();
+
+      // 로그인 후 백그라운드 데이터 캐싱 (오프라인 대비)
+      // 이미 캐싱되어 있거나 최근에 캐싱했다면 내부적으로 스킵됨
+      setTimeout(() => {
+        console.log('🚀 로그인 완료: 백그라운드 데이터 캐싱 시작');
+        cacheAllFlightsFromFirebase();
+      }, 5000); // 로그인 직후 부하를 줄이기 위해 5초 지연 실행
     }
   }, [user]);
 
@@ -764,11 +771,7 @@ const App: React.FC = () => {
     cleanupExpiredCache();
 
     // 앱 시작 시 백그라운드에서 전체 비행 데이터 캐싱 (오프라인 대비)
-    // 이미 캐싱되어 있거나 최근에 캐싱했다면 내부적으로 스킵됨
-    setTimeout(() => {
-      console.log('🚀 앱 초기화: 백그라운드 데이터 캐싱 시작');
-      cacheAllFlightsFromFirebase();
-    }, 5000); // 앱 로딩 부하를 줄이기 위해 5초 지연 실행
+    // 로그인 후에만 실행되도록 변경됨 (아래 useEffect 참조)
   }, []);
 
   // 항공사 검색 함수
