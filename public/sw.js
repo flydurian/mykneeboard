@@ -1,7 +1,7 @@
 // Service Worker for My KneeBoard
 // Handles offline caching and background sync
 
-const CACHE_NAME = 'mykneeboard-v3';
+const CACHE_NAME = 'mykneeboard-v4';
 const OFFLINE_URL = '/offline.html';
 
 // Files to cache for offline use
@@ -11,13 +11,22 @@ const STATIC_CACHE_URLS = [
   '/manifest.json',
   '/icon-192x192.png',
   '/icon-512x512.png',
-  '/favicon.ico'
+  '/favicon.ico',
+  // 항공사 로고 추가
+  '/airline-logos/ke-logo.png',
+  '/airline-logos/oz-logo.png',
+  '/airline-logos/jeju-long.png'
+];
+
+// External resources to cache for offline use (CORS 허용되는 것만)
+const EXTERNAL_CACHE_URLS = [
+  // 로컬 빌드 전환으로 외부 CDN 의존성 제거됨
 ];
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -27,6 +36,11 @@ self.addEventListener('install', (event) => {
           .catch((error) => {
             console.warn('Some static assets failed to cache:', error);
             // 일부 파일 캐시 실패해도 설치 계속 진행
+            return Promise.resolve();
+          })
+          .then(() => {
+            // 외부 리소스 캐시는 CORS 문제로 제외 (정상적인 현상)
+            // console.log('External resources caching skipped due to CORS limitations');
             return Promise.resolve();
           })
           .then(async () => {
@@ -55,7 +69,7 @@ self.addEventListener('install', (event) => {
                       if (r && r.ok) {
                         await cache.put(url, r.clone());
                       }
-                    } catch {}
+                    } catch { }
                   })
                 );
               }
@@ -77,7 +91,7 @@ self.addEventListener('install', (event) => {
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activating...');
-  
+
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
@@ -139,12 +153,37 @@ self.addEventListener('fetch', (event) => {
       caches.match(request, { ignoreSearch: true }).then((cached) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
+          // 모든 성공적인 응답을 캐시 (type 체크 제거하여 동적 import도 캐시)
+          if (response && response.status === 200) {
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
-        }).catch(() => caches.match(request, { ignoreSearch: true }));
+        }).catch(() => {
+          // 오프라인에서 캐시도 없는 경우 적절한 fallback 반환
+          if (request.url.includes('/assets/') && request.url.endsWith('.js')) {
+            return new Response('export default {};', {
+              status: 200,
+              statusText: 'OK',
+              headers: { 'Content-Type': 'application/javascript' }
+            });
+          }
+          if (request.url.includes('.png') || request.url.includes('.jpg') || request.url.includes('.svg')) {
+            // 1x1 투명 PNG (base64)
+            const transparentPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+            const binary = atob(transparentPng);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+              array[i] = binary.charCodeAt(i);
+            }
+            return new Response(array, {
+              status: 200,
+              statusText: 'OK',
+              headers: { 'Content-Type': 'image/png' }
+            });
+          }
+          return caches.match(request, { ignoreSearch: true });
+        });
       })
     );
     return;
@@ -153,7 +192,38 @@ self.addEventListener('fetch', (event) => {
   // 6) 그 외 요청: 캐시 후 네트워크 (유연)
   event.respondWith(
     caches.match(request).then((cached) => {
-      return cached || fetch(request).catch(() => caches.match(request));
+      if (cached) {
+        return cached;
+      }
+      return fetch(request).catch((error) => {
+        // 오프라인 상태에서 네트워크 요청 실패 시
+        // 오프라인 상태에서 파일이 없을 때의 처리
+        console.log('🔍 오프라인 요청 실패:', request.url);
+
+        // 동적 import 파일들의 경우 빈 모듈 반환
+        if (request.url.includes('/assets/') && request.url.endsWith('.js')) {
+          return new Response('export default {};', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'application/javascript' }
+          });
+        }
+
+        // 이미지 파일의 경우 빈 이미지 반환
+        if (request.url.includes('.png') || request.url.includes('.jpg') || request.url.includes('.svg')) {
+          return new Response('', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'image/png' }
+          });
+        }
+
+        // 다른 요청의 경우 캐시된 응답 반환
+        return caches.match(request).catch(() => {
+          // 캐시도 없으면 빈 응답 반환 (콘솔 오류 방지)
+          return new Response('', { status: 503, statusText: 'Service Unavailable' });
+        });
+      });
     })
   );
 });
@@ -162,35 +232,42 @@ self.addEventListener('fetch', (event) => {
 function isStaticAsset(url) {
   const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf', '.eot'];
   const urlPath = new URL(url).pathname;
-  return staticExtensions.some(ext => urlPath.endsWith(ext)) || 
-         urlPath.includes('/assets/') || 
-         urlPath.includes('/static/');
+  return staticExtensions.some(ext => urlPath.endsWith(ext)) ||
+    urlPath.includes('/assets/') ||
+    urlPath.includes('/static/');
 }
 
 // Message event - handle messages from main thread
 self.addEventListener('message', (event) => {
   const { type, data } = event.data;
-  
+
   switch (type) {
     case 'SKIP_WAITING':
       self.skipWaiting();
       break;
-      
+
     case 'CACHE_URLS':
       if (data && data.urls) {
         caches.open(CACHE_NAME)
           .then((cache) => {
-            return cache.addAll(data.urls);
+            // 실패하더라도 에러를 발생시키지 않고 가능한 것만 캐시
+            const promises = data.urls.map(url =>
+              cache.add(url).catch(err => {
+                console.warn('Failed to cache URL:', url, err);
+                return Promise.resolve();
+              })
+            );
+            return Promise.all(promises);
           })
           .then(() => {
-            console.log('URLs cached successfully:', data.urls);
+            // URLs 캐시 시도 완료
           })
           .catch((error) => {
-            console.error('Failed to cache URLs:', error);
+            console.error('Failed to open cache for URL caching:', error);
           });
       }
       break;
-      
+
     case 'CLEAR_CACHE':
       if (data && data.cacheName) {
         caches.delete(data.cacheName)
@@ -209,13 +286,13 @@ self.addEventListener('message', (event) => {
           });
       }
       break;
-      
+
     case 'GET_CACHE_SIZE':
       caches.keys()
         .then((cacheNames) => {
           let totalSize = 0;
           const cacheSizes = {};
-          
+
           return Promise.all(
             cacheNames.map((cacheName) => {
               return caches.open(cacheName)
@@ -241,7 +318,7 @@ self.addEventListener('message', (event) => {
 // Background sync (if supported)
 self.addEventListener('sync', (event) => {
   console.log('Background sync triggered:', event.tag);
-  
+
   if (event.tag === 'background-sync') {
     event.waitUntil(
       // Handle background sync tasks here
@@ -253,7 +330,7 @@ self.addEventListener('sync', (event) => {
 // Push notification (if supported)
 self.addEventListener('push', (event) => {
   console.log('Push notification received');
-  
+
   const options = {
     body: event.data ? event.data.text() : '새로운 알림이 있습니다.',
     icon: '/icon-192x192.png',
@@ -271,7 +348,7 @@ self.addEventListener('push', (event) => {
       }
     ]
   };
-  
+
   event.waitUntil(
     self.registration.showNotification('My KneeBoard', options)
   );
@@ -280,9 +357,9 @@ self.addEventListener('push', (event) => {
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
   console.log('Notification clicked:', event.action);
-  
+
   event.notification.close();
-  
+
   if (event.action === 'open' || !event.action) {
     event.waitUntil(
       clients.openWindow('/')

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './src/index.css';
 import App from './App';
 
 const rootElement = document.getElementById('root');
@@ -8,10 +9,18 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { queryClient, persister } from './src/queryClient';
+
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister }}
+    >
+      <App />
+    </PersistQueryClientProvider>
   </React.StrictMode>
 );
 
@@ -34,7 +43,7 @@ root.render(
       if ('scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
       }
-    } catch {}
+    } catch { }
 
     const scrollTop = () => {
       try {
@@ -56,7 +65,7 @@ root.render(
             anyEl.scrollTop = 0;
           }
         });
-      } catch {}
+      } catch { }
     };
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {

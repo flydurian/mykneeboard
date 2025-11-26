@@ -164,7 +164,7 @@ export const saveVersionInfo = (hashes: FileHashInfo[]) => {
   
   try {
     localStorage.setItem('app_version_info', JSON.stringify(versionInfo));
-    console.log('💾 버전 정보 저장됨:', versionInfo.version);
+        // 버전 정보 저장 완료
   } catch (error) {
     console.error('❌ 버전 정보 저장 실패:', error);
   }

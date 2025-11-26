@@ -5,6 +5,7 @@ export interface CrewMember {
   rank: string;
   posnType: string;
   posn: string;
+  gisu?: string;
 }
 
 export interface FlightStatus {

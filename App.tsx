@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useTransition, Suspense, lazy } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useFlights, useAddFlight, useUpdateFlight, useDeleteFlight, flightKeys } from './src/hooks/useFlights';
 import RestCalculator from './components/RestCalculator';
 import { Flight, CurrencyInfo, CurrencyModalData, MonthlyModalData, FlightStatus } from './types';
 import { getTodayString } from './constants';
-// 수동 버전 관리 제거됨 - 해시 기반 시스템 사용
 import { calculateCurrency, findLastAndNextFlights, isActualFlight, mergeFlightDataWithStatusPreservation, replaceMonthDataWithStatusPreservation } from './utils/helpers';
 import { toZonedTime } from 'date-fns-tz';
 import { UploadCloudIcon, CalendarIcon, AirlineLogo, SettingsIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon, RefreshCwIcon } from './components/icons';
@@ -15,22 +17,32 @@ const MonthlyScheduleModal = lazy(() => import('./components/modals/MonthlySched
 const CalendarModal = lazy(() => import('./components/modals/CalendarModal'));
 const ConflictResolutionModal = lazy(() => import('./components/modals/ConflictResolutionModal'));
 const AnnualBlockTimeModal = lazy(() => import('./components/modals/AnnualBlockTimeModal'));
-import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights, addMultipleFlights, getUserSettings, saveUserSettings, saveDocumentExpiryDates, getDocumentExpiryDates, saveCrewMemos, getCrewMemos, saveCityMemos, getCityMemos, setFirebaseOfflineMode } from './src/firebase/database';
+import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights, getUserSettings, saveUserSettings, saveDocumentExpiryDates, getDocumentExpiryDates, saveCrewMemos, getCrewMemos, saveCityMemos, getCityMemos, setFirebaseOfflineMode } from './src/firebase/database';
+import { cacheAllFlightsFromFirebase } from './src/firebase/flightSchedules';
 import { clearKeyCache } from './utils/encryption';
 import { auth } from './src/firebase/config';
-import { loginUser, logoutUser, registerUser, onAuthStateChange, getCurrentUser, updateUserName, updateUserPassword, resetPassword, getUserInfo } from './src/firebase/auth';
+import { loginUser, logoutUser, registerUser, onAuthStateChange, getCurrentUser, resetPassword, getUserInfo } from './src/firebase/auth';
+
+// 앱 초기화 로그
+console.log('🚀 App.tsx 로드됨');
+console.log('🚀 Firebase auth 객체:', auth);
+console.log('🚀 환경변수 확인:', {
+  VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY ? '설정됨' : '없음',
+  VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ? '설정됨' : '없음',
+  VITE_FIREBASE_DATABASE_URL: import.meta.env.VITE_FIREBASE_DATABASE_URL ? '설정됨' : '없음',
+  VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID ? '설정됨' : '없음'
+});
 import { createSessionTimeout } from './utils/securityUtils';
 import { parseExcelFile } from './utils/excelParser';
 import { parsePDFFile } from './utils/pdfParser';
 import { simpleCache } from './utils/simpleCache';
 import { indexedDBCache } from './utils/indexedDBCache';
-import { searchCompressedSchedules, getCompressedStats } from './data/flightSchedules';
 import { separatedCache } from './utils/separatedCache';
 import { cacheManager } from './utils/cacheManager';
 import { syncStrategy } from './utils/syncStrategy';
 import { ConflictInfo } from './utils/conflictResolver';
- 
-import { getAirlineByICAO } from './data/worldAirlines';
+
+import { worldAirlines, getAirlineByICAO } from './data/worldAirlines';
 // Lazy loading for modal components to improve initial bundle size
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));
@@ -46,41 +58,25 @@ const PassportVisaWarningModal = lazy(() => import('./components/modals/Passport
 const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal'));
 const DeleteDataModal = lazy(() => import('./components/modals/DeleteDataModal'));
 const SearchModal = lazy(() => import('./components/modals/SearchModal'));
-import { fetchAirlineData, fetchAirlineDataWithInfo, searchAirline, getAirlineByCode, AirlineInfo, AirlineDataInfo } from './utils/airlineData';
+const FlightMap = lazy(() => import('./components/FlightMap'));
+import { fetchAirlineData, fetchAirlineDataWithInfo, searchAirline, getAirlineByCode, AirlineInfo, AirlineDataInfo, convertFlightNumberToIATA } from './utils/airlineData';
 import { getCityInfo, getFlightTime } from './utils/cityData';
-import { worldAirlines } from './data/worldAirlines';
 import { calculateWarnings, dismissWarningForWeek, isWarningDismissed, getSamplePassportVisaData, WarningData } from './utils/passportVisaWarning';
- 
+
 // Service Worker 관련 import
 import { registerServiceWorker, onOnlineStatusChange, getServiceWorkerManager } from './utils/serviceWorker';
 import { getCurrentFileHashes, isLatestVersion, checkAndUpdate, saveVersionInfo } from './src/utils/hashVersion';
 
 // IATA/ICAO 코드를 정규화하는 함수 (IATA -> ICAO 변환)
 const getICAOCode = (airlineCode: string): string => {
-  const iataToIcaoMap: { [key: string]: string } = {
-    'OZ': 'AAR',  // Asiana Airlines
-    'KE': 'KAL',  // Korean Air
-    '7C': 'JJA',  // Jeju Air
-    'TW': 'TWB',  // T'way Air
-    'BX': 'ABL',  // Air Busan
-    'ZE': 'ESR',  // Eastar Jet
-    'LJ': 'JNA',  // Jin Air
-    'RS': 'ASV',  // Air Seoul
-    'YP': 'APZ',  // Air Premia
-    'RF': 'EOK',  // Aerokorea
-    'NH': 'ANA',  // All Nippon Airways
-    'JL': 'JAL',  // Japan Airlines
-    'MM': 'APJ',  // Peach Aviation
-  };
-  
   // 이미 ICAO 코드인지 확인 (3글자)
-  if (airlineCode.length === 3) {
-    // ICAO 코드인 경우 그대로 반환
+  if (airlineCode && airlineCode.length === 3) {
     return airlineCode;
   }
-  
-  // IATA 코드인 경우 ICAO로 변환
-  return iataToIcaoMap[airlineCode] || airlineCode;
+
+  // IATA 코드로 항공사 정보 찾기 (worldAirlines 데이터 사용)
+  const airline = worldAirlines.find(a => a.iata === airlineCode);
+  return airline?.icao || airlineCode;
 };
 
 // 항공사명을 가져오는 함수
@@ -89,25 +85,68 @@ const getAirlineName = (iataCode: string): string => {
   return airline?.koreanName || iataCode;
 };
 
-// 네트워크 상태 확인 함수 (오류 로그 없이 204 엔드포인트 사용)
+// 기종명을 간단하게 변환하는 함수 (Airbus -> A, Boeing -> B)
+const simplifyAircraftType = (aircraftType: string): string => {
+  if (!aircraftType) return '';
+
+  // Airbus A3xx-xxx 형식을 A3xx-xxx로 변환 (예: Airbus A330-300 -> A330-300)
+  const airbusWithVariantMatch = aircraftType.match(/Airbus\s*A(\d{3}[-]\d{3}(?:ER|LR|NEO|CEO)?)/i);
+  if (airbusWithVariantMatch) {
+    return `A${airbusWithVariantMatch[1]}`;
+  }
+
+  // Airbus A3xx 형식을 A3xx로 변환 (variant 없는 경우)
+  const airbusMatch = aircraftType.match(/Airbus\s*A(\d{3})/i);
+  if (airbusMatch) {
+    return `A${airbusMatch[1]}`;
+  }
+
+  // Boeing 7xx-xxx 형식을 B7xx-xxx로 변환 (예: Boeing 777-300ER -> B777-300ER)
+  const boeingWithVariantMatch = aircraftType.match(/Boeing\s*(\d{3}[-]\d{3}(?:ER|LR|X)?)/i);
+  if (boeingWithVariantMatch) {
+    return `B${boeingWithVariantMatch[1]}`;
+  }
+
+  // Boeing 7xx 형식을 B7xx로 변환 (variant 없는 경우)
+  const boeingMatch = aircraftType.match(/Boeing\s*(\d{3})/i);
+  if (boeingMatch) {
+    return `B${boeingMatch[1]}`;
+  }
+
+  // 이미 간단한 형식인 경우 (A320-200, B777-300ER 등)
+  if (/^[AB]\d{3}/.test(aircraftType)) {
+    return aircraftType;
+  }
+
+  // 기타 기종 (예: E190, CRJ900 등)
+  return aircraftType;
+};
+
+// 네트워크 상태 확인 함수 (CSP 호환 버전)
 const checkNetworkStatus = async (): Promise<boolean> => {
   try {
-    // navigator.onLine으로 기본적인 온라인 상태 확인
+    // 1단계: navigator.onLine으로 기본적인 온라인 상태 확인
     if (!navigator.onLine) {
       return false;
     }
 
-    // 실제 네트워크 연결 확인 (204 응답, 크로스오리진 가능, SW 미개입)
-    await fetch('https://www.google.com/generate_204', {
-      method: 'GET',
-      mode: 'no-cors',
-      cache: 'no-cache',
-      signal: AbortSignal.timeout(3000)
-    });
-    // no-cors 요청은 opaque로 돌아오므로 도달만 해도 온라인으로 간주
-    return true;
+    // 2단계: 간단한 네트워크 연결 테스트 (CSP 호환)
+    try {
+      // Google의 간단한 엔드포인트 사용 (CSP에서 허용됨)
+      const response = await fetch('https://www.google.com/generate_204', {
+        method: 'HEAD',
+        mode: 'no-cors',
+        cache: 'no-cache',
+        signal: AbortSignal.timeout(3000)
+      });
+      // no-cors 요청은 opaque로 돌아오므로 도달만 해도 성공으로 간주
+      return true;
+    } catch (error) {
+      // 네트워크 테스트 실패 시 navigator.onLine을 신뢰
+      return navigator.onLine;
+    }
   } catch (error) {
-    return false;
+    return navigator.onLine;
   }
 };
 
@@ -138,156 +177,156 @@ const safeReload = async (reason: string = '새로고침') => {
 
 // 국기 아이콘을 가져오는 함수
 const getCountryFlag = (country: string | null): string => {
-    if (!country) return '🏳️';
-    
-    const flagMap: { [key: string]: string } = {
-        // 한글 국가명
-        '대한민국': '🇰🇷',
-        '일본': '🇯🇵',
-        '중국': '🇨🇳',
-        '미국': '🇺🇸',
-        '영국': '🇬🇧',
-        '독일': '🇩🇪',
-        '프랑스': '🇫🇷',
-        '이탈리아': '🇮🇹',
-        '스페인': '🇪🇸',
-        '네덜란드': '🇳🇱',
-        '스위스': '🇨🇭',
-        '오스트리아': '🇦🇹',
-        '벨기에': '🇧🇪',
-        '덴마크': '🇩🇰',
-        '스웨덴': '🇸🇪',
-        '노르웨이': '🇳🇴',
-        '핀란드': '🇫🇮',
-        '아일랜드': '🇮🇪',
-        '포르투갈': '🇵🇹',
-        '그리스': '🇬🇷',
-        '터키': '🇹🇷',
-        '폴란드': '🇵🇱',
-        '헝가리': '🇭🇺',
-        '불가리아': '🇧🇬',
-        '루마니아': '🇷🇴',
-        '크로아티아': '🇭🇷',
-        '슬로베니아': '🇸🇮',
-        '러시아': '🇷🇺',
-        '홍콩': '🇭🇰',
-        '태국': '🇹🇭',
-        '대만': '🇹🇼',
-        '싱가포르': '🇸🇬',
-        '인도네시아': '🇮🇩',
-        '베트남': '🇻🇳',
-        '호주': '🇦🇺',
-        '뉴질랜드': '🇳🇿',
-        '체코': '🇨🇿',
-        '미얀마': '🇲🇲',
-        '필리핀': '🇵🇭',
-        '말레이시아': '🇲🇾',
-        '인도': '🇮🇳',
-        '브라질': '🇧🇷',
-        '캐나다': '🇨🇦',
-        '멕시코': '🇲🇽',
-        '아르헨티나': '🇦🇷',
-        '칠레': '🇨🇱',
-        '콜롬비아': '🇨🇴',
-        '페루': '🇵🇪',
-        '이집트': '🇪🇬',
-        '남아프리카': '🇿🇦',
-        '모로코': '🇲🇦',
-        '튀니지': '🇹🇳',
-        '케냐': '🇰🇪',
-        '나이지리아': '🇳🇬',
-        '이스라엘': '🇮🇱',
-        '사우디아라비아': '🇸🇦',
-        '아랍에미리트': '🇦🇪',
-        '카타르': '🇶🇦',
-        '쿠웨이트': '🇰🇼',
-        '바레인': '🇧🇭',
-        '오만': '🇴🇲',
-        '요르단': '🇯🇴',
-        '레바논': '🇱🇧',
-        '시리아': '🇸🇾',
-        '이라크': '🇮🇶',
-        '이란': '🇮🇷',
-        '아프가니스탄': '🇦🇫',
-        '파키스탄': '🇵🇰',
-        '방글라데시': '🇧🇩',
-        '스리랑카': '🇱🇰',
-        '몰디브': '🇲🇻',
-        '네팔': '🇳🇵',
-        '부탄': '🇧🇹',
-        '몽골': '🇲🇳',
-        '북한': '🇰🇵',
-        '라오스': '🇱🇦',
-        '캄보디아': '🇰🇭',
-        '브루나이': '🇧🇳',
-        '동티모르': '🇹🇱',
-        '키프로스': '🇨🇾',
-        '몰타': '🇲🇹',
-        '아이슬란드': '🇮🇸',
-        '리히텐슈타인': '🇱🇮',
-        '모나코': '🇲🇨',
-        '산마리노': '🇸🇲',
-        '바티칸': '🇻🇦',
-        '안도라': '🇦🇩',
-        '룩셈부르크': '🇱🇺',
-        '에스토니아': '🇪🇪',
-        '라트비아': '🇱🇻',
-        '리투아니아': '🇱🇹',
-        '우크라이나': '🇺🇦',
-        '벨라루스': '🇧🇾',
-        '몰도바': '🇲🇩',
-        '알바니아': '🇦🇱',
-        '보스니아헤르체고비나': '🇧🇦',
-        '세르비아': '🇷🇸',
-        '몬테네그로': '🇲🇪',
-        '북마케도니아': '🇲🇰',
-        '코소보': '🇽🇰',
-        '조지아': '🇬🇪',
-        '아르메니아': '🇦🇲',
-        '아제르바이잔': '🇦🇿',
-        '카자흐스탄': '🇰🇿',
-        '우즈베키스탄': '🇺🇿',
-        // 영어 국가명 (기존)
-        'South Korea': '🇰🇷',
-        'United States': '🇺🇸',
-        'United Kingdom': '🇬🇧',
-        'Netherlands': '🇳🇱',
-        'Spain': '🇪🇸',
-        'France': '🇫🇷',
-        'Italy': '🇮🇹',
-        'Germany': '🇩🇪',
-        'Czech Republic': '🇨🇿',
-        'Switzerland': '🇨🇭',
-        'Austria': '🇦🇹',
-        'Belgium': '🇧🇪',
-        'Denmark': '🇩🇰',
-        'Sweden': '🇸🇪',
-        'Norway': '🇳🇴',
-        'Finland': '🇫🇮',
-        'Ireland': '🇮🇪',
-        'Portugal': '🇵🇹',
-        'Greece': '🇬🇷',
-        'Turkey': '🇹🇷',
-        'Poland': '🇵🇱',
-        'Hungary': '🇭🇺',
-        'Bulgaria': '🇧🇬',
-        'Romania': '🇷🇴',
-        'Croatia': '🇭🇷',
-        'Slovenia': '🇸🇮',
-        'Russia': '🇷🇺',
-        'Japan': '🇯🇵',
-        'Hong Kong': '🇭🇰',
-        'Thailand': '🇹🇭',
-        'China': '🇨🇳',
-        'Taiwan': '🇹🇼',
-        'Singapore': '🇸🇬',
-        'Indonesia': '🇮🇩',
-        'Vietnam': '🇻🇳',
-        'Australia': '🇦🇺',
-        'New Zealand': '🇳🇿'
-    };
-    
-    return flagMap[country] || '🏳️';
+  if (!country) return '🏳️';
+
+  const flagMap: { [key: string]: string } = {
+    // 한글 국가명
+    '대한민국': '🇰🇷',
+    '일본': '🇯🇵',
+    '중국': '🇨🇳',
+    '미국': '🇺🇸',
+    '영국': '🇬🇧',
+    '독일': '🇩🇪',
+    '프랑스': '🇫🇷',
+    '이탈리아': '🇮🇹',
+    '스페인': '🇪🇸',
+    '네덜란드': '🇳🇱',
+    '스위스': '🇨🇭',
+    '오스트리아': '🇦🇹',
+    '벨기에': '🇧🇪',
+    '덴마크': '🇩🇰',
+    '스웨덴': '🇸🇪',
+    '노르웨이': '🇳🇴',
+    '핀란드': '🇫🇮',
+    '아일랜드': '🇮🇪',
+    '포르투갈': '🇵🇹',
+    '그리스': '🇬🇷',
+    '터키': '🇹🇷',
+    '폴란드': '🇵🇱',
+    '헝가리': '🇭🇺',
+    '불가리아': '🇧🇬',
+    '루마니아': '🇷🇴',
+    '크로아티아': '🇭🇷',
+    '슬로베니아': '🇸🇮',
+    '러시아': '🇷🇺',
+    '홍콩': '🇭🇰',
+    '태국': '🇹🇭',
+    '대만': '🇹🇼',
+    '싱가포르': '🇸🇬',
+    '인도네시아': '🇮🇩',
+    '베트남': '🇻🇳',
+    '호주': '🇦🇺',
+    '뉴질랜드': '🇳🇿',
+    '체코': '🇨🇿',
+    '미얀마': '🇲🇲',
+    '필리핀': '🇵🇭',
+    '말레이시아': '🇲🇾',
+    '인도': '🇮🇳',
+    '브라질': '🇧🇷',
+    '캐나다': '🇨🇦',
+    '멕시코': '🇲🇽',
+    '아르헨티나': '🇦🇷',
+    '칠레': '🇨🇱',
+    '콜롬비아': '🇨🇴',
+    '페루': '🇵🇪',
+    '이집트': '🇪🇬',
+    '남아프리카': '🇿🇦',
+    '모로코': '🇲🇦',
+    '튀니지': '🇹🇳',
+    '케냐': '🇰🇪',
+    '나이지리아': '🇳🇬',
+    '이스라엘': '🇮🇱',
+    '사우디아라비아': '🇸🇦',
+    '아랍에미리트': '🇦🇪',
+    '카타르': '🇶🇦',
+    '쿠웨이트': '🇰🇼',
+    '바레인': '🇧🇭',
+    '오만': '🇴🇲',
+    '요르단': '🇯🇴',
+    '레바논': '🇱🇧',
+    '시리아': '🇸🇾',
+    '이라크': '🇮🇶',
+    '이란': '🇮🇷',
+    '아프가니스탄': '🇦🇫',
+    '파키스탄': '🇵🇰',
+    '방글라데시': '🇧🇩',
+    '스리랑카': '🇱🇰',
+    '몰디브': '🇲🇻',
+    '네팔': '🇳🇵',
+    '부탄': '🇧🇹',
+    '몽골': '🇲🇳',
+    '북한': '🇰🇵',
+    '라오스': '🇱🇦',
+    '캄보디아': '🇰🇭',
+    '브루나이': '🇧🇳',
+    '동티모르': '🇹🇱',
+    '키프로스': '🇨🇾',
+    '몰타': '🇲🇹',
+    '아이슬란드': '🇮🇸',
+    '리히텐슈타인': '🇱🇮',
+    '모나코': '🇲🇨',
+    '산마리노': '🇸🇲',
+    '바티칸': '🇻🇦',
+    '안도라': '🇦🇩',
+    '룩셈부르크': '🇱🇺',
+    '에스토니아': '🇪🇪',
+    '라트비아': '🇱🇻',
+    '리투아니아': '🇱🇹',
+    '우크라이나': '🇺🇦',
+    '벨라루스': '🇧🇾',
+    '몰도바': '🇲🇩',
+    '알바니아': '🇦🇱',
+    '보스니아헤르체고비나': '🇧🇦',
+    '세르비아': '🇷🇸',
+    '몬테네그로': '🇲🇪',
+    '북마케도니아': '🇲🇰',
+    '코소보': '🇽🇰',
+    '조지아': '🇬🇪',
+    '아르메니아': '🇦🇲',
+    '아제르바이잔': '🇦🇿',
+    '카자흐스탄': '🇰🇿',
+    '우즈베키스탄': '🇺🇿',
+    // 영어 국가명 (기존)
+    'South Korea': '🇰🇷',
+    'United States': '🇺🇸',
+    'United Kingdom': '🇬🇧',
+    'Netherlands': '🇳🇱',
+    'Spain': '🇪🇸',
+    'France': '🇫🇷',
+    'Italy': '🇮🇹',
+    'Germany': '🇩🇪',
+    'Czech Republic': '🇨🇿',
+    'Switzerland': '🇨🇭',
+    'Austria': '🇦🇹',
+    'Belgium': '🇧🇪',
+    'Denmark': '🇩🇰',
+    'Sweden': '🇸🇪',
+    'Norway': '🇳🇴',
+    'Finland': '🇫🇮',
+    'Ireland': '🇮🇪',
+    'Portugal': '🇵🇹',
+    'Greece': '🇬🇷',
+    'Turkey': '🇹🇷',
+    'Poland': '🇵🇱',
+    'Hungary': '🇭🇺',
+    'Bulgaria': '🇧🇬',
+    'Romania': '🇷🇴',
+    'Croatia': '🇭🇷',
+    'Slovenia': '🇸🇮',
+    'Russia': '🇷🇺',
+    'Japan': '🇯🇵',
+    'Hong Kong': '🇭🇰',
+    'Thailand': '🇹🇭',
+    'China': '🇨🇳',
+    'Taiwan': '🇹🇼',
+    'Singapore': '🇸🇬',
+    'Indonesia': '🇮🇩',
+    'Vietnam': '🇻🇳',
+    'Australia': '🇦🇺',
+    'New Zealand': '🇳🇿'
+  };
+
+  return flagMap[country] || '🏳️';
 };
 
 const DISPLAY_VERSION = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_APP_DISPLAY_VERSION) ? (import.meta as any).env.VITE_APP_DISPLAY_VERSION : '1.0.0';
@@ -295,12 +334,19 @@ const DISPLAY_VERSION = (typeof import.meta !== 'undefined' && (import.meta as a
 const App: React.FC = () => {
   // React 18 Concurrent Features
   const [isPending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
 
-  
+
   // 상태 관리
   const [user, setUser] = useState<any>(null);
   const [userInfo, setUserInfo] = useState<{ displayName: string | null; empl?: string; userName?: string; company?: string } | null>(null);
-  const [flights, setFlights] = useState<Flight[]>([]);
+
+  // TanStack Query로 데이터 관리
+  const { data: flights = [], isLoading: isFlightsLoading } = useFlights(user?.uid);
+  const addFlightMutation = useAddFlight();
+  const updateFlightMutation = useUpdateFlight();
+  const deleteFlightMutation = useDeleteFlight();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [syncStatus, setSyncStatus] = useState({ pendingCount: 0, isSyncing: false });
@@ -323,46 +369,119 @@ const App: React.FC = () => {
   const [flightsWithSelectedCrew, setFlightsWithSelectedCrew] = useState<Flight[]>([]);
   const [selectedCrewType, setSelectedCrewType] = useState<'flight' | 'cabin'>('flight');
   const [isCrewMemoModalOpen, setIsCrewMemoModalOpen] = useState(false);
-  const [crewMemos, setCrewMemos] = useState<{[key: string]: string}>({});
+  const [crewMemos, setCrewMemos] = useState<{ [key: string]: string }>({});
   const [isCityMemoModalOpen, setIsCityMemoModalOpen] = useState(false);
   const [selectedCityForMemo, setSelectedCityForMemo] = useState<string>('');
-  const [cityMemos, setCityMemos] = useState<{[key: string]: string}>({
+  const [cityMemos, setCityMemos] = useState<{ [key: string]: string }>({
     'FCO': '테스트 메모: FCO 로마 공항에 대한 메모입니다.'
   });
   const [isCityScheduleModalOpen, setIsCityScheduleModalOpen] = useState(false);
   const [selectedCityForSchedule, setSelectedCityForSchedule] = useState<string>('');
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
-  const [isCurrencyExpanded, setIsCurrencyExpanded] = useState(false);
+  const [isCurrencyExpanded, setIsCurrencyExpanded] = useState(() => {
+    // 저장소 손실 시에도 기본 상태 유지 (접힌 상태)
+    const saved = localStorage.getItem('isCurrencyExpanded');
+    return saved ? JSON.parse(saved) : false; // 기본값을 false로 설정 (접힌 상태)
+  });
+  const [isRestExpanded, setIsRestExpanded] = useState(() => {
+    const saved = localStorage.getItem('isRestExpanded');
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [isFlightDataExpanded, setIsFlightDataExpanded] = useState(() => {
+    const saved = localStorage.getItem('isFlightDataExpanded');
+    return saved ? JSON.parse(saved) : true;
+  });
   const [isIosStandalone, setIsIosStandalone] = useState(false);
   const [isCurrencySettingsModalOpen, setIsCurrencySettingsModalOpen] = useState(false);
-  const [selectedCurrencyCards, setSelectedCurrencyCards] = useState<string[]>(['passport', 'visa', 'epta', 'radio', 'whitecard']);
+  const [selectedCurrencyCards, setSelectedCurrencyCards] = useState<string[]>(() => {
+    // 저장소 손실 시에도 모든 카드가 표시되도록 설정
+    const saved = localStorage.getItem('selectedCurrencyCards');
+    return saved ? JSON.parse(saved) : ['passport', 'visa', 'epta', 'radio', 'whitecard', 'crm']; // Yellow Card를 CRM으로 변경
+  });
+
+  // 오프라인 모드에서 UI 상태 강제 복원
+  useEffect(() => {
+    if (isOffline) {
+      console.log('🔧 오프라인 모드 UI 상태 복원 시작...');
+
+      // 오프라인 모드에서 UI 상태가 깨지지 않도록 강제 설정
+      const savedCurrencyExpanded = localStorage.getItem('isCurrencyExpanded');
+      if (savedCurrencyExpanded) {
+        setIsCurrencyExpanded(JSON.parse(savedCurrencyExpanded));
+        console.log('✅ Currency UI 상태 복원:', JSON.parse(savedCurrencyExpanded));
+      }
+
+      const savedCurrencyCards = localStorage.getItem('selectedCurrencyCards');
+      if (savedCurrencyCards) {
+        setSelectedCurrencyCards(JSON.parse(savedCurrencyCards));
+        console.log('✅ CurrencyCards UI 상태 복원');
+      }
+
+      const savedActiveTab = localStorage.getItem('activeTab');
+      if (savedActiveTab && ['dashboard', 'rest', 'flightData'].includes(savedActiveTab)) {
+        setActiveTab(savedActiveTab as 'dashboard' | 'rest' | 'flightData');
+        console.log('✅ ActiveTab UI 상태 복원:', savedActiveTab);
+      }
+
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        setTheme(savedTheme as 'light' | 'dark');
+        console.log('✅ Theme UI 상태 복원:', savedTheme);
+      }
+
+      // 추가 UI 상태 복원
+      const savedRestExpanded = localStorage.getItem('isRestExpanded');
+      if (savedRestExpanded) {
+        setIsRestExpanded(JSON.parse(savedRestExpanded));
+        console.log('✅ Rest UI 상태 복원:', JSON.parse(savedRestExpanded));
+      }
+
+      const savedFlightDataExpanded = localStorage.getItem('isFlightDataExpanded');
+      if (savedFlightDataExpanded) {
+        setIsFlightDataExpanded(JSON.parse(savedFlightDataExpanded));
+        console.log('✅ FlightData UI 상태 복원:', JSON.parse(savedFlightDataExpanded));
+      }
+
+      // 로딩 상태 강제 해제 (오프라인에서 무한 로딩 방지)
+      if (isLoading) {
+        setTimeout(() => {
+          setIsLoading(false);
+          console.log('✅ 오프라인 모드에서 로딩 상태 강제 해제');
+        }, 1000);
+      }
+
+      console.log('🔧 오프라인 모드 UI 상태 복원 완료');
+    }
+  }, [isOffline, isLoading]);
   const [noFlightModal, setNoFlightModal] = useState({ isOpen: false, type: 'last' as 'last' | 'next' });
   const [isPassportVisaWarningOpen, setIsPassportVisaWarningOpen] = useState(false);
   const [passportVisaWarnings, setPassportVisaWarnings] = useState<WarningData[]>([]);
   const [isExpiryDateModalOpen, setIsExpiryDateModalOpen] = useState(false);
-  const [selectedCardForExpiry, setSelectedCardForExpiry] = useState<{type: string, name: string} | null>(null);
-  const [cardExpiryDates, setCardExpiryDates] = useState<{[key: string]: string}>({});
+  const [selectedCardForExpiry, setSelectedCardForExpiry] = useState<{ type: string, name: string } | null>(null);
+  const [cardExpiryDates, setCardExpiryDates] = useState<{ [key: string]: string }>({});
   const [isAnnualBlockTimeModalOpen, setIsAnnualBlockTimeModalOpen] = useState(false);
   const [isDeleteDataModalOpen, setIsDeleteDataModalOpen] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isAdminJsonUploadModalOpen, setIsAdminJsonUploadModalOpen] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState<boolean | null>(null); // null: 확인 중, true: 관리자, false: 일반 사용자
   const [refreshMessage, setRefreshMessage] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+
   // 세션 타임아웃 관리
   const [sessionTimeout, setSessionTimeout] = useState<{ resetTimeout: () => void; clearTimeout: () => void } | null>(null);
-  
+
   // 주황색 단계 이하(90일 이하) 카드 확인 함수
   const hasUrgentCards = useMemo(() => {
     return selectedCurrencyCards.some(cardType => {
       const expiryDate = cardExpiryDates[cardType];
       if (!expiryDate) return false;
-      
+
       const today = new Date();
       const expiry = new Date(expiryDate);
       const timeDiff = expiry.getTime() - today.getTime();
       const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24));
-      
+
       // White Card는 30일 이하, 다른 카드는 90일 이하
       if (cardType === 'whitecard') {
         return daysUntilExpiry <= 30;
@@ -371,7 +490,7 @@ const App: React.FC = () => {
       }
     });
   }, [selectedCurrencyCards, cardExpiryDates]);
-  
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadError, setUploadError] = useState('');
@@ -380,73 +499,117 @@ const App: React.FC = () => {
   const [loginError, setLoginError] = useState('');
   const [registerError, setRegisterError] = useState('');
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'system';
+    // 저장소 손실 시에도 다크 모드로 기본 설정
+    const saved = localStorage.getItem('theme');
+    return saved || 'dark'; // 기본값을 'dark'로 설정
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'rest' | 'flightData'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'rest' | 'flightData'>(() => {
+    // 저장소 손실 시에도 dashboard 탭이 기본으로 표시되도록 설정
+    const saved = localStorage.getItem('activeTab');
+    return (saved as 'dashboard' | 'rest' | 'flightData') || 'dashboard';
+  });
 
   // 탭 전환 함수 (오프라인 상태에서도 정상 작동)
   const handleTabChange = useCallback((tab: 'dashboard' | 'rest' | 'flightData') => {
+    console.log('🔄 탭 전환:', tab, '오프라인:', isOffline);
     setActiveTab(tab);
+
+    // 오프라인 모드에서 탭 전환 시 UI 상태 강제 복원
+    if (isOffline) {
+      setTimeout(() => {
+        console.log('🔧 오프라인 탭 전환 후 UI 상태 복원...');
+
+        // 현재 탭에 따른 UI 상태 복원
+        if (tab === 'dashboard') {
+          const savedCurrencyExpanded = localStorage.getItem('isCurrencyExpanded');
+          if (savedCurrencyExpanded) {
+            setIsCurrencyExpanded(JSON.parse(savedCurrencyExpanded));
+          }
+        } else if (tab === 'rest') {
+          const savedRestExpanded = localStorage.getItem('isRestExpanded');
+          if (savedRestExpanded) {
+            setIsRestExpanded(JSON.parse(savedRestExpanded));
+          }
+        } else if (tab === 'flightData') {
+          const savedFlightDataExpanded = localStorage.getItem('isFlightDataExpanded');
+          if (savedFlightDataExpanded) {
+            setIsFlightDataExpanded(JSON.parse(savedFlightDataExpanded));
+          }
+        }
+      }, 100);
+    }
   }, [activeTab, isOffline]);
-const [utcTime, setUtcTime] = useState('');
-const [showFlightResults, setShowFlightResults] = useState(false);
-const [showAirlineResults, setShowAirlineResults] = useState(false);
-const [airlineData, setAirlineData] = useState<AirlineInfo[]>([]);
-const [, setAirlineDataInfo] = useState<AirlineDataInfo | null>(null);
-const [airlineSearchQuery, setAirlineSearchQuery] = useState('');
-const [airlineSearchResults, setAirlineSearchResults] = useState<AirlineInfo[]>([]);
-const [isLoadingAirlineData, setIsLoadingAirlineData] = useState(false);
+  const [utcTime, setUtcTime] = useState('');
+  const [showFlightResults, setShowFlightResults] = useState(false);
+  const [showAirlineResults, setShowAirlineResults] = useState(false);
+  const [airlineData, setAirlineData] = useState<AirlineInfo[]>([]);
+  const [, setAirlineDataInfo] = useState<AirlineDataInfo | null>(null);
+  const [airlineSearchQuery, setAirlineSearchQuery] = useState('');
+  const [airlineSearchResults, setAirlineSearchResults] = useState<AirlineInfo[]>([]);
+  const [isLoadingAirlineData, setIsLoadingAirlineData] = useState(false);
 
 
-// 항공편 검색 관련 상태
-const [flightSearchQuery, setFlightSearchQuery] = useState('');
-const [flightSearchResults, setFlightSearchResults] = useState<any[]>([]);
-const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
-  
+  // 항공편 검색 관련 상태
+  const [flightSearchQuery, setFlightSearchQuery] = useState('');
+  const [flightSearchResults, setFlightSearchResults] = useState<any[]>([]);
+  const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
+
+  // 항공편 경로 추적 관련 상태
+  const [isFlightMapOpen, setIsFlightMapOpen] = useState(false);
+  const [selectedFlightPath, setSelectedFlightPath] = useState<any>(null);
+  const [isLoadingFlightPath, setIsLoadingFlightPath] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
 
 
 
   // 현재 테마 상태 계산
   const isDarkMode = useMemo(() => {
-    return theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  }, [theme]);
+    return true; // 테마 관리 - 항상 다크모드 강제 적용
+  }, []);
 
-  // 테마 관리
   useEffect(() => {
-    const root = window.document.documentElement;
-    const applyTheme = () => {
-      const isDark =
-        theme === 'dark' ||
-        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      root.classList.toggle('dark', isDark);
-    };
-    applyTheme();
-    localStorage.setItem('theme', theme);
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (theme === 'system') {
-        applyTheme();
-      }
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => {
-      mediaQuery.removeEventListener('change', handleChange);
-    };
-  }, [theme]);
+    document.documentElement.classList.add('dark');
+    document.documentElement.style.colorScheme = 'dark';
+  }, []);
+
+  // UI 상태 저장 (저장소 손실 방지)
+  useEffect(() => {
+    localStorage.setItem('isCurrencyExpanded', JSON.stringify(isCurrencyExpanded));
+  }, [isCurrencyExpanded]);
+
+  useEffect(() => {
+    localStorage.setItem('selectedCurrencyCards', JSON.stringify(selectedCurrencyCards));
+  }, [selectedCurrencyCards]);
+
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
 
   // Service Worker 등록 및 오프라인 상태 관리
   useEffect(() => {
-    // 앱 시작 시 네트워크 우선 확인 후 모드 고정 (오프라인 퍼스트 보장)
+    // 앱 시작 시 네트워크 상태 확인 (더 안정적인 방법)
     (async () => {
+      // 1단계: navigator.onLine으로 기본 확인
+      const basicOnline = navigator.onLine;
+
+      if (!basicOnline) {
+        // 오프라인이 확실하면 바로 설정
+        setIsOffline(true);
+        setFirebaseOfflineMode(true);
+        return;
+      }
+
+      // 2단계: 실제 네트워크 연결 테스트
       try {
         const online = await checkNetworkStatus();
         setIsOffline(!online);
         setFirebaseOfflineMode(!online);
-      } catch (e) {
-        const offline = !navigator.onLine;
-        setIsOffline(offline);
-        setFirebaseOfflineMode(offline);
+      } catch (error) {
+        // 오류 시 안전하게 오프라인으로 설정
+        setIsOffline(true);
+        setFirebaseOfflineMode(true);
       }
     })();
     const initializeServiceWorker = async () => {
@@ -455,11 +618,11 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         if ('serviceWorker' in navigator) {
           const registered = await registerServiceWorker();
           if (registered) {
-            console.log('Service Worker registered successfully');
+            // Service Worker 등록 완료
             // 핵심 자산 사전 캐시 (사파리 재개/비행모드 재시작 대응)
             try {
               const manager = getServiceWorkerManager();
-              const urls = new Set<string>(['/','/index.html']);
+              const urls = new Set<string>(['/', '/index.html']);
               Array.from(document.querySelectorAll('script[src]')).forEach((el: any) => {
                 const src = el.getAttribute('src');
                 if (src && src.startsWith('/')) urls.add(src);
@@ -477,7 +640,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
                 if (url && url.startsWith('/')) urls.add(url);
               });
               manager.cacheUrls(Array.from(urls));
-            } catch {}
+            } catch { }
           } else {
             console.warn('Service Worker registration failed');
           }
@@ -493,18 +656,18 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
 
     // 온라인/오프라인 상태 변경 감지 (안정성 향상)
     const unsubscribe = onOnlineStatusChange((isOnline) => {
-      console.log('🌐 네트워크 상태 변경:', isOnline ? '온라인' : '오프라인');
-      
+      // 네트워크 상태 변경 감지됨
+
       // 상태 변경을 지연시켜 빈번한 전환 방지
       const timeoutId = setTimeout(() => {
         setIsOffline(!isOnline);
-        
+
         if (isOnline && user) {
           console.log('🔄 온라인 복구: 동기화 시작');
           // 온라인으로 복구되면 동기화 시도
           handleSyncWhenOnline();
         }
-        
+
         // Firebase RTDB 연결 상태 동기화
         try {
           setFirebaseOfflineMode(!isOnline);
@@ -512,7 +675,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           console.error('❌ Firebase 오프라인 모드 설정 실패:', error);
         }
       }, 1000); // 1초 지연으로 상태 안정화
-      
+
       // 기존 타이머 정리
       return () => clearTimeout(timeoutId);
     });
@@ -548,7 +711,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   // 캐시 상태 모니터링 (24시간마다)
   useEffect(() => {
     if (!user?.uid) return;
-    
+
     const monitorCache = async () => {
       try {
         // 캐시 상태 확인
@@ -557,10 +720,10 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         console.error('캐시 모니터링 실패:', error);
       }
     };
-    
+
     monitorCache();
     const interval = setInterval(monitorCache, 24 * 60 * 60 * 1000); // 24시간마다
-    
+
     return () => clearInterval(interval);
   }, [user]);
 
@@ -574,7 +737,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   }, [user]);
 
 
-  // 항공사 데이터 로드
+  // 항공사 데이터 로드 및 만료된 항공편 캐시 정리
   useEffect(() => {
     const loadAirlineData = async () => {
       try {
@@ -589,7 +752,23 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       }
     };
 
+    const cleanupExpiredCache = async () => {
+      try {
+        await indexedDBCache.cleanupExpiredFlightSchedules();
+      } catch (error) {
+        console.error('캐시 정리 실패:', error);
+      }
+    };
+
     loadAirlineData();
+    cleanupExpiredCache();
+
+    // 앱 시작 시 백그라운드에서 전체 비행 데이터 캐싱 (오프라인 대비)
+    // 이미 캐싱되어 있거나 최근에 캐싱했다면 내부적으로 스킵됨
+    setTimeout(() => {
+      console.log('🚀 앱 초기화: 백그라운드 데이터 캐싱 시작');
+      cacheAllFlightsFromFirebase();
+    }, 5000); // 앱 로딩 부하를 줄이기 위해 5초 지연 실행
   }, []);
 
   // 항공사 검색 함수
@@ -611,108 +790,126 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       return;
     }
 
-    // ICAO 코드를 IATA 코드로 변환
-    let searchQuery = flightSearchQuery.trim().toUpperCase();
-    const airlineCode = searchQuery.replace(/[0-9]/g, ''); // 숫자 제거하여 항공사 코드만 추출
-    
-    // ICAO 코드인지 확인 (3글자)
-    if (airlineCode.length === 3) {
-      const airlineInfo = getAirlineByICAO(airlineCode);
-      if (airlineInfo) {
-        const flightNumber = searchQuery.replace(airlineCode, airlineInfo.iata);
-        searchQuery = flightNumber;
+    // ICAO 코드를 IATA 코드로 변환 (AAR102 → OZ102) - v2
+    const flightNum = flightSearchQuery.trim().toUpperCase();
+    console.log('🔄 [시작] 항공편 변환 프로세스, 입력:', flightNum);
+
+    // ICAO → IATA 변환 매핑 (worldAirlines 데이터 활용)
+    // 3글자 코드면 ICAO일 가능성이 높음
+    let searchQuery = flightNum;
+
+    const match = flightNum.match(/^([A-Z]{3})(\d+)$/);
+    if (match) {
+      const [, icaoCode, number] = match;
+      // worldAirlines에서 해당 ICAO 코드를 가진 항공사 찾기
+      const airline = worldAirlines.find(a => a.icao === icaoCode);
+
+      if (airline) {
+        const iataCode = airline.iata;
+        searchQuery = `${iataCode}${number}`;
+        console.log('🔄 ICAO→IATA 변환:', `${icaoCode}${number}`, '→', searchQuery);
       }
     }
 
     setIsLoadingFlightData(true);
+    console.log('🔍 항공편 검색 시작:', searchQuery);
+    console.log('🔍 원본 입력:', flightSearchQuery.trim().toUpperCase(), '→ 최종 검색:', searchQuery);
+    console.log('🌐 온라인 상태:', navigator.onLine);
+
     try {
       let results = [];
-      
+
       if (navigator.onLine) {
-        
-        // 1단계: 인천공항 API 검색
+        // 온라인 모드: 인천공항 API만 사용
+
+        // 인천공항 API 검색
+        console.log('📡 인천공항 API 호출...');
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
         try {
-          const apiResults = await searchFlightsFromIncheon(searchQuery);
-          if (apiResults.length > 0) {
-            results = apiResults;
-          } else {
-            
-            // 2단계: 오프라인 DB 검색
-            const offlineResults = searchCompressedSchedules(searchQuery);
-            
-            if (offlineResults.length > 0) {
-              results = offlineResults.map(flight => {
-                const [departure, arrival] = flight.route.split('/');
-                const airline = flight.airlineFlightNumber.replace(/[0-9]/g, '').toUpperCase();
-                return {
-                  flightNumber: flight.airlineFlightNumber.toUpperCase(),
-                  airline: airline,
-                  departure: departure?.toUpperCase() || '',
-                  arrival: arrival?.toUpperCase() || '',
-                  time: '', // 시간 표시하지 않음
-                  aircraft: '',
-                  status: '스케줄 정보',
-                  type: '오프라인 DB'
-                };
-              });
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+
+          const response = await fetch('/api/incheon/flights', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              flightNumber: searchQuery,
+              searchType: 'both'
+            }),
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ 인천공항 API 응답:', data);
+
+            if (data.results && data.results.length > 0) {
+              results = data.results;
+              console.log('✅ 인천공항 API 검색 성공:', results.length, '개');
+
+              // 백그라운드에서 전체 데이터 캐싱 시작 (오프라인 대비)
+              console.log('🚀 백그라운드 캐싱 함수 호출됨');
+              cacheAllFlightsFromFirebase();
+            } else {
+              console.log('⚠️ 인천공항 API: 검색 결과 없음');
             }
+          } else {
+            console.log('⚠️ 인천공항 API: HTTP 오류', response.status);
           }
-        } catch (apiError) {
-          console.error('❌ 인천공항 API 오류:', apiError);
-          
-          // API 오류 시 오프라인 DB 검색
-          const offlineResults = searchCompressedSchedules(searchQuery);
-          
-          if (offlineResults.length > 0) {
-            results = offlineResults.map(flight => {
-              const [departure, arrival] = flight.route.split('/');
-              const airline = flight.airlineFlightNumber.replace(/[0-9]/g, '').toUpperCase();
-              return {
-                flightNumber: flight.airlineFlightNumber.toUpperCase(),
-                airline: airline,
-                departure: departure?.toUpperCase() || '',
-                arrival: arrival?.toUpperCase() || '',
-                time: '', // 시간 표시하지 않음
-                aircraft: '',
-                status: '스케줄 정보',
-                type: '오프라인 DB'
-              };
-            });
+        } catch (error: any) {
+          if (timeoutId) clearTimeout(timeoutId);
+          if (error.name === 'AbortError') {
+            console.log('⏱️ 인천공항 API 타임아웃 (10초)');
+          } else {
+            console.log('❌ 인천공항 API 오류:', error.message);
           }
         }
+
+
       } else {
-        
-        // 오프라인일 때: 오프라인 DB만 검색
-        const offlineResults = searchCompressedSchedules(searchQuery);
-        
-        if (offlineResults.length > 0) {
-          results = offlineResults.map(flight => {
-            const [departure, arrival] = flight.route.split('/');
-            const airline = flight.airlineFlightNumber.replace(/[0-9]/g, '').toUpperCase();
-            return {
-              flightNumber: flight.airlineFlightNumber.toUpperCase(),
-              airline: airline,
-              departure: departure?.toUpperCase() || '',
-              arrival: arrival?.toUpperCase() || '',
-              time: '', // 시간 표시하지 않음
+        // 오프라인 모드: Firebase 공유 DB (IndexedDB 캐시) 검색
+        console.log('📴 오프라인 모드: Firebase 공유 DB (캐시) 검색');
+        try {
+          const { searchFlightSchedules } = await import('./src/firebase/flightSchedules');
+          const firebaseResults = await searchFlightSchedules(searchQuery);
+
+          if (firebaseResults.length > 0) {
+            results = firebaseResults.map(flight => ({
+              flightNumber: flight.flightNumber,
+              airline: flight.airline,
+              departure: flight.departure,
+              arrival: flight.arrival,
+              time: '',
               aircraft: '',
               status: '스케줄 정보',
-              type: '오프라인 DB'
-            };
-          });
+              type: 'Firebase DB (캐시)'
+            }));
+            console.log('✅ Firebase 공유 DB (캐시) 검색 성공:', results.length, '개');
+          } else {
+            console.log('❌ Firebase 공유 DB 캐시에서 결과 없음');
+          }
+        } catch (fbError) {
+          console.error('❌ Firebase 공유 DB 캐시 검색 실패:', fbError);
         }
       }
-      
+
       // 결과 설정
       setFlightSearchResults(results);
       setShowFlightResults(true);
-      
+
       if (results.length > 0) {
+        console.log('✅ 최종 검색 결과:', results.length, '개');
       } else {
+        console.log('⚠️ 검색 결과 없음');
       }
 
     } catch (error) {
-      console.error('항공편 검색 오류:', error);
+      console.error('❌ 항공편 검색 오류:', error);
       setFlightSearchResults([]);
     } finally {
       setIsLoadingFlightData(false);
@@ -723,366 +920,473 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
 
 
 
-  // 인천공항 API를 통한 항공편 검색
-  const searchFlightsFromIncheon = async (query: string) => {
-    try {
-      // 항공편명 형식 검증 (IATA 코드 + 숫자)
-      const flightMatch = query.match(/^([A-Z]{2,3})(\d+)$/);
-      if (!flightMatch) {
-        return [];
-      }
-
-
-      const response = await fetch('/api/incheon/flights', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          flightNumber: query,
-          searchType: 'both' // 출발편과 도착편 모두 검색
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API 오류: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.results || [];
-
-    } catch (error) {
-      console.error('인천공항 API 검색 오류:', error);
-      return [];
-    }
-  };
 
 
 
-  // 로컬 데이터베이스에서 항공편 검색 (구글 스프레드시트 동기화된 데이터 사용)
-  const searchFlightsFromGoogleSheets = async (query: string) => {
-    try {
-      if ((import.meta as any).env?.DEV) {
-      }
-      
-      // 로컬 데이터베이스에서 검색 (구글 스프레드시트에서 동기화된 최신 데이터)
-      const results = searchFlightsFromLocalDB(query);
-      if ((import.meta as any).env?.DEV) {
-      }
-      
-      // 검색 결과를 20개로 제한하여 성능 개선
-      return results.slice(0, 20);
-      
-    } catch (error) {
-      console.error('로컬 데이터베이스 검색 오류:', error);
-      return [];
-    }
-  };
 
-  // 구글 스프레드시트 데이터 가져오기
-  // 기기 데이터베이스에서 항공편 검색
-  const searchFlightsFromLocalDB = (query: string) => {
-    try {
-      
-      // localStorage에서 항공편 데이터 가져오기
-      const internationalFlights = JSON.parse(localStorage.getItem('internationalFlights') || '[]');
-      const domesticFlights = JSON.parse(localStorage.getItem('domesticFlights') || '[]');
-      
-      
-      const allFlights = [...internationalFlights, ...domesticFlights];
-      const results: any[] = [];
-      
-      // 검색어와 매칭되는 항공편 찾기
-      for (const flight of allFlights) {
-        const flightNumber = flight.flightNumber || '';
-        const hasMatch = flightNumber.toLowerCase().includes(query.toLowerCase());
-        
-        if (hasMatch) {
-          results.push({
-            flightNumber: flight.flightNumber || '',
-            airline: flight.airline || '',
-            departure: flight.departure || '',
-            arrival: flight.arrival || '',
-            time: flight.time || '',
-            aircraft: flight.aircraft || '',
-            status: flight.status || '정시',
-            type: '로컬 DB'
-          });
-        }
-      }
-      
-      return results;
-      
-    } catch (error) {
-      console.error('로컬 데이터베이스 검색 오류:', error);
-      return [];
-    }
-  };
 
-  // 구글 스프레드시트 데이터를 로컬 데이터베이스에 동기화 (버전 비교 후 최신일 때만)
-  const syncGoogleSheetsToLocalDB = async () => {
-    try {
-      
-      // 한국공항공사 공개 게시된 스프레드시트 링크 (API 키 불필요)
-      const INTERNATIONAL_PUBLISHED_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQXqM6gsOYJ2W2_blrOtc2m8J-VfOl8QB0Zivbn_9F28te1v7LI8QiL4YFuotwDhpnmtyNDbvy2UvRl/pubhtml?gid=495590094&single=true';
-      const DOMESTIC_PUBLISHED_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQiJ3470gAonQ0jEfsIxidwH17521WPqz0Aa9rm-27sRROB9wfPqiLJqiRr_ch_x-7DSMgHpPYyN0ki/pubhtml?gid=2000046295&single=true';
-      
-      // CSV 형태로 데이터 가져오기 (공개 링크)
-      const internationalCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQXqM6gsOYJ2W2_blrOtc2m8J-VfOl8QB0Zivbn_9F28te1v7LI8QiL4YFuotwDhpnmtyNDbvy2UvRl/pub?output=csv&gid=495590094';
-      const domesticCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQiJ3470gAonQ0jEfsIxidwH17521WPqz0Aa9rm-27sRROB9wfPqiLJqiRr_ch_x-7DSMgHpPYyN0ki/pub?output=csv&gid=2000046295';
-      
-      
-      // 1단계: 국제선 CSV 데이터 가져오기
-      const internationalResponse = await fetch(internationalCsvUrl);
-      
-      if (!internationalResponse.ok) {
-        console.error('❌ 국제선 CSV 데이터 가져오기 오류:', internationalResponse.status);
-        return false;
-      }
-      
-      const internationalCsvText = await internationalResponse.text();
-      
-      // 2단계: 국내선 CSV 데이터 가져오기
-      const domesticResponse = await fetch(domesticCsvUrl);
-      
-      if (!domesticResponse.ok) {
-        console.error('❌ 국내선 CSV 데이터 가져오기 오류:', domesticResponse.status);
-        return false;
-      }
-      
-      const domesticCsvText = await domesticResponse.text();
-      
-      // 3단계: CSV 데이터 파싱 및 변환
-      const internationalFlights: any[] = [];
-      const domesticFlights: any[] = [];
-      
-      // CSV를 행으로 분할
-      const internationalRows = internationalCsvText.split('\n').filter(row => row.trim());
-      const domesticRows = domesticCsvText.split('\n').filter(row => row.trim());
-      
-      // 국제선 데이터 처리 (첫 번째 행은 헤더)
-      for (let i = 1; i < internationalRows.length; i++) {
-        const row = internationalRows[i];
-        const columns = row.split(',').map(col => col.trim().replace(/"/g, ''));
-        
-        if (columns.length >= 6) {
-          const flight = {
-            flightNumber: columns[0] || '', // 항공편 번호
-            airline: columns[1] || '',     // 항공사 코드
-            departure: columns[2] || '',   // 출발지
-            arrival: columns[3] || '',     // 도착지
-            time: columns[4] || '',        // 시간
-            aircraft: columns[5] || '',    // 기종
-            status: columns[6] || '정시'   // 상태
-          };
-          
-          if (flight.flightNumber && flight.airline) {
-            internationalFlights.push(flight);
-          }
-        }
-      }
-      
-      // 국내선 데이터 처리 (첫 번째 행은 헤더)
-      for (let i = 1; i < domesticRows.length; i++) {
-        const row = domesticRows[i];
-        const columns = row.split(',').map(col => col.trim().replace(/"/g, ''));
-        
-        if (columns.length >= 6) {
-          const flight = {
-            flightNumber: columns[0] || '', // 항공편 번호
-            airline: columns[1] || '',     // 항공사 코드
-            departure: columns[2] || '',   // 출발지
-            arrival: columns[3] || '',     // 도착지
-            time: columns[4] || '',        // 시간
-            aircraft: columns[5] || '',    // 기종
-            status: columns[6] || '정시'   // 상태
-          };
-          
-          if (flight.flightNumber && flight.airline) {
-            domesticFlights.push(flight);
-          }
-        }
-      }
-      
-      // 4단계: 로컬 데이터베이스에 저장
-      localStorage.setItem('internationalFlights', JSON.stringify(internationalFlights));
-      localStorage.setItem('domesticFlights', JSON.stringify(domesticFlights));
-      localStorage.setItem('lastGoogleSheetsSync', new Date().toISOString());
-      
-      
-      return true;
-      
-    } catch (error) {
-      console.error('❌ 구글 스프레드시트 동기화 오류:', error);
-      return false;
-    }
-  };
 
-  // 나머지 데이터 점진적 처리 (성능 최적화)
-  const processRemainingData = async (allData: Flight[], chunkSize: number, userId: string) => {
-    try {
-      for (let i = chunkSize; i < allData.length; i += chunkSize) {
-        const chunk = allData.slice(i, i + chunkSize);
-        
-        // UI 업데이트를 최소화하여 성능 향상 (React 18 Concurrent)
-        startTransition(() => {
-          setFlights(prev => [...prev, ...chunk]);
-        });
-        
-        // 청크 간 지연으로 브라우저 응답성 유지
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-    } catch (error) {
-      console.error('나머지 데이터 처리 오류:', error);
-    }
-  };
-
-  // 오프라인 데이터 로드 (초기 로딩 시)
-  useEffect(() => {
-    if (user?.uid && !navigator.onLine) {
-      const cachedFlights = simpleCache.loadFlights(user.uid);
-      if (cachedFlights && cachedFlights.length > 0) {
-        startTransition(() => {
-          setFlights(cachedFlights);
-        });
-        console.log('✅ 초기 로딩: SimpleCache 데이터 로드 성공');
-      }
-    }
-  }, [user]);
-
-  // 초기 데이터 로딩 (오프라인 지원)
-  const fetchInitialData = useCallback(async () => {
-    if (!user?.uid) {
-      setIsLoading(false);
+  // 항공편 검색 함수 (인천공항 API 우선 → 오프라인 DB)
+  const handleFlightHistorySearch = useCallback(async () => {
+    if (!flightSearchQuery.trim()) {
       return;
     }
 
-    try {
-      setIsLoading(true);
-      
-      // 네트워크 상태 확인 (더 안정적인 방법)
-      const isOnline = navigator.onLine && !isOffline;
-      
-      if (!isOnline) {
-        console.log('📱 오프라인 모드: 캐시된 데이터 로드 시작');
-        
-        // 다중 캐시 소스에서 데이터 로드 시도 (우선순위 순서)
-        const cacheSources = [
-          { name: 'IndexedDB', loader: () => indexedDBCache.loadFlights(user.uid) },
-          { name: 'SimpleCache', loader: () => Promise.resolve(simpleCache.loadFlights(user.uid)) }
-        ];
-        
-        let loadedFlights = null;
-        let usedCacheSource = '';
-        
-        for (const source of cacheSources) {
-          try {
-            console.log(`🔄 ${source.name}에서 데이터 로드 시도 중...`);
-            const flights = await source.loader();
-            
-            if (flights && Array.isArray(flights) && flights.length > 0) {
-              loadedFlights = flights;
-              usedCacheSource = source.name;
-              console.log(`✅ ${source.name}: ${flights.length}개 비행 데이터 로드 성공`);
-              break;
-            } else {
-              console.log(`⚠️ ${source.name}: 데이터 없음 또는 빈 배열`);
-            }
-          } catch (error) {
-            console.error(`❌ ${source.name} 로드 실패:`, error);
-          }
-        }
-        
-        if (loadedFlights) {
-          startTransition(() => {
-            setFlights(loadedFlights);
-          });
-          setIsLoading(false);
-          console.log(`🎉 오프라인 모드: ${usedCacheSource}에서 데이터 로드 완료`);
-          return;
-        } else {
-          console.log('⚠️ 오프라인 모드: 모든 캐시 소스에서 데이터 로드 실패');
-          startTransition(() => {
-            setFlights([]);
-          });
-          setIsLoading(false);
-          return;
-        }
+    // ICAO 코드를 IATA 코드로 변환 (AAR102 → OZ102)
+    let flightNum = flightSearchQuery.trim().toUpperCase();
+    console.log('🔄 [시작] 항공편 변환 프로세스, 입력:', flightNum);
+
+    // ICAO → IATA 변환 매핑
+    const icaoToIataMap: { [key: string]: string } = {
+      'AAR': 'OZ',  // Asiana Airlines
+      'KAL': 'KE',  // Korean Air
+      'JJA': '7C',  // Jeju Air
+      'TWB': 'TW',  // T'way Air
+      'ABL': 'BX',  // Air Busan
+      'ESR': 'ZE',  // Eastar Jet
+      'JNA': 'LJ',  // Jin Air
+      'ASV': 'RS',  // Air Seoul
+      'APZ': 'YP',  // Air Premia
+      'EOK': 'RF',  // Aerokorea
+      'ANA': 'NH',  // All Nippon Airways
+      'JAL': 'JL',  // Japan Airlines
+      'APJ': 'MM',  // Peach Aviation
+    };
+
+    // 항공편 번호에서 항공사 코드 추출 (예: AAR102 → AAR)
+    const match = flightNum.match(/^([A-Z]{2,3})(\d+)$/);
+    if (match) {
+      const [, airlineCode, number] = match;
+
+      // 3글자 코드면 ICAO일 가능성이 높음
+      if (airlineCode.length === 3 && icaoToIataMap[airlineCode]) {
+        const iataCode = icaoToIataMap[airlineCode];
+        flightNum = `${iataCode}${number}`;
+        console.log('🔄 ICAO→IATA 변환:', `${airlineCode}${number}`, '→', flightNum);
       }
-      
-      // 온라인 상태에서 Firebase 데이터 가져오기
-      
-      if (!auth.currentUser) {
-        startTransition(() => {
-          setFlights([]);
+    }
+
+    setIsLoadingFlightData(true);
+    console.log('🔍 항공편 검색 시작:', flightNum);
+    console.log('🔍 원본 입력:', flightSearchQuery.trim().toUpperCase(), '→ 최종 검색:', flightNum);
+    console.log('🌐 온라인 상태:', navigator.onLine);
+
+    // 4자리 숫자인 경우 시간 검색으로 처리
+    // 정규식 테스트 결과를 로그로 출력하여 디버깅
+    const isTimeSearch = /^\d{4}$/.test(flightNum);
+    console.log(`🔍 시간 검색 모드 판별: "${flightNum}" (길이: ${flightNum.length}) -> ${isTimeSearch}`);
+
+    // 도시 IATA 코드 검색인지 확인 (3글자 코드)
+    const isCitySearch = /^[A-Z]{3}$/.test(flightNum);
+
+    if (isTimeSearch) {
+      console.log('⏰ 시간 기반 검색 감지:', flightNum);
+
+      try {
+        console.log('📡 인천공항 API 호출 (시간 검색)...');
+        const response = await fetch('/api/incheon/flights', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            flightNumber: 'ALL', // 시간 검색을 위한 특수 플래그
+            searchType: 'departure',
+            searchTime: flightNum
+          }),
         });
-        setIsLoading(false);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ 인천공항 API 시간 검색 응답:', data);
+
+          if (data.results && data.results.length > 0) {
+            // 시간 검색 결과 필터링 (API에서 이미 정렬되어 오지만, 한번 더 확인)
+            const searchHour = parseInt(flightNum.substring(0, 2), 10);
+            const searchMinute = parseInt(flightNum.substring(2, 4), 10);
+            const searchTimeVal = searchHour * 60 + searchMinute;
+
+            // 디버깅을 위한 카운터
+            let debugDropCount = 0;
+
+            const formattedFlights = data.results
+              .filter((flight: any) => {
+                // 공동운항(Code Share) 필터링
+                // 대소문자 구분 없이 'SLAVE' 체크, remark에서 공백 제거 후 'codeshare' 포함 여부 체크
+                if (flight.codeshare && String(flight.codeshare).toUpperCase() === 'SLAVE') {
+                  // if (debugDropCount < 3) console.log(`🚫 [${flight.flightNumber}] 필터링(Codeshare):`, flight.codeshare);
+                  // debugDropCount++;
+                  return false;
+                }
+
+                const remark = flight.remark ? String(flight.remark).toLowerCase().replace(/\s/g, '') : '';
+                if (remark.includes('codeshare')) {
+                  // if (debugDropCount < 3) console.log(`🚫 [${flight.flightNumber}] 필터링(Remark):`, flight.remark);
+                  // debugDropCount++;
+                  return false;
+                }
+
+                // 시간 필터링 (±30분)
+                let timeStr = '';
+
+                // 1. rawScheduleTime (HHMM 형식, 백엔드에서 매핑해준 값)
+                if (flight.rawScheduleTime && /^\d{4}$/.test(flight.rawScheduleTime)) {
+                  timeStr = flight.rawScheduleTime;
+                }
+                // 2. scheduleTime (API 원본 필드명, 혹시 매핑 안 된 경우 대비)
+                else if (flight.scheduleTime && /^\d{4}$/.test(flight.scheduleTime)) {
+                  timeStr = flight.scheduleTime;
+                }
+                // 3. scheduledTime (다양한 형식 가능)
+                else if (flight.scheduledTime) {
+                  // 숫자만 추출
+                  const nums = String(flight.scheduledTime).replace(/\D/g, '');
+                  if (nums.length >= 12) {
+                    // YYYYMMDDHHMM 형식 (12자리 이상) -> 뒤에서 4자리 추출 (HHMM)
+                    // 주의: nums.substring(8, 12)는 YYYYMMDDHHMM에서 HHMM을 의미
+                    timeStr = nums.substring(8, 12);
+                  } else if (nums.length === 4) {
+                    // HHMM 형식
+                    timeStr = nums;
+                  }
+                }
+
+                if (!timeStr || timeStr.length !== 4) {
+                  // if (debugDropCount < 10) console.log(`🚫 [${flight.flightNumber}] 시간 파싱 실패: raw=${flight.rawScheduleTime}, sch=${flight.scheduledTime}, parsed=${timeStr}`);
+                  // debugDropCount++;
+                  return false;
+                }
+
+                const fHour = parseInt(timeStr.substring(0, 2), 10);
+                const fMinute = parseInt(timeStr.substring(2, 4), 10);
+                const fTimeVal = fHour * 60 + fMinute;
+
+                let diff = Math.abs(fTimeVal - searchTimeVal);
+                if (diff > 720) diff = 1440 - diff; // 자정 처리 (예: 23:50 vs 00:10)
+
+                const isMatch = diff <= 30;
+                // if (!isMatch) {
+                //    if (debugDropCount < 10) console.log(`🚫 [${flight.flightNumber}] 시간 범위 초과: ${timeStr} (차이: ${diff}분) vs 검색: ${flightNum}`);
+                //    debugDropCount++;
+                // }
+                return isMatch;
+              })
+              .map((flight: any) => {
+                // 시간 표시 포맷팅
+                let displayTime = '';
+                if (flight.rawScheduleTime && /^\d{4}$/.test(flight.rawScheduleTime)) {
+                  displayTime = `${flight.rawScheduleTime.substring(0, 2)}:${flight.rawScheduleTime.substring(2, 4)}`;
+                } else if (flight.scheduledTime) {
+                  // YYYYMMDDHHMM 형식 처리 (12자리 숫자)
+                  const timeStr = String(flight.scheduledTime);
+                  if (/^\d{12}$/.test(timeStr)) {
+                    displayTime = `${timeStr.substring(8, 10)}:${timeStr.substring(10, 12)}`;
+                  } else {
+                    displayTime = flight.scheduledTime;
+                  }
+                }
+
+                return {
+                  flightNumber: flight.flightNumber,
+                  airline: flight.airline,
+                  origin: 'ICN', // 출발은 항상 인천
+                  departure: 'ICN',
+                  destination: flight.arrival,
+                  arrival: flight.arrival,
+                  time: displayTime, // 리스트에 표시될 시간
+                  scheduledTime: flight.scheduledTime,
+                  rawScheduleTime: flight.rawScheduleTime,
+                  status: flight.status,
+                  type: '인천공항 API (시간)',
+                  terminal: flight.terminal,
+                  gate: flight.gate,
+                  aircraft: flight.aircraft,
+                  // 계획된 출발 시간 추가 (SearchModal에서 표시용)
+                  planTime: displayTime
+                };
+              });
+
+            console.log('✅ 시간 검색 결과:', formattedFlights.length, '개');
+            setFlightSearchResults(formattedFlights);
+            setShowFlightResults(true);
+            setIsLoadingFlightData(false);
+            return;
+          } else {
+            console.log('⚠️ 시간 검색 결과 없음');
+            alert(`"${flightNum}" 시간대(±1시간)의 인천공항 출발 항공편이 없습니다.`);
+            setIsLoadingFlightData(false);
+            return;
+          }
+        } else {
+          console.log('❌ API 호출 실패');
+          alert('시간 검색 중 오류가 발생했습니다.');
+          setIsLoadingFlightData(false);
+          return;
+        }
+      } catch (error) {
+        console.error('❌ 시간 검색 오류:', error);
+        alert('시간 검색 중 오류가 발생했습니다.');
+        setIsLoadingFlightData(false);
         return;
       }
-      
-      const firebaseFlights = await getAllFlights(user.uid);
-      
-      if (firebaseFlights && firebaseFlights.length > 0) {
-        
-        // 데이터를 작은 청크로 나누어 처리
-        const CHUNK_SIZE = 500;
-        const firstChunk = firebaseFlights.slice(0, CHUNK_SIZE);
-        startTransition(() => {
-          setFlights(firstChunk);
-        });
-        
-        // 나머지 데이터는 백그라운드에서 점진적으로 처리
-        if (firebaseFlights.length > CHUNK_SIZE) {
-          setTimeout(async () => {
-            await processRemainingData(firebaseFlights, CHUNK_SIZE, user.uid);
-          }, 100);
-        }
-        
-        // IndexedDB에 저장
-        setTimeout(async () => {
-          try {
-            await indexedDBCache.saveFlights(firebaseFlights, user.uid);
-          } catch (cacheError) {
-            console.warn('⚠️ 캐시 시스템 실패:', cacheError);
-          }
-        }, 500);
-      } else {
-        // IndexedDB에서 캐시된 데이터 로드
-        const cachedFlights = await indexedDBCache.loadFlights(user.uid);
-        if (cachedFlights && cachedFlights.length > 0) {
-          startTransition(() => {
-            setFlights(cachedFlights);
+    }
+
+    if (isCitySearch) {
+      console.log('🏙️ 도시 IATA 코드 검색 감지:', flightNum);
+      console.log('📊 Firebase DB에서 도시별 항공편 검색...');
+
+      try {
+        const { searchFlightSchedulesByCity } = await import('./src/firebase/flightSchedules');
+        const cityResults = await searchFlightSchedulesByCity(flightNum);
+
+        if (cityResults.length > 0) {
+          console.log('✅ Firebase DB 도시 검색 성공:', cityResults.length, '개');
+          const results = cityResults.map(flight => {
+            // 항공편 번호에서 항공사 코드 추출 (예: 7C1301 -> 7C)
+            const flightNumber = flight.flightNumber || '';
+            // 숫자가 나오기 전까지의 문자만 추출 (7C1301 -> 7C)
+            const airlineCode = flightNumber.match(/^([A-Z0-9]+?)(?=\d)/)?.[1] || flight.airline || '';
+
+            return {
+              flightNumber: flightNumber,
+              airline: airlineCode,
+              airlineCode: airlineCode,
+              departure: flight.departure,
+              arrival: flight.arrival,
+              time: '',
+              aircraft: '',
+              status: '스케줄 정보',
+              type: 'Firebase DB'
+            };
           });
+          setFlightSearchResults(results);
+          setShowFlightResults(true);
+          setIsLoadingFlightData(false); // 로딩 상태 해제
+          return;
         } else {
-          startTransition(() => {
-            setFlights([]);
-          });
+          console.log('❌ 도시 검색 결과 없음');
+          alert(`도시 코드 "${flightNum}"에 대한 항공편 검색 결과가 없습니다.\n\n가능한 원인:\n• 해당 도시로 운항하는 항공편이 없음\n• 도시 코드가 잘못됨\n• Firebase 데이터베이스에 해당 도시 정보 없음`);
+          setIsLoadingFlightData(false); // 로딩 상태 해제
+          return;
         }
+      } catch (cityError) {
+        console.error('❌ Firebase DB 도시 검색 실패:', cityError);
+        alert('도시별 항공편 검색 중 오류가 발생했습니다.');
+        setIsLoadingFlightData(false); // 로딩 상태 해제
+        return;
+      }
+    }
+
+    try {
+
+      // 인천공항 API 시도 (10초 타임아웃)
+      console.log('📡 인천공항 API 호출...');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      try {
+        const response = await fetch('/api/incheon/flights', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            flightNumber: flightNum,
+            searchType: 'both'
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ 인천공항 API 응답:', data);
+
+          if (data.results && data.results.length > 0) {
+            const formattedFlights = data.results.map((flight: any) => {
+              // weeklyData에서 운항 요일 추출
+              let operatingDays: string[] = [];
+              if (flight.weeklyData && Array.isArray(flight.weeklyData)) {
+                operatingDays = flight.weeklyData
+                  .filter((f: any) => f.scheduleDate || f.scheduledTime)
+                  .map((f: any) => f.scheduleDate || f.scheduledTime);
+                console.log('📅 인천공항 API - 운항 일자:', operatingDays);
+              }
+
+              // 시간 표시 포맷팅 (일반 검색에서도 적용)
+              let displayTime = '';
+              if (flight.scheduledDateTime) {
+                // YYYYMMDDHHMM 형식 처리
+                const timeStr = String(flight.scheduledDateTime);
+                if (/^\d{12}$/.test(timeStr)) {
+                  displayTime = `${timeStr.substring(8, 10)}:${timeStr.substring(10, 12)}`;
+                } else if (/^\d{4}$/.test(timeStr)) {
+                  displayTime = `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}`;
+                } else {
+                  displayTime = flight.scheduledDateTime;
+                }
+              } else if (flight.time) {
+                displayTime = flight.time;
+              }
+
+              return {
+                flightNumber: flight.flightNumber || flight.flightId,
+                airline: flight.airline,
+                origin: flight.origin || flight.departure,
+                departure: flight.origin || flight.departure,
+                destination: flight.destination || flight.arrival,
+                arrival: flight.destination || flight.arrival,
+                time: displayTime, // 포맷팅된 시간 사용
+                date: flight.date || flight.scheduledDateTime,
+                scheduledTime: flight.scheduledDateTime,
+                actualTime: flight.actualDateTime,
+                estimatedTime: flight.estimatedDateTime,
+                aircraft: flight.aircraft || flight.aircraftType, // 인천공항 API의 통합된 기종 정보
+                status: flight.status,
+                type: '인천공항 API',
+                terminal: flight.terminal,
+                gate: flight.gate,
+                carousel: flight.carousel,
+                chkinrange: flight.chkinrange,
+                // 일주일 스케줄 정보 추가
+                weeklySchedule: flight.weeklySchedule,
+                weeklyData: flight.weeklyData,
+                operatingDays: operatingDays.length > 0 ? operatingDays : undefined,
+                planTime: displayTime // planTime 추가
+              };
+            });
+
+            console.log('✅ 인천공항 API 검색 성공:', formattedFlights.length, '개');
+            console.log('📊 첫 번째 결과 상세:', formattedFlights[0]);
+            setFlightSearchResults(formattedFlights);
+            setShowFlightResults(true);
+            return;
+          } else {
+            console.log('⚠️ 인천공항 API: 검색 결과 없음 (빈 결과)');
+          }
+        } else {
+          console.log('⚠️ 인천공항 API: HTTP 오류', response.status);
+        }
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          console.log('⏱️ 인천공항 API 타임아웃 (10초)');
+        } else {
+          console.log('❌ 인천공항 API 오류:', error.message);
+        }
+      }
+
+      // Firebase 공유 DB 검색 (API 실패 시 백업으로 사용)
+      console.log('📊 Firebase 공유 DB 검색 (백업)...');
+      try {
+        const { searchFlightSchedules } = await import('./src/firebase/flightSchedules');
+        const firebaseResults = await searchFlightSchedules(flightNum);
+
+        if (firebaseResults.length > 0) {
+          console.log('✅ Firebase 공유 DB 검색 성공:', firebaseResults.length, '개');
+          const results = firebaseResults.map(flight => ({
+            flightNumber: flight.flightNumber,
+            airline: flight.airline,
+            departure: flight.departure,
+            arrival: flight.arrival,
+            time: '',
+            aircraft: '',
+            status: '스케줄 정보',
+            type: 'Firebase DB'
+          }));
+          setFlightSearchResults(results);
+          setShowFlightResults(true);
+        } else {
+          console.log('❌ 검색 결과 없음 (모든 소스)');
+          alert(`항공편 "${flightNum}"에 대한 검색 결과가 없습니다.\n\n가능한 원인:\n• 해당 항공편이 오늘 운항하지 않음\n• 항공편 번호가 잘못됨\n• API 서비스 일시 중단\n• Firebase 데이터베이스에 해당 항공편 정보 없음`);
+        }
+      } catch (fbError) {
+        console.error('❌ Firebase 공유 DB 검색 실패:', fbError);
+        alert('검색 중 오류가 발생했습니다.');
+      }
+    } catch (error: any) {
+      console.error('❌ 항공편 검색 오류:', error);
+      alert('검색 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingFlightData(false);
+    }
+  }, [flightSearchQuery]);
+
+  // 항공편 경로 추적 함수
+  const handleFlightPathTracking = async (flight: any) => {
+    // 출발지/도착지 코드 추출 (모든 가능한 속성 확인)
+    const departureCode = flight.origin || flight.departure || flight.departureName;
+    const arrivalCode = flight.destination || flight.arrival || flight.arrivalName;
+
+    console.log('🛫 경로 추적 요청 (전체 flight 객체):', flight);
+    console.log('🛫 추출된 코드:', {
+      flightNumber: flight.flightNumber,
+      departureCode: departureCode,
+      arrivalCode: arrivalCode,
+      '모든 출발지 속성': {
+        origin: flight.origin,
+        departure: flight.departure,
+        departureName: flight.departureName
+      },
+      '모든 도착지 속성': {
+        destination: flight.destination,
+        arrival: flight.arrival,
+        arrivalName: flight.arrivalName
+      }
+    });
+
+    if (!departureCode || !arrivalCode) {
+      alert('출발지와 도착지 정보가 필요합니다.');
+      console.error('❌ 출발지/도착지 정보 누락:', flight);
+      return;
+    }
+
+    setIsLoadingFlightPath(true);
+    try {
+      const requestBody = {
+        callsign: flight.flightNumber || (flight.airline + flight.flightNumber),
+        departure: departureCode.toUpperCase(),
+        arrival: arrivalCode.toUpperCase(),
+        date: flight.date || new Date().toISOString().split('T')[0]
+      };
+
+      console.log('📡 flight-tracking API 요청 데이터:', requestBody);
+
+      const response = await fetch('/api/flight-tracking', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error('항공편 경로를 가져올 수 없습니다.');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setSelectedFlightPath(result.data);
+        setIsFlightMapOpen(true);
+      } else {
+        throw new Error(result.error || '항공편 경로를 가져올 수 없습니다.');
       }
     } catch (error) {
-      console.error('데이터 로딩 오류:', error);
-      // IndexedDB에서 캐시된 데이터 로드 시도
-      try {
-        const cachedFlights = await indexedDBCache.loadFlights(user.uid);
-        if (cachedFlights && cachedFlights.length > 0) {
-          startTransition(() => {
-            setFlights(cachedFlights);
-          });
-        } else {
-          startTransition(() => {
-            setFlights([]);
-          });
-        }
-      } catch (cacheError) {
-        console.warn('⚠️ 캐시 로드도 실패:', cacheError);
-        startTransition(() => {
-          setFlights([]);
-        });
-      }
+      console.error('항공편 경로 추적 오류:', error);
+      alert('항공편 경로를 가져오는 중 오류가 발생했습니다.');
     } finally {
-      setIsLoading(false);
+      setIsLoadingFlightPath(false);
     }
-  }, [user]);
+  };
+
+
+
+
+
+  // 오프라인 데이터 로드 로직 제거 (TanStack Query Persister가 처리)
+
+
 
   // 온라인 전환 시 동기화
   const handleSyncWhenOnline = useCallback(async () => {
@@ -1117,12 +1421,12 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
     } catch (error) {
       console.error('동기화 중 오류:', error);
     }
-  }, [user, flights, fetchInitialData]);
+  }, [user, flights]);
 
   // 네트워크 상태 감지는 Service Worker에서 처리됨
 
   // Web Worker cleanup on unmount
-  
+
 
   // 해시 기반 최신성 확인 시스템 (Service Worker 완전 제거됨)
   useEffect(() => {
@@ -1131,16 +1435,15 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         // 현재 파일 해시 정보 저장
         const currentHashes = getCurrentFileHashes();
         saveVersionInfo(currentHashes);
-        
-        console.log('🚀 Flight Dashboard - 해시 기반 버전 관리 시스템 초기화');
-        console.log('📁 현재 파일 해시:', currentHashes);
-        
+
+        // 해시 기반 버전 관리 시스템 초기화 완료
+
         // 자동 버전 체크/자동 업데이트 제거됨
       } catch (error) {
         console.error('❌ 해시 시스템 초기화 실패:', error);
       }
     };
-    
+
     initializeHashSystem();
   }, []);
 
@@ -1151,18 +1454,21 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   // 초기 데이터 로딩
   useEffect(() => {
     if (user && user.uid) {
-      fetchInitialData();
-      
       // 10초 타임아웃 설정 (로딩이 너무 오래 지속되는 것을 방지)
       const timeoutId = setTimeout(() => {
         setIsLoading(false);
       }, 10000);
-      
+
       return () => clearTimeout(timeoutId);
     } else {
       setIsLoading(false);
     }
-  }, [fetchInitialData, user]);
+  }, [user]);
+
+
+
+  // 오프라인 모드에서 주기적 데이터 확인 (추가 보험)
+
 
   // 동기화 상태 업데이트
   useEffect(() => {
@@ -1174,52 +1480,113 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
 
 
 
-  // 실시간 데이터 구독
-  useEffect(() => {
-    if (user && user.uid) {
-      const unsubscribe = subscribeToAllFlights((firebaseFlights) => {
-        if (firebaseFlights && firebaseFlights.length > 0) {
-          setFlights(firebaseFlights);
-          simpleCache.saveFlights(firebaseFlights, user.uid);
-        } else {
-          setFlights([]);
-        }
-      }, user.uid);
-      
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [user]);
+  // 실시간 데이터 구독 (온라인 모드에서만)
+
 
   // 실시간 다음/최근 비행 업데이트 (1분마다)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (user) {
-        setFlights(prev => [...prev]); // 강제 리렌더링
-      }
-    }, 60000);
 
-    return () => clearInterval(interval);
-  }, [user]);
+
+  // 오프라인 모드에서 오프라인 인증 확인 (별도 처리)
+  useEffect(() => {
+    if (!navigator.onLine && !user) {
+      console.log('🔍 오프라인 모드 감지: 오프라인 인증 확인 시작...');
+      const offlineAuthData = localStorage.getItem('offline_auth_data');
+      console.log('📱 오프라인 인증 데이터:', offlineAuthData ? '존재함' : '없음');
+
+      if (offlineAuthData) {
+        try {
+          const authData = JSON.parse(offlineAuthData);
+          const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+
+          if (Date.now() - authData.loginTime < sevenDaysInMs) {
+            console.log('✅ 오프라인 인증 데이터 유효함, 오프라인 사용자 생성 중...');
+
+            const offlineUser = {
+              uid: authData.uid,
+              email: authData.email,
+              displayName: authData.displayName,
+              emailVerified: true,
+              isAnonymous: false,
+              metadata: {
+                creationTime: authData.loginTime.toString(),
+                lastSignInTime: authData.loginTime.toString()
+              },
+              providerData: [],
+              refreshToken: '',
+              tenantId: null,
+              delete: async () => { },
+              getIdToken: async () => '',
+              getIdTokenResult: async () => ({ token: '', authTime: '', issuedAtTime: '', expirationTime: '', signInProvider: '', signInSecondFactor: null, claims: {} }),
+              reload: async () => { },
+              toJSON: () => ({})
+            };
+
+            setUser(offlineUser);
+            console.log('🎯 오프라인 사용자 설정 완료:', offlineUser.uid);
+
+            // 오프라인 사용자 정보 로드
+            try {
+              const offlineUserData = localStorage.getItem('offline_user_data');
+              if (offlineUserData) {
+                const userData = JSON.parse(offlineUserData);
+                setUserInfo({
+                  displayName: userData.displayName || authData.displayName,
+                  empl: userData.empl,
+                  userName: userData.userName,
+                  company: userData.company
+                });
+              } else {
+                setUserInfo({
+                  displayName: authData.displayName,
+                  empl: undefined,
+                  userName: authData.userName,
+                  company: authData.company
+                });
+              }
+              console.log('📋 오프라인 사용자 정보 로드 완료');
+            } catch (error) {
+              console.error('❌ 오프라인 사용자 정보 로드 실패:', error);
+              setUserInfo({
+                displayName: authData.displayName,
+                empl: undefined,
+                company: undefined
+              });
+            }
+          } else {
+            console.log('⚠️ 오프라인 인증 데이터 만료됨');
+          }
+        } catch (error) {
+          console.error('❌ 오프라인 인증 데이터 파싱 실패:', error);
+        }
+      } else {
+        console.log('❌ 오프라인 인증 데이터 없음 - 로그인 필요');
+      }
+    }
+  }, [navigator.onLine, user]);
 
   // 인증 상태 감지 (온라인/오프라인 감지 포함)
   useEffect(() => {
+    console.log('🚀 onAuthStateChange 리스너 등록됨');
     const unsubscribe = onAuthStateChange(async (user) => {
+      console.log('🚀 onAuthStateChange 트리거됨, user:', user);
       if ((import.meta as any).env?.DEV) {
       }
+
+      // Firebase 인증 상태 처리 (온라인 모드에서만)
+
       setUser(user);
       if (!user) {
-        setFlights([]);
+        // setFlights([]) 제거됨 (queryClient가 처리)
         setIsLoading(false);
         setUserInfo(null); // 로그아웃 시 사용자 정보 초기화
         setSelectedAirline('OZ'); // 로그아웃 시 기본값으로 리셋
-        setSelectedCurrencyCards(['passport', 'visa', 'epta', 'radio', 'whitecard']); // 로그아웃 시 기본 카드로 리셋
+        setSelectedCurrencyCards(['passport', 'visa', 'epta', 'radio', 'whitecard', 'crm']); // 로그아웃 시 기본 카드로 리셋
         setCardExpiryDates({}); // 로그아웃 시 문서 만료일 데이터 초기화
         setCrewMemos({}); // 로그아웃 시 crew 메모 데이터 초기화
         setCityMemos({}); // 로그아웃 시 도시 메모 데이터 초기화
+        setIsUserAdmin(null); // 로그아웃 시 관리자 상태 초기화
         clearKeyCache(); // 로그아웃 시 암호화 키 캐시 정리
-        
+
         // 로그아웃 시 모든 사용자 데이터 삭제 (테마 설정 제외)
         try {
           const { clearAllUserData } = await import('./utils/logoutDataCleanup');
@@ -1227,14 +1594,14 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         } catch (dataCleanupError) {
           console.error('❌ App.tsx에서 사용자 데이터 삭제 중 오류:', dataCleanupError);
         }
-        
+
         // 로그아웃 시 세션 타임아웃 정리
         if (sessionTimeout) {
           sessionTimeout.clearTimeout();
           setSessionTimeout(null);
         }
-        
-        
+
+
       } else {
         // 사용자 정보 가져오기 (EMPL 정보 포함)
         try {
@@ -1255,12 +1622,43 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
             company: undefined
           });
         }
-        
+
+        // 관리자 권한 확인
+        console.log('🚀 관리자 권한 확인 시작 - 전체 프로세스 시작');
+        try {
+          console.log('🔍 관리자 권한 확인 시작... UID:', user.uid, 'Email:', user.email);
+          console.log('🔍 실제 로그인한 계정의 UID:', user.uid);
+
+          setIsUserAdmin(null); // 확인 중 상태로 설정
+          console.log('🔍 isAdmin 함수 import 시작...');
+
+          const { isAdmin } = await import('./src/firebase/auth');
+          console.log('🔍 isAdmin 함수 import 완료, 함수 호출 시작...');
+
+          const adminStatus = await isAdmin(user.uid);
+          console.log('🔍 isAdmin 함수 호출 완료, 결과:', adminStatus);
+
+          setIsUserAdmin(adminStatus);
+          console.log('🔍 setIsUserAdmin 호출 완료, 상태:', adminStatus);
+
+          if (adminStatus) {
+            console.log('✅ 관리자 권한 확인됨 - DB관리 버튼이 보라색으로 표시됩니다');
+          } else {
+            console.log('❌ 관리자 권한 없음 - DB관리 버튼이 회색으로 표시됩니다');
+            console.log('🔍 Firebase Console에서 admin 노드에 다음 UID를 추가해주세요:', user.uid);
+          }
+        } catch (error) {
+          console.error('❌ 관리자 권한 확인 실패:', error);
+          console.error('❌ 오류 상세:', error);
+          setIsUserAdmin(false);
+        }
+        console.log('🚀 관리자 권한 확인 완료 - 전체 프로세스 종료');
+
         // 세션 타임아웃 설정 (30분)
         const timeout = createSessionTimeout(30 * 60 * 1000);
         setSessionTimeout(timeout);
-        
-        
+
+
         // 로그인 시 사용자 설정 및 문서 만료일 불러오기
         try {
           const userSettings = await getUserSettings(user.uid);
@@ -1273,15 +1671,15 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           if (userSettings.selectedCurrencyCards) {
             setSelectedCurrencyCards(userSettings.selectedCurrencyCards);
           }
-          
+
           // 문서 만료일 데이터 불러오기
           const documentExpiryDates = await getDocumentExpiryDates(user.uid);
           setCardExpiryDates(documentExpiryDates);
-          
+
           // Crew 메모 불러오기
           const crewMemos = await getCrewMemos(user.uid);
           setCrewMemos(crewMemos);
-          
+
           // 도시 메모 불러오기
           const cityMemos = await getCityMemos(user.uid);
           setCityMemos(cityMemos);
@@ -1326,19 +1724,19 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       setTimeout(() => setUploadError(''), 5000);
       return;
     }
-    
-    
+
+
     try {
       setIsDeletingData(true);
-      
+
       // 해당 년월의 모든 비행 데이터 찾기
       const flightsToDelete = flights.filter(flight => {
         if (!flight.date) return false;
         const date = new Date(flight.date);
         return date.getFullYear() === year && date.getMonth() + 1 === month;
       });
-      
-      
+
+
       // 각 비행 데이터 삭제
       for (const flight of flightsToDelete) {
         // 삭제 중
@@ -1348,7 +1746,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           console.error('저장 경로 정보가 없습니다:', flight);
         }
       }
-      
+
       // 🗑️ IndexedDB 캐시도 함께 삭제
       try {
         const { indexedDBCache } = await import('./utils/indexedDBCache');
@@ -1356,14 +1754,15 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       } catch (cacheError) {
         console.error('❌ IndexedDB 캐시 삭제 실패:', cacheError);
       }
-      
+
       // 업데이트된 데이터 다시 로드
       const updatedFlights = await getAllFlights(user.uid);
-      setFlights(updatedFlights);
-      
+      // 업데이트된 데이터 다시 로드 (Query Invalidation)
+      queryClient.invalidateQueries({ queryKey: flightKeys.list(user.uid) });
+
       setUploadMessage(`${year}년 ${month}월 데이터가 삭제되었습니다.`);
       setTimeout(() => setUploadMessage(''), 3000);
-      
+
     } catch (error) {
       console.error('데이터 삭제 오류:', error);
       setUploadError('데이터 삭제 중 오류가 발생했습니다.');
@@ -1389,7 +1788,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
     if (!file) return;
 
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    
+
     // 기본 파일 형식 검증
     if (fileExtension !== 'xls' && fileExtension !== 'xlsx' && fileExtension !== 'pdf') {
       setUploadError('Excel 파일(.xls, .xlsx) 또는 PDF 파일(.pdf)만 업로드 가능합니다.');
@@ -1400,23 +1799,23 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
     try {
       setIsUploading(true);
       setUploadError('');
-      
+
       // 사용자의 회사 정보 및 개인 정보 가져오기
       let userCompany = 'OZ'; // 기본값
       let userName = '';
       let empl = '';
-      
-      console.log('🔍 사용자 정보 확인:', { 
-        user: !!user, 
+
+      console.log('🔍 사용자 정보 확인:', {
+        user: !!user,
         userId: user?.uid,
-        defaultCompany: userCompany 
+        defaultCompany: userCompany
       });
-      
+
       if (user) {
         try {
           const userInfo = await getUserInfo(user.uid);
           console.log('🔍 사용자 정보 조회 결과:', userInfo);
-          
+
           if (userInfo) {
             if (userInfo.company) {
               userCompany = userInfo.company;
@@ -1424,11 +1823,11 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
             } else {
               console.warn('⚠️ 사용자 회사 정보가 없습니다. 기본값 사용:', userCompany);
             }
-            
+
             if (userInfo.empl) {
               empl = userInfo.empl;
             }
-            
+
             // 사용자 이름 가져오기 (암호화된 userName 우선, 없으면 displayName 사용)
             if (userInfo.userName) {
               userName = userInfo.userName;
@@ -1444,7 +1843,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       } else {
         console.warn('⚠️ 로그인된 사용자가 없습니다. 기본값 사용');
       }
-      
+
       // 회사별 파일 형식 제한 검증
       if (userCompany === 'KE' || userCompany === 'OZ') {
         // KE, OZ는 Excel만 허용
@@ -1461,7 +1860,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           return;
         }
       }
-      
+
       // 파일 타입에 따라 적절한 파서 선택
       let newFlights: Flight[];
       let isPDFFile = false;
@@ -1469,11 +1868,11 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       try {
         const prevUploadAt = localStorage.getItem('last_upload_at') || '';
         localStorage.setItem('last_upload_prev', prevUploadAt);
-      } catch {}
+      } catch { }
       // 업로드 전 전체 스냅샷 확보 (변경 날짜 계산용)
       const { getAllFlights: getAllFlightsFn } = await import('./src/firebase/database');
       const prevAllFlights = user ? await getAllFlightsFn(user.uid) : [];
-      
+
       console.log('🔍 파일 업로드 시작:', {
         fileName: file.name,
         fileExtension,
@@ -1492,25 +1891,26 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         newFlights = await parseExcelFile(file, userCompany, userName, empl);
         console.log('📊 Excel 파일 파싱 완료:', { flightsCount: newFlights.length });
       }
-      
+
       // 파일에서 년월 정보 추출 (첫 번째 비행의 날짜 기준)
       let targetYear = new Date().getFullYear();
       let targetMonth = new Date().getMonth() + 1;
-      
+
       if (newFlights.length > 0 && newFlights[0].date) {
         const firstFlightDate = new Date(newFlights[0].date);
         targetYear = firstFlightDate.getFullYear();
         targetMonth = firstFlightDate.getMonth() + 1;
       } else {
       }
-      
+
       // ✨ 스마트 업데이트 실행 (기존 데이터와 병합)
-      
+
       // PDF 파일의 경우 파서에서 이미 Firebase 저장했으므로 건너뛰기
       if (isPDFFile) {
         // 업데이트된 데이터 다시 로드
         const updatedFlights = await getAllFlightsFn(user.uid);
-        setFlights(updatedFlights);
+        // 업데이트된 데이터 다시 로드
+        queryClient.invalidateQueries({ queryKey: flightKeys.list(user.uid) });
         // 변경 날짜 계산 및 저장
         try {
           const changedDatesSet = new Set<string>();
@@ -1518,11 +1918,11 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
             const makeDateSignature = (flightsArr: any[], date: string) => {
               const items = flightsArr
                 .filter(f => f.date === date && !(f.route === '' && (!f.crew || f.crew.length === 0) && (!f.cabinCrew || f.cabinCrew.length === 0)))
-                .map((f: any) => `${f.flightNumber||''}|${f.scheduleType||''}|${f.route||''}|${f.std||''}|${f.sta||''}|${f.acType||''}|${f.departureDateTimeUtc||''}|${f.arrivalDateTimeUtc||''}|${f.showUpDateTimeUtc||''}`)
+                .map((f: any) => `${f.flightNumber || ''}|${f.scheduleType || ''}|${f.route || ''}|${f.std || ''}|${f.sta || ''}|${f.acType || ''}|${f.departureDateTimeUtc || ''}|${f.arrivalDateTimeUtc || ''}|${f.showUpDateTimeUtc || ''}`)
                 .sort();
               return items.join('||');
             };
-            const allDates = new Set<string>([...prevAllFlights, ...updatedFlights].map((f: any)=>f.date));
+            const allDates = new Set<string>([...prevAllFlights, ...updatedFlights].map((f: any) => f.date));
             for (const d of allDates) {
               const beforeSig = makeDateSignature(prevAllFlights, d);
               const afterSig = makeDateSignature(updatedFlights, d);
@@ -1532,14 +1932,14 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           const stamp = new Date().toISOString();
           localStorage.setItem('last_upload_changed_dates', JSON.stringify({ at: stamp, dates: Array.from(changedDatesSet) }));
           localStorage.setItem('last_upload_at', stamp);
-        } catch {}
+        } catch { }
         return;
       }
-      
+
       // 업로드된 파일에 포함된 모든 월의 데이터 가져오기
       const allExistingFlights = await getAllFlightsFn(user.uid);
-      
-      
+
+
       // 메인 월 추정 (KE 파서: monthlyTotalBlock이 설정된 월을 우선, 없으면 최빈 월)
       const monthScoreMap: Record<string, number> = {};
       for (const f of newFlights) {
@@ -1549,7 +1949,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           const key = `${d.getFullYear()}-${d.getMonth() + 1}`; // 1-based month (zero-pad 불필요: 아래와 동일 포맷)
           const weight = f.monthlyTotalBlock ? 10 : 1; // 파일의 대표 월 신뢰도 가중치
           monthScoreMap[key] = (monthScoreMap[key] || 0) + weight;
-        } catch {}
+        } catch { }
       }
       let mainMonthKey = '';
       let mainMonthScore = -1;
@@ -1566,62 +1966,63 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         const year = flightDate.getFullYear();
         const month = flightDate.getMonth() + 1;
         const key = `${year}-${month}`;
-        
+
         if (!acc[key]) {
           acc[key] = [];
         }
         acc[key].push(flight);
-        
+
         return acc;
       }, {} as Record<string, typeof newFlights>);
-      
-      
+
+
       // 각 월별로 스마트 병합 실행
       for (const [monthKey, monthFlights] of Object.entries(flightsByMonth)) {
         const [year, month] = monthKey.split('-').map(Number);
-        
-        
+
+
         // 해당 월의 기존 데이터만 필터링
         const monthExistingFlights = allExistingFlights.filter(flight => {
           const flightDate = new Date(flight.date);
           return flightDate.getFullYear() === year && flightDate.getMonth() + 1 === month;
         });
-        
-        
+
+
         // 브리핑 정보 파일인지 감지 (route가 비어있고 승무원 정보만 있는 경우)
-        const isBriefingFile = monthFlights.some(flight => 
-          flight.route === '' && 
+        const isBriefingFile = monthFlights.some(flight =>
+          flight.route === '' &&
           (flight.crew.length > 0 || flight.cabinCrew.length > 0) &&
-          flight.flightNumber && 
+          flight.flightNumber &&
           flight.date
         );
-        
+
         // 스마트 병합 실행
         // - 브리핑 정보 파일인 경우: 기존 데이터 삭제하지 않고 추가/갱신만 수행
         // - 일반 스케줄 파일인 경우: 대표 월에는 누락 스케줄 삭제 적용
         // - 대표 월이 아닌 월(말일/월초 걸침)은 삭제하지 않고 추가/갱신만 수행하여 이전달 데이터 보존
         const isMainMonth = monthKey === mainMonthKey;
         const shouldRemoveMissing = isMainMonth && !isBriefingFile; // 브리핑 파일이면 삭제하지 않음
-        
+
         const mergedFlights = mergeFlightDataWithStatusPreservation(
           monthExistingFlights,
           monthFlights,
           { removeMissing: shouldRemoveMissing }
         );
-        
+
         // BRIEFING INFO 데이터가 포함된 경우 로그 출력
         if (isBriefingFile) {
           console.log('📋 브리핑 정보 파일 감지됨 - 기존 데이터 보존 모드');
         }
-        
+
         // 병합된 데이터를 Firebase에 저장 (월별로 교체)
         await replaceMonthDataWithStatusPreservation(mergedFlights, user.uid, year, month);
-        
+
       }
-      
+
       // 업데이트된 데이터 다시 로드
       const updatedFlights = await getAllFlightsFn(user.uid);
-      setFlights(updatedFlights);
+      // 업데이트된 데이터 다시 로드
+      queryClient.invalidateQueries({ queryKey: flightKeys.list(user.uid) });
       // 변경 날짜 계산 및 저장
       try {
         const changedDatesSet = new Set<string>();
@@ -1629,11 +2030,11 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           const makeDateSignature = (flightsArr: any[], date: string) => {
             const items = flightsArr
               .filter(f => f.date === date && !(f.route === '' && (!f.crew || f.crew.length === 0) && (!f.cabinCrew || f.cabinCrew.length === 0)))
-              .map((f: any) => `${f.flightNumber||''}|${f.scheduleType||''}|${f.route||''}|${f.std||''}|${f.sta||''}|${f.acType||''}|${f.departureDateTimeUtc||''}|${f.arrivalDateTimeUtc||''}|${f.showUpDateTimeUtc||''}`)
+              .map((f: any) => `${f.flightNumber || ''}|${f.scheduleType || ''}|${f.route || ''}|${f.std || ''}|${f.sta || ''}|${f.acType || ''}|${f.departureDateTimeUtc || ''}|${f.arrivalDateTimeUtc || ''}|${f.showUpDateTimeUtc || ''}`)
               .sort();
             return items.join('||');
           };
-          const allDates = new Set<string>([...prevAllFlights, ...updatedFlights].map((f: any)=>f.date));
+          const allDates = new Set<string>([...prevAllFlights, ...updatedFlights].map((f: any) => f.date));
           for (const d of allDates) {
             const beforeSig = makeDateSignature(prevAllFlights, d);
             const afterSig = makeDateSignature(updatedFlights, d);
@@ -1643,20 +2044,20 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         const stamp = new Date().toISOString();
         localStorage.setItem('last_upload_changed_dates', JSON.stringify({ at: stamp, dates: Array.from(changedDatesSet) }));
         localStorage.setItem('last_upload_at', stamp);
-      } catch {}
-      
+      } catch { }
+
       // ✨ 스마트 업데이트 결과 메시지
       const totalNewCount = updatedFlights.length - allExistingFlights.length;
       const totalUpdatedCount = updatedFlights.filter(f => f.version && f.version > 0).length;
-      
+
       const processedMonths = Object.keys(flightsByMonth).map(key => {
         const [year, month] = key.split('-');
         return `${year}년 ${month}월`;
       }).join(', ');
-      
+
       setUploadMessage(`✅ 다중 월 스마트 업데이트 완료 (${processedMonths}): ${totalNewCount}개 추가, ${totalUpdatedCount}개 업데이트, 이착륙 상태 보존됨`);
       setTimeout(() => setUploadMessage(''), 8000);
-      
+
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -1671,6 +2072,126 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  // 관리자 전용 JSON 업로드 핸들러
+  const handleJsonUploadClick = () => {
+    console.log('🔍 JSON 업로드 버튼 클릭됨');
+    console.log('🔍 관리자 상태:', isUserAdmin);
+
+    if (isUserAdmin === null) {
+      console.log('⏳ 관리자 권한 확인 중...');
+      alert('⏳ 관리자 권한을 확인하는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    if (!isUserAdmin) {
+      console.log('❌ 관리자 권한 없음');
+      alert('❌ 관리자 권한이 필요합니다. Firebase Console에서 admin 노드에 UID를 추가해주세요.');
+      return;
+    }
+
+    console.log('✅ 관리자 권한 확인됨 - 파일 선택 다이얼로그 열기');
+    console.log('🔍 jsonFileInputRef.current:', jsonFileInputRef.current);
+
+    // 파일 input이 존재하는지 확인
+    if (!jsonFileInputRef.current) {
+      console.error('❌ JSON 파일 input 요소를 찾을 수 없습니다');
+      alert('❌ 파일 업로드 기능을 초기화하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+      return;
+    }
+
+    try {
+      // 브라우저 호환성을 위해 setTimeout 사용
+      setTimeout(() => {
+        console.log('🔍 파일 선택 창 열기 시도...');
+        jsonFileInputRef.current?.click();
+        console.log('✅ 파일 선택 창 열기 완료');
+      }, 100);
+    } catch (error) {
+      console.error('❌ 파일 선택 창 열기 실패:', error);
+      alert('❌ 파일 선택 창을 여는 중 오류가 발생했습니다.');
+    }
+  };
+
+  // JSON 파일 업로드 처리
+  const handleJsonFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    console.log('🔍 파일 선택됨:', file?.name, file?.size, 'bytes');
+
+    if (!file) {
+      console.log('❌ 파일이 선택되지 않음');
+      return;
+    }
+
+    if (isUserAdmin === null) {
+      console.log('⏳ 관리자 권한 확인 중 - 업로드 중단');
+      alert('⏳ 관리자 권한을 확인하는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    if (!isUserAdmin) {
+      console.log('❌ 관리자 권한 없음 - 업로드 중단');
+      alert('❌ 관리자 권한이 필요합니다.');
+      return;
+    }
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    console.log('🔍 파일 확장자:', fileExtension);
+
+    if (fileExtension !== 'json') {
+      console.log('❌ JSON 파일이 아님');
+      setUploadError('JSON 파일(.json)만 업로드 가능합니다.');
+      setTimeout(() => setUploadError(''), 5000);
+      return;
+    }
+
+    console.log('✅ JSON 파일 확인됨 - 업로드 시작');
+    setIsUploading(true);
+    setUploadError('');
+    setUploadMessage('');
+
+    try {
+      // JSON 파일 읽기
+      console.log('🔍 JSON 파일 읽기 시작...');
+      const fileContent = await file.text();
+      console.log('📊 파일 내용 길이:', fileContent.length, 'characters');
+
+      console.log('🔍 JSON 파싱 시작...');
+      const jsonData = JSON.parse(fileContent);
+      console.log('📊 JSON 파일 파싱 완료:', Object.keys(jsonData));
+
+      // Firebase에 업로드
+      console.log('🔍 Firebase 업로드 함수 호출...');
+      const { uploadFlightSchedulesFromJSON } = await import('./src/firebase/flightSchedules');
+      const result = await uploadFlightSchedulesFromJSON(jsonData);
+
+      console.log('📊 업로드 결과:', result);
+
+      if (result.success) {
+        console.log('✅ 업로드 성공');
+        setUploadMessage(`✅ ${result.message}`);
+        setTimeout(() => setUploadMessage(''), 8000);
+      } else {
+        console.log('❌ 업로드 실패:', result.message);
+        setUploadError(`❌ ${result.message}`);
+        setTimeout(() => setUploadError(''), 8000);
+      }
+
+      // 파일 input 초기화
+      if (jsonFileInputRef.current) {
+        jsonFileInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('❌ JSON 파일 업로드 오류:', error);
+      console.error('❌ 오류 상세:', error instanceof Error ? error.stack : error);
+      setUploadError(`JSON 파일 업로드 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      setTimeout(() => setUploadError(''), 5000);
+    } finally {
+      console.log('🔍 업로드 프로세스 완료');
+      setIsUploading(false);
+    }
   };
 
   // 캐시 삭제 및 하드 새로고침 함수
@@ -1691,33 +2212,9 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
       }
 
-      // 2) IndexedDB 캐시 삭제
+      // 2) IndexedDB 캐시는 유지 (사용자 데이터 보호)
       if ('indexedDB' in window) {
-        try {
-          const deletePromises = [
-            new Promise<void>((resolve) => {
-              const deleteReq = indexedDB.deleteDatabase('flightCache');
-              deleteReq.onsuccess = () => resolve();
-              deleteReq.onerror = () => resolve();
-              deleteReq.onblocked = () => resolve();
-            }),
-            new Promise<void>((resolve) => {
-              const deleteReq = indexedDB.deleteDatabase('separatedCache');
-              deleteReq.onsuccess = () => resolve();
-              deleteReq.onerror = () => resolve();
-              deleteReq.onblocked = () => resolve();
-            }),
-            new Promise<void>((resolve) => {
-              const deleteReq = indexedDB.deleteDatabase('simpleCache');
-              deleteReq.onsuccess = () => resolve();
-              deleteReq.onerror = () => resolve();
-              deleteReq.onblocked = () => resolve();
-            })
-          ];
-          await Promise.all(deletePromises);
-        } catch (error) {
-          console.warn('⚠️ IndexedDB 삭제 중 오류:', error);
-        }
+        console.log('ℹ️ IndexedDB 캐시는 새로고침 시 유지됩니다.');
       }
 
       // 3) Local Storage 정리 (오프라인 인증 데이터 유지)
@@ -1740,7 +2237,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
         });
-      } catch {}
+      } catch { }
       setRefreshMessage('최신 버전 반영 중...');
       setTimeout(() => {
         setRefreshMessage('');
@@ -1759,68 +2256,29 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   const handleUpdateFlightStatus = async (flightId: number, statusToToggle: 'departed' | 'landed') => {
     if (!user?.uid) return;
 
-    
-    // 항공편 찾기 (타입 불일치 해결을 위해 String() 변환 사용)
+    // 항공편 찾기
     const flightToUpdate = flights.find(f => String(f.id) === String(flightId));
     if (!flightToUpdate) {
-      console.error('항공편을 찾을 수 없음:', { 
-        flightId, 
-        flightIdType: typeof flightId,
-        availableIds: flights.map(f => ({ id: f.id, type: typeof f.id, flightNumber: f.flightNumber }))
-      });
-      throw new Error(`항공편을 찾을 수 없습니다: ${flightId}`);
+      console.error('항공편을 찾을 수 없음:', flightId);
+      return;
     }
 
-    const originalFlights = flights;
-    
     try {
-      // 즉시 UI 업데이트 (낙관적 업데이트)
-      const updatedFlights = flights.map(flight => {
-        if (String(flight.id) === String(flightId)) {
-          return {
-            ...flight,
-            status: {
-              ...flight.status,
-              [statusToToggle]: !flight.status?.[statusToToggle]
-            }
-          };
-        }
-        return flight;
+      const updatedStatus = {
+        ...flightToUpdate.status,
+        [statusToToggle]: !flightToUpdate.status?.[statusToToggle]
+      };
+
+      await updateFlightMutation.mutateAsync({
+        flightId,
+        dataToUpdate: {
+          status: updatedStatus,
+          lastModified: new Date().toISOString()
+        },
+        userId: user.uid
       });
-      
-      // 즉시 상태 업데이트 (React 18 Concurrent)
-      startTransition(() => {
-        setFlights(updatedFlights);
-      });
-      
-      // 백그라운드에서 Firebase 업데이트
-      if (user.uid) {
-        const updatedFlight = updatedFlights.find(f => String(f.id) === String(flightId));
-        if (updatedFlight) {
-          const dataToUpdate = {
-            status: {
-              ...updatedFlight.status,
-              [statusToToggle]: updatedFlight.status?.[statusToToggle]
-            },
-            lastModified: new Date().toISOString()
-          };
-          
-          // Firebase 업데이트는 백그라운드에서 처리
-          updateFlight(flightId, dataToUpdate, user.uid).catch(error => {
-            console.error('Firebase 업데이트 실패:', error);
-            // Firebase 업데이트 실패 시 원래 상태로 복원
-            startTransition(() => {
-              setFlights(originalFlights);
-            });
-            alert('서버 동기화에 실패했습니다. 다시 시도해주세요.');
-          });
-        }
-      }
     } catch (error) {
       console.error('비행 상태 업데이트 오류:', error);
-      startTransition(() => {
-        setFlights(originalFlights);
-      });
       alert('상태 업데이트 중 오류가 발생했습니다.');
     }
   };
@@ -1838,10 +2296,10 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   const handleLogin = async (email: string, password: string) => {
     setIsLoginLoading(true);
     setLoginError('');
-    
+
     try {
       const result = await loginUser(email, password);
-      
+
       if (result.success) {
         setIsLoginModalOpen(false);
       } else {
@@ -1857,16 +2315,13 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
 
   const handleLogout = async () => {
     try {
-      
-      
       // Firebase 로그아웃 (내부적으로 모든 사용자 데이터 삭제 포함)
       await logoutUser();
-      
-      // 암호화 키 캐시 정리 (추가 보장)
-      clearKeyCache();
-      
+      setUser(null);
+      setUserInfo(null);
+      // TanStack Query 캐시 초기화는 user가 null이 되면 자동으로 처리됨 (useFlights enabled 옵션)
     } catch (error) {
-      console.error('로그아웃 오류:', error);
+      console.error('로그아웃 실패:', error);
     }
   };
 
@@ -1883,14 +2338,14 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   const handleRegister = async (email: string, password: string, displayName: string, company: string, empl?: string) => {
     setIsRegisterLoading(true);
     setRegisterError('');
-    
+
     try {
       const result = await registerUser(email, password, displayName, company, empl);
-      
+
       if (result.success) {
         // 회원가입 성공 - 바로 사용 가능
         setIsRegisterModalOpen(false);
-        
+
         // 회원가입 후 사용자 정보 자동 업데이트
         const currentUser = getCurrentUser();
         if (currentUser) {
@@ -1940,94 +2395,46 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
 
   // 이륙/착륙 상태 변경 핸들러
   const handleStatusChange = useCallback(async (flightId: string, status: Partial<FlightStatus>) => {
+    if (!user?.uid) return;
+
     try {
-      // flights 배열에서 해당 비행을 찾아서 상태 업데이트
-      const updatedFlights = flights.map(flight => {
-        if (flight.id === flightId) {
-          // status 필드가 없는 경우 초기화
-          if (!flight.status) {
-            flight.status = { departed: false, landed: false };
-          }
-          
-          const currentStatus = flight.status;
-          const newStatus = {
-            departed: currentStatus.departed || false,
-            landed: currentStatus.landed || false,
-            ...status
-          };
-          
-          
-          return {
-            ...flight,
-            status: newStatus
-          };
-        }
-        return flight;
+      const flight = flights.find(f => f.id === flightId);
+      if (!flight) return;
+
+      const updatedStatus = {
+        ...flight.status,
+        ...status
+      };
+
+      // Mutation 사용
+      await updateFlightMutation.mutateAsync({
+        flightId: parseInt(flightId),
+        dataToUpdate: { status: updatedStatus },
+        userId: user.uid
       });
-      
-      // 로컬 상태 업데이트 (즉시 반영)
-      setFlights(updatedFlights);
-      
-      // monthlyModalData도 업데이트 (월 스케줄 모달에서 즉시 반영)
+
+      // monthlyModalData 업데이트 (필요한 경우)
       if (monthlyModalData) {
-        const updatedMonthlyData = {
-          ...monthlyModalData,
-          flights: monthlyModalData.flights.map(flight => {
-            if (flight.id === flightId) {
-              return {
-                ...flight,
-                status: {
-                  ...flight.status,
-                  ...status
-                }
-              };
-            }
-            return flight;
-          })
-        };
-        setMonthlyModalData(updatedMonthlyData);
-      }
-      
-      // selectedFlight도 업데이트 (비행 상세 모달에서 즉시 반영)
-      if (selectedFlight && selectedFlight.id === flightId) {
-        setSelectedFlight({
-          ...selectedFlight,
-          status: {
-            ...selectedFlight.status,
-            ...status
-          }
+        setMonthlyModalData(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            flights: prev.flights.map(f =>
+              f.id === flightId ? { ...f, status: updatedStatus } : f
+            )
+          };
         });
       }
-      
-      // Firebase와 IndexedDB에 저장 (백그라운드)
-      if (user?.uid) {
-        try {
-          // Firebase에 저장 - 전체 status 객체를 전달
-          const { updateFlight } = await import('./src/firebase/database');
-          const flightToUpdate = updatedFlights.find(f => f.id === flightId);
-          if (flightToUpdate) {
-            await updateFlight(parseInt(flightId), { status: flightToUpdate.status }, user.uid);
-          }
-          
-          // IndexedDB에도 저장 (선택적)
-          const { indexedDBCache } = await import('./utils/indexedDBCache');
-          const indexeDBStatus = await indexedDBCache.checkIndexedDBStatus(user.uid as string);
-          
-          if (indexeDBStatus.flightCount > 0) {
-            const flightToUpdate = updatedFlights.find(f => f.id === flightId);
-            if (flightToUpdate) {
-              await indexedDBCache.updateFlight(parseInt(flightId), { status: flightToUpdate.status }, user.uid as string);
-            }
-          } else {
-          }
-        } catch (error) {
-          console.error('데이터베이스 저장 오류:', error);
-        }
+
+      // selectedFlight 업데이트
+      if (selectedFlight && selectedFlight.id === flightId) {
+        setSelectedFlight(prev => prev ? { ...prev, status: updatedStatus } : null);
       }
+
     } catch (error) {
       console.error('상태 변경 오류:', error);
     }
-  }, [flights, monthlyModalData, selectedFlight, user]);
+  }, [flights, monthlyModalData, selectedFlight, user, updateFlightMutation]);
 
   // 모달 관련 핸들러들 - useCallback으로 최적화
   const handleCalendarClick = useCallback(() => {
@@ -2068,7 +2475,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       }
 
       // monthlyTotalBlock 사용
-      const firstFlightWithMonthlyTotal = monthFlights.find(flight => 
+      const firstFlightWithMonthlyTotal = monthFlights.find(flight =>
         flight.monthlyTotalBlock && flight.monthlyTotalBlock !== '00:00'
       );
       if (firstFlightWithMonthlyTotal) {
@@ -2083,7 +2490,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         }
         return total;
       }, 0);
-      
+
       if (totalBlockMinutes > 0) {
         const hours = Math.floor(totalBlockMinutes / 60);
         const minutes = totalBlockMinutes % 60;
@@ -2110,15 +2517,15 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       const originalFlight = flights.find(f => f.id === event.id);
       return originalFlight || event; // 원본을 찾지 못하면 기존 이벤트 사용
     });
-    
+
     // 6개월 데이터 계산 (그래프용)
     const todayStr = new Date().toLocaleDateString('en-CA');
     const KOREA_TIME_ZONE = 'Asia/Seoul';
-    
+
     const today = toZonedTime(`${todayStr}T00:00:00`, KOREA_TIME_ZONE);
     const sixMonthsAgo = toZonedTime(`${todayStr}T00:00:00`, KOREA_TIME_ZONE);
     sixMonthsAgo.setMonth(today.getMonth() - 6);
-    
+
     const sixMonthFlights = flights.filter(f => {
       try {
         const flightDate = toZonedTime(`${f.date}T00:00:00`, KOREA_TIME_ZONE);
@@ -2127,15 +2534,15 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         return false;
       }
     });
-    
-    const graphEvents = sixMonthFlights.filter(f => 
+
+    const graphEvents = sixMonthFlights.filter(f =>
       type === 'takeoff' ? f.status.departed : f.status.landed
     );
-    
-    
-    
-    setCurrencyModalData({ 
-      title: type === 'takeoff' ? '이륙' : '착륙', 
+
+
+
+    setCurrencyModalData({
+      title: type === 'takeoff' ? '이륙' : '착륙',
       events: completeFlights,
       graphEvents: graphEvents // 그래프용 6개월 데이터 추가
     });
@@ -2149,7 +2556,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   };
 
   const handleCrewMemberClick = (crewName: string, empl?: string, crewType?: 'flight' | 'cabin') => {
-    
+
     // 승무원 타입에 따라 다른 필터링 로직 적용
     const flightsWithCrew = flights.filter(f => {
       if (crewType === 'cabin') {
@@ -2160,8 +2567,8 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         return f.crew && f.crew.some(member => member.name === crewName && (!empl || member.empl === empl));
       }
     });
-    
-    
+
+
     setSelectedCrewName(crewName);
     setFlightsWithSelectedCrew(flightsWithCrew);
     setSelectedCrewType(crewType || 'flight');
@@ -2192,18 +2599,18 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       if (!user?.uid) {
         throw new Error('사용자 인증이 필요합니다.');
       }
-      
-      
+
+
       // 로컬 상태 업데이트
       const updatedMemos = {
         ...crewMemos,
         [crewName]: memo
       };
       setCrewMemos(updatedMemos);
-      
+
       // Firebase에 암호화된 메모 저장
       await saveCrewMemos(user.uid, updatedMemos);
-      
+
     } catch (error) {
       console.error('메모 저장 실패:', error);
       throw error;
@@ -2224,7 +2631,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
     try {
       const updatedCityMemos = { ...cityMemos, [cityCode]: memo };
       setCityMemos(updatedCityMemos);
-      
+
       if (user) {
         await saveCityMemos(user.uid, updatedCityMemos);
       }
@@ -2251,12 +2658,12 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   const handleUserSettingsUpdate = async (userId: string, settings: any) => {
     try {
       await saveUserSettings(userId, settings);
-      
+
       // 로컬 상태 즉시 업데이트
       if (settings.airline) {
         setSelectedAirline(settings.airline);
       }
-      
+
       // 사용자 정보도 업데이트
       if (user?.uid === userId) {
         const updatedUserInfo = await getUserInfo(userId);
@@ -2295,12 +2702,12 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   };
 
   const handleCurrencyCardToggle = async (cardType: string) => {
-    const newCards = selectedCurrencyCards.includes(cardType) 
+    const newCards = selectedCurrencyCards.includes(cardType)
       ? selectedCurrencyCards.filter(card => card !== cardType)
       : [...selectedCurrencyCards, cardType];
-    
+
     setSelectedCurrencyCards(newCards);
-    
+
     // Firebase에 저장
     if (user?.uid) {
       try {
@@ -2315,9 +2722,9 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
     const newCards = [...selectedCurrencyCards];
     const [movedCard] = newCards.splice(fromIndex, 1);
     newCards.splice(toIndex, 0, movedCard);
-    
+
     setSelectedCurrencyCards(newCards);
-    
+
     // Firebase에 저장
     if (user?.uid) {
       try {
@@ -2371,10 +2778,10 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         ...cardExpiryDates,
         [selectedCardForExpiry.type]: expiryDate
       };
-      
+
       // 로컬 상태 업데이트
       setCardExpiryDates(updatedExpiryDates);
-      
+
       // Firebase에 저장
       try {
         await saveDocumentExpiryDates(user.uid, updatedExpiryDates);
@@ -2414,56 +2821,21 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
     setIsCityScheduleModalOpen(true);
   };
 
-  // 기존 비행편에 regNo 필드 추가하는 함수
-  const addRegNoToExistingFlights = async () => {
-    try {
-      if (!user) {
-        throw new Error('사용자가 로그인되지 않았습니다.');
-      }
 
-      
-      // 모든 비행편을 가져와서 regNo 필드가 없는 것들에 추가
-      const allFlights = [...flights];
-      let updatedCount = 0;
-      
-      for (const flight of allFlights) {
-        // regNo 필드가 없거나 비어있는 경우에만 추가
-        if (!flight.regNo) {
-          // 예시: regNo를 빈 문자열로 초기화 (실제로는 OZ 파서에서 파싱된 값이 있어야 함)
-          const updatedFlight = {
-            ...flight,
-            regNo: '', // 빈 문자열로 초기화
-            lastModified: new Date().toISOString(),
-            version: (flight.version || 0) + 1
-          };
-          
-          // Firebase에 업데이트
-          await handleEditFlight(updatedFlight);
-          updatedCount++;
-        }
-      }
-      
-      return updatedCount;
-      
-    } catch (error) {
-      console.error('❌ regNo 필드 추가 중 오류:', error);
-      throw error;
-    }
-  };
 
   // 스케줄 수정 핸들러
   const handleEditFlight = async (flight: Flight) => {
     try {
-      
+
       if (!user) {
         throw new Error('사용자가 로그인되지 않았습니다.');
       }
-      
-      
+
+
       // _storagePath 정보가 있으면 사용, 없으면 날짜 기반으로 경로 구성
       let flightPath;
       let year, month;
-      
+
       if (flight._storagePath) {
         // _storagePath 정보를 사용해서 정확한 경로 구성
         year = flight._storagePath.year;
@@ -2476,39 +2848,24 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
         month = (flightDate.getMonth() + 1).toString().padStart(2, '0');
         flightPath = `users/${user.uid}/flights/${year}/${month}/${flight.id}`;
       }
-      
-      // Firebase에 업데이트
-      const { set } = await import('firebase/database');
-      const { ref } = await import('firebase/database');
-      const { database } = await import('./src/firebase/config');
-      
-      const flightRef = ref(database, flightPath);
-      
-      
-      
-      await set(flightRef, flight);
-      
-      
-      // IndexedDB에도 업데이트 (새로운 함수 사용)
-      const { indexedDBCache } = await import('./utils/indexedDBCache');
-      await indexedDBCache.updateFlightData(flight);
-      
-      // 🔄 앱 상태 즉시 업데이트 (새로고침 없이 반영)
-      setFlights(prevFlights => {
-        const updatedFlights = prevFlights.map(f => 
-          f.id === flight.id ? { ...flight, _storagePath: { year, month, firebaseKey: flight._storagePath?.firebaseKey || flight.id.toString() } } : f
-        );
-        return updatedFlights;
+
+      // Firebase에 업데이트 (Mutation 사용)
+      await updateFlightMutation.mutateAsync({
+        flightId: flight.id,
+        dataToUpdate: flight,
+        userId: user.uid
       });
-      
+
+      // 로컬 상태 업데이트는 Query Invalidation으로 자동 처리됨
+
       // selectedFlight도 업데이트 (현재 열린 모달의 데이터 동기화)
-      setSelectedFlight(prevSelected => 
-        prevSelected && prevSelected.id === flight.id 
+      setSelectedFlight(prevSelected =>
+        prevSelected && prevSelected.id === flight.id
           ? { ...flight, _storagePath: { year, month, firebaseKey: flight._storagePath?.firebaseKey || flight.id.toString() } }
           : prevSelected
       );
-      
-      
+
+
     } catch (error) {
       alert(`수정 중 오류가 발생했습니다: ${error.message}`);
     }
@@ -2516,74 +2873,49 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
 
   // 스케줄 삭제 핸들러
   const handleDeleteFlight = async (flightId: number) => {
+    if (!user) return;
+    const flight = flights.find(f => f.id === flightId);
+    if (!flight) {
+      alert('삭제할 비행편을 찾을 수 없습니다.');
+      return;
+    }
+
     try {
-      
-      // Firebase에서 삭제
-      const { remove } = await import('firebase/database');
-      const { ref } = await import('firebase/database');
-      const { database } = await import('./src/firebase/config');
-      
-      if (!user) {
-        throw new Error('사용자가 로그인되지 않았습니다.');
-      }
-      
-      // 해당 비행편 찾기
-      const flight = flights.find(f => f.id === flightId);
-      if (!flight) {
-        throw new Error('삭제할 비행편을 찾을 수 없습니다.');
-      }
-      
-      // _storagePath 정보가 있으면 사용, 없으면 날짜 기반으로 경로 구성
-      let flightPath;
-      
+      // Firebase에서 삭제 (Mutation 사용)
       if (flight._storagePath) {
-        // _storagePath 정보를 사용해서 정확한 경로 구성
-        flightPath = `users/${user.uid}/flights/${flight._storagePath.year}/${flight._storagePath.month}/${flight._storagePath.firebaseKey}`;
+        await deleteFlightMutation.mutateAsync({
+          flightId: String(flightId),
+          storagePath: flight._storagePath,
+          userId: user.uid
+        });
       } else {
+        // _storagePath가 없는 경우 (예외 처리)
         // 기존 방식: 날짜에서 년/월 추출
         const flightDate = new Date(flight.date);
-        const year = flightDate.getFullYear();
-        const month = (flightDate.getMonth() + 1).toString().padStart(2, '0');
-        flightPath = `users/${user.uid}/flights/${year}/${month}/${flightId}`;
+        const year = flightDate.getFullYear().toString();
+        const month = (flightDate.getMonth() + 1).toString().padStart(2, '0'); // 문자열로 변환
+
+        await deleteFlightMutation.mutateAsync({
+          flightId: String(flightId),
+          storagePath: { year, month, firebaseKey: String(flightId) }, // firebaseKey가 정확하지 않을 수 있음 주의
+          userId: user.uid
+        });
       }
-      
-      const flightRef = ref(database, flightPath);
-      
-      // Firebase에서 삭제
-      await remove(flightRef);
-      
-      // IndexedDB에서도 삭제
-      const { indexedDBCache } = await import('./utils/indexedDBCache');
-      await indexedDBCache.deleteFlight(flightId);
-      
-      // 로컬 상태에서 해당 항목 제거 (즉시 반영)
-      setFlights(prevFlights => {
-        const updatedFlights = prevFlights.filter(f => f.id !== flightId);
-        return updatedFlights;
-      });
-      
-      // 캐시도 즉시 업데이트
-      if (user?.uid) {
-        const { simpleCache } = await import('./utils/simpleCache');
-        const cachedFlights = simpleCache.loadFlights(user.uid);
-        if (cachedFlights) {
-          const updatedCachedFlights = cachedFlights.filter(f => f.id !== flightId);
-          simpleCache.saveFlights(updatedCachedFlights, user.uid);
-        }
-      }
-      
+
+      // 로컬 상태 업데이트는 Query Invalidation으로 자동 처리됨
+
       // selectedFlight이 삭제된 항목이면 초기화
       if (selectedFlight && selectedFlight.id === flightId) {
         setSelectedFlight(null);
         setSelectedFlightType(undefined);
       }
-      
+
       // monthlyModalData도 업데이트 (월 스케줄 모달이 열려있는 경우)
       if (monthlyModalData && monthlyModalData.flights.some(f => f.id === flightId)) {
         setMonthlyModalData(prevData => {
           if (!prevData) return prevData;
           const updatedFlights = prevData.flights.filter(f => f.id !== flightId);
-          
+
           // BlockTime 재계산
           const getDutyTime = (monthFlights: Flight[]): string => {
             if (monthFlights.length === 0) {
@@ -2591,7 +2923,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
             }
 
             // monthlyTotalBlock 사용
-            const firstFlightWithMonthlyTotal = monthFlights.find(flight => 
+            const firstFlightWithMonthlyTotal = monthFlights.find(flight =>
               flight.monthlyTotalBlock && flight.monthlyTotalBlock !== '00:00'
             );
             if (firstFlightWithMonthlyTotal) {
@@ -2605,7 +2937,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
               }
               return total;
             }, 0);
-            
+
             if (totalBlockMinutes > 0) {
               const hours = Math.floor(totalBlockMinutes / 60);
               const minutes = totalBlockMinutes % 60;
@@ -2616,7 +2948,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           };
 
           const newBlockTime = getDutyTime(updatedFlights);
-          
+
           return {
             ...prevData,
             flights: updatedFlights,
@@ -2624,8 +2956,8 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           };
         });
       }
-      
-      
+
+
     } catch (error) {
       console.error('❌ 비행편 삭제 실패:', error);
       throw error;
@@ -2650,14 +2982,14 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   const { datePart: todayDatePart, weekdayPart: todayWeekdayPart } = getTodayDisplay();
   const todayStr = getTodayString();
   const { lastFlight, nextFlight, nextNextFlight } = findLastAndNextFlights(flights, todayStr);
-  
+
   // nextNextFlight가 비어있을 때, nextFlight 바로 다음 스케줄을 동적으로 보정
   const computedNextNextFlight = useMemo(() => {
     if (nextNextFlight) return nextNextFlight;
     if (!nextFlight) return undefined;
-    
+
     const specialSchedules = [
-      'FIXED SKD','STANDBY','DAY OFF','A STBY','B STBY','G/S STUDENT','GS STUDENT','G/S','GS','GROUND SCHOOL','R_SIM1','R_SIM2','RESERVE','OTHRDUTY','RDO','ALV','ALM','ANNUAL LEAVE','VAC_R','VAC','SIM','MEDICAL CHK','MEDICAL','안전회의','SAFETY','TRAINING','교육','BRIEFING','브리핑','MEETING','회의','CHECK','점검','INSPECTION','검사'
+      'FIXED SKD', 'STANDBY', 'DAY OFF', 'A STBY', 'B STBY', 'G/S STUDENT', 'GS STUDENT', 'G/S', 'GS', 'GROUND SCHOOL', 'R_SIM1', 'R_SIM2', 'RESERVE', 'OTHRDUTY', 'RDO', 'ALV', 'ALM', 'ANNUAL LEAVE', 'VAC_R', 'VAC', 'SIM', 'MEDICAL CHK', 'MEDICAL', '안전회의', 'SAFETY', 'TRAINING', '교육', 'BRIEFING', '브리핑', 'MEETING', '회의', 'CHECK', '점검', 'INSPECTION', '검사'
     ];
     const isActual = (f: any): boolean => {
       const num = (f?.airlineFlightNumber || f?.flightNumber || '').toString();
@@ -2682,19 +3014,19 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           }
           return new Date(`${f.date}T00:00:00Z`).getTime();
         }
-      } catch {}
+      } catch { }
       return null;
     };
-    
+
     const refTs = getDepartureTimestamp(nextFlight);
     if (!refTs) return undefined;
-    
+
     const candidates = flights
       .filter((f) => isActual(f))
       .map((f) => ({ f, ts: getDepartureTimestamp(f) }))
       .filter((x) => typeof x.ts === 'number' && (x.ts as number) > refTs)
       .sort((a, b) => (a.ts as number) - (b.ts as number));
-    
+
     if (candidates.length > 0) return candidates[0].f;
 
     // 2) 체이닝 규칙: 다음비행의 도착공항을 출발지로 갖는 스케줄을 우선 사용
@@ -2720,7 +3052,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
     };
     return placeholder;
   }, [nextNextFlight, nextFlight, flights]);
-  
+
   // 카드 슬라이더 상태
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(0);
@@ -2750,23 +3082,23 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   const cardItemWidth = Math.max(0, (sliderContainerWidth - GAP_PX) / 2);
   const roundedItemWidth = Math.round(cardItemWidth);
   const sliderOffsetPx = currentCardIndex * (roundedItemWidth + GAP_PX);
-  
+
   // 카드 데이터 배열 (항상 2개씩 표시)
   const cardData = useMemo(() => {
     const cards = [];
-    
+
     // 최근 비행 카드
     cards.push({ flight: lastFlight, type: 'last' as const, title: '최근 비행', color: 'green' });
-    
+
     // 다음 비행 카드
     cards.push({ flight: nextFlight, type: 'next' as const, title: '다음 비행', color: 'blue' });
-    
+
     // 그 다음 비행 카드 (항상 추가 - 계산이 없어도 nextFlight로 대체)
     const nextNext = computedNextNextFlight || nextFlight || undefined;
     if (nextNext) {
       cards.push({ flight: nextNext, type: 'nextNext' as const, title: '그 다음 비행', color: 'purple' });
     }
-    
+
     return cards;
   }, [lastFlight, nextFlight, computedNextNextFlight]);
 
@@ -2774,28 +3106,28 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
   useEffect(() => {
     if (currentCardIndex !== 0) setCurrentCardIndex(0);
   }, [cardData.length]);
-  
+
   // 현재 표시할 카드 2개
   const visibleCards = useMemo(() => {
     return cardData.slice(currentCardIndex, currentCardIndex + 2);
   }, [cardData, currentCardIndex]);
-  
+
   // 스와이프 핸들러
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.targetTouches[0].clientX);
   };
-  
+
   const handleTouchMove = (e: React.TouchEvent) => {
     setTouchEndX(e.targetTouches[0].clientX);
   };
-  
+
   const handleTouchEnd = () => {
     if (!touchStartX || !touchEndX) return;
-    
+
     const distance = touchStartX - touchEndX;
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
-    
+
     if (isLeftSwipe && currentCardIndex < cardData.length - 2) {
       setCurrentCardIndex(prev => prev + 1);
     }
@@ -2803,13 +3135,13 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       setCurrentCardIndex(prev => prev - 1);
     }
   };
-  
+
   // Web Worker를 사용한 currency 계산 (성능 최적화)
   const [currencyData, setCurrencyData] = useState<{
     takeoff: any;
     landing: any;
   } | null>(null);
-  
+
   useEffect(() => {
     // Web Worker를 일시적으로 비활성화하고 fallback 함수만 사용
     if (flights.length > 0) {
@@ -2824,11 +3156,11 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
       setCurrencyData(null);
     }
   }, [flights, todayStr]);
-  
+
   // Fallback values while loading - 중복 계산 방지
   const takeoffCurrency = currencyData?.takeoff;
   const landingCurrency = currencyData?.landing;
-  
+
 
   // 로딩 화면
   if (isLoading) {
@@ -2856,7 +3188,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
               나의 비행 정보를 한번에!
             </p>
           </div>
-          
+
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 text-center mb-6">
               로그인
@@ -2871,11 +3203,11 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
               계정이 없으신가요? <button onClick={handleShowRegister} className="text-blue-600 hover:text-blue-700 underline">회원가입</button>
             </p>
           </div>
-          
+
           <footer className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
             <div className="flex justify-center items-center gap-4">
-            <p>My KneeBoard © 2025. v{DISPLAY_VERSION}</p>
-              <button 
+              <p>My KneeBoard © 2025. v{DISPLAY_VERSION}</p>
+              <button
                 onClick={handleAboutClick}
                 className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
               >
@@ -2895,12 +3227,14 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           )}
           {/* 오프라인 배너 */}
           {isOffline && (
-            <div className="bg-red-500 text-white text-center py-2 px-4 mb-4">
+            <div className="bg-orange-500 text-white text-center py-2 px-4 mb-4 rounded-lg shadow-md">
               <div className="flex items-center justify-center gap-2">
-                <span>📡 오프라인 모드</span>
+                <span className="text-lg">📡</span>
+                <span className="font-medium">오프라인 모드</span>
+                <span className="text-sm opacity-90">- 로컬 데이터만 사용 가능</span>
                 {syncStatus.pendingCount > 0 && (
-                  <span className="text-sm">
-                    ({syncStatus.pendingCount}개 작업 대기 중)
+                  <span className="text-sm bg-white bg-opacity-20 px-2 py-1 rounded">
+                    {syncStatus.pendingCount}개 작업 대기 중
                   </span>
                 )}
               </div>
@@ -2908,93 +3242,106 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           )}
 
           {/* 헤더 */}
-          <header className={`mb-4 flex justify-between items-center gap-2 sm:gap-4 ${isIosStandalone ? 'pt-safe' : ''}`}>
+          <header className={`mb-4 grid grid-cols-3 items-center gap-2 sm:gap-4 ${isIosStandalone ? 'pt-safe' : ''}`}>
             {/* Left: User Info */}
-            <div className="flex-1 flex justify-start">
-              <div className="flex flex-col items-start gap-1">
-                <div className="flex items-center gap-2">
-                <span className="text-base font-semibold text-gray-700 dark:text-gray-300">
+            <div className="flex flex-col items-start gap-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-base font-semibold text-gray-700 dark:text-gray-300 truncate">
                   {user.displayName}님
                 </span>
-                  <div className="bg-transparent">
-                    <AirlineLogo airline={selectedAirline} className="w-6 h-6" />
-                  </div>
+                <div className="bg-transparent flex-shrink-0">
+                  <AirlineLogo airline={selectedAirline} className="w-6 h-6" />
                 </div>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={handleUserSettingsClick}
-                    className="bg-gray-500 text-white text-xs px-1.5 py-0.5 rounded hover:bg-gray-600 transition-colors"
-                    title="설정"
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleUserSettingsClick}
+                  className="bg-gray-500 text-white text-xs px-1.5 py-0.5 rounded hover:bg-gray-600 transition-colors"
+                  title="설정"
+                >
+                  설정
+                </button>
+                {isUserAdmin && (
+                  <button
+                    onClick={handleJsonUploadClick}
+                    disabled={isUploading || isOffline}
+                    className="bg-purple-500 hover:bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="관리자: 항공편 DB 업로드"
                   >
-                    설정
+                    DB관리
                   </button>
-                  <button 
-                    onClick={handleLogout}
-                    className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded hover:bg-red-600 transition-colors"
-                    title="로그아웃"
-                  >
-                    로그아웃
-                  </button>
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                  {utcTime}
-                </div>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded hover:bg-red-600 transition-colors"
+                  title="로그아웃"
+                >
+                  로그아웃
+                </button>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                {utcTime}
               </div>
             </div>
 
             {/* Center: Title */}
-            <div className="flex-1 text-center">
+            <div className="text-center">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                 My<br />KneeBoard
               </h1>
             </div>
-            
+
             {/* Right: Upload Icon & Date */}
-            <div className="flex-1 flex justify-end">
-              <div className="flex flex-col items-end">
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
-                  accept={getAllowedFileTypes(userInfo?.company || 'OZ')}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleHardRefresh}
-                    disabled={isRefreshing || isOffline}
-                    title={isOffline ? "오프라인 상태에서는 새로고침할 수 없습니다" : "Clear Cache & Hard Refresh"}
-                    className={`p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${(isRefreshing || isOffline) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <RefreshCwIcon className={`w-6 h-6 ${isRefreshing ? 'animate-clock-rotation' : ''}`} />
-                  </button>
-                  <button
-                    onClick={() => setIsDeleteDataModalOpen(true)} 
-                    disabled={isLoading || flights.length === 0 || !user} 
-                    title="Delete Month Data" 
-                    className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <TrashIcon className="w-6 h-6" />
-                  </button>
-                  <button 
-                    onClick={handleUploadClick} 
-                    disabled={isUploading} 
-                    title={
-                      userInfo?.company === '7C' 
-                        ? "PDF 스케줄 업로드" 
-                        : userInfo?.company === 'KE' || userInfo?.company === 'OZ'
+            <div className="flex flex-col items-end min-w-0">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept={getAllowedFileTypes(userInfo?.company || 'OZ')}
+              />
+              <input
+                type="file"
+                ref={jsonFileInputRef}
+                onChange={handleJsonFileChange}
+                className="hidden"
+                accept=".json"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleHardRefresh}
+                  disabled={isRefreshing || isOffline}
+                  title={isOffline ? "오프라인 상태에서는 새로고침할 수 없습니다" : "Clear Cache & Hard Refresh"}
+                  className={`p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${(isRefreshing || isOffline) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <RefreshCwIcon className={`w-6 h-6 ${isRefreshing ? 'animate-clock-rotation' : ''}`} />
+                </button>
+                <button
+                  onClick={() => setIsDeleteDataModalOpen(true)}
+                  disabled={isLoading || flights.length === 0 || !user}
+                  title="Delete Month Data"
+                  className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <TrashIcon className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={handleUploadClick}
+                  disabled={isUploading}
+                  title={
+                    userInfo?.company === '7C'
+                      ? "PDF 스케줄 업로드"
+                      : userInfo?.company === 'KE' || userInfo?.company === 'OZ'
                         ? "Excel 스케줄 업로드"
                         : "스케줄 파일 업로드"
-                    }
-                    className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <UploadCloudIcon className={`w-6 h-6 ${isUploading ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
-                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 text-right">
-                  <p>{todayDatePart}</p>
-                  <p>{todayWeekdayPart}(KST) 기준</p>
-                </div>
+                  }
+                  className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <UploadCloudIcon className={`w-6 h-6 ${isUploading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 text-right">
+                <p>{todayDatePart}</p>
+                <p>{todayWeekdayPart}(KST) 기준</p>
               </div>
             </div>
           </header>
@@ -3027,31 +3374,28 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
             <div className="flex border-b border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => handleTabChange('dashboard')}
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'dashboard'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
+                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'dashboard'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
               >
                 Dashboard
               </button>
               <button
                 onClick={() => handleTabChange('rest')}
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'rest'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
+                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'rest'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
               >
                 Rest
               </button>
               <button
                 onClick={() => handleTabChange('flightData')}
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'flightData'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
+                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'flightData'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
               >
                 Flight Data
               </button>
@@ -3059,467 +3403,554 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           </div>
 
           {/* 탭 내용 */}
-          {activeTab === 'dashboard' && (
-            <>
-              <section className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">월별 비행 시간 (Block)</h2>
-                    <button
-                      onClick={handleAnnualBlockTimeGraphClick}
-                      className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                      title="연간 비행시간 그래프"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setIsSearchModalOpen(true)}
-                      className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                      title="도시/CREW 검색"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={handleCalendarClick}
-                      className="flex items-center justify-center p-2 text-blue-600 hover:text-blue-700 transition-colors rounded-lg"
-                      title="전체 달력 보기"
-                    >
-                      <CalendarIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-                <BlockTimeCard 
-                  flights={flights} 
-                  todayStr={todayStr} 
-                  onMonthClick={handleMonthClick}
-                />
-              </section>
-
-              <section className="mb-8">
-                <div 
-                  className="relative overflow-hidden"
-                  ref={sliderContainerRef}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                >
-                  <div 
-                    className="flex flex-nowrap gap-6 transition-transform duration-300 ease-in-out"
-                    style={{ 
-                      transform: cardItemWidth > 0 
-                        ? `translateX(-${sliderOffsetPx}px)` 
-                        : `translateX(-${currentCardIndex * 51.5}%)`,
-                      willChange: 'transform'
-                    }}
-                  >
-                    {cardData.map((card, index) => (
-                      <div 
-                        key={`${card.type}-${index}`} 
-                        className="flex-shrink-0"
-                        style={{ width: cardItemWidth > 0 ? `${cardItemWidth}px` : 'calc((100% - 24px)/2)' }}
+          <AnimatePresence mode="wait">
+            {activeTab === 'dashboard' && (
+              <motion.div
+                key="dashboard"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <section className="mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">월별 비행 시간 (Block)</h2>
+                      <button
+                        onClick={handleAnnualBlockTimeGraphClick}
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        title="연간 비행시간 그래프"
                       >
-                        <FlightCard 
-                          flight={card.flight} 
-                          type={card.type} 
-                          onClick={handleFlightCardClick} 
-                          todayStr={todayStr} 
-                          onStatusChange={handleStatusChange} 
-                          baseIata={baseIata}
-                        />
-                      </div>
-                    ))}
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIsSearchModalOpen(true)}
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        title="도시/CREW 검색"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={handleCalendarClick}
+                        className="flex items-center justify-center p-2 text-blue-600 hover:text-blue-700 transition-colors rounded-lg"
+                        title="전체 달력 보기"
+                      >
+                        <CalendarIcon className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                  
-                  {/* 스와이프 인디케이터 */}
-                  {cardData.length > 2 && (
-                    <div className="flex justify-center mt-4 space-x-2">
-                      {Array.from({ length: cardData.length - 1 }, (_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setCurrentCardIndex(i)}
-                          className={`w-2 h-2 rounded-full transition-colors duration-200 ${
-                            i === currentCardIndex ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
-                          }`}
-                        />
+                  <BlockTimeCard
+                    flights={flights}
+                    todayStr={todayStr}
+                    onMonthClick={handleMonthClick}
+                  />
+                </section>
+
+                <section className="mb-8">
+                  <div
+                    className="relative overflow-hidden"
+                    ref={sliderContainerRef}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                  >
+                    <div
+                      className="flex flex-nowrap gap-6 transition-transform duration-300 ease-in-out"
+                      style={{
+                        transform: cardItemWidth > 0
+                          ? `translateX(-${sliderOffsetPx}px)`
+                          : `translateX(-${currentCardIndex * 51.5}%)`,
+                        willChange: 'transform'
+                      }}
+                    >
+                      {cardData.map((card, index) => (
+                        <div
+                          key={`${card.type}-${index}`}
+                          className="flex-shrink-0"
+                          style={{ width: cardItemWidth > 0 ? `${cardItemWidth}px` : 'calc((100% - 24px)/2)' }}
+                        >
+                          <FlightCard
+                            flight={card.flight}
+                            type={card.type}
+                            onClick={handleFlightCardClick}
+                            todayStr={todayStr}
+                            onStatusChange={handleStatusChange}
+                            baseIata={baseIata}
+                          />
+                        </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              </section>
 
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">자격 현황</h2>
-                    <button 
-                      onClick={handleCurrencySettingsClick}
+                    {/* 스와이프 인디케이터 */}
+                    {cardData.length > 2 && (
+                      <div className="flex justify-center mt-4 space-x-2">
+                        {Array.from({ length: cardData.length - 1 }, (_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setCurrentCardIndex(i)}
+                            className={`w-2 h-2 rounded-full transition-colors duration-200 ${i === currentCardIndex ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+                              }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">자격 현황</h2>
+                      <button
+                        onClick={handleCurrencySettingsClick}
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        title="자격 현황 설정"
+                      >
+                        <SettingsIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setIsCurrencyExpanded(!isCurrencyExpanded);
+                      }}
                       className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                      title="자격 현황 설정"
+                      title={isCurrencyExpanded ? "추가 카드 접기" : "추가 카드 펼치기"}
                     >
-                      <SettingsIcon className="w-5 h-5" />
+                      {isCurrencyExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
                     </button>
                   </div>
-                  <button 
-                    onClick={() => {
-                      setIsCurrencyExpanded(!isCurrencyExpanded);
-                    }}
-                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                    title={isCurrencyExpanded ? "추가 카드 접기" : "추가 카드 펼치기"}
-                  >
-                    {isCurrencyExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <CurrencyCard title="이륙" currencyInfo={takeoffCurrency} onClick={() => handleCurrencyCardClick('takeoff', takeoffCurrency)} />
-                  <CurrencyCard title="착륙" currencyInfo={landingCurrency} onClick={() => handleCurrencyCardClick('landing', landingCurrency)} />
-                  {selectedCurrencyCards.map((cardType) => {
-                    // 임시 데이터 - 실제로는 각 카드 타입에 맞는 데이터를 가져와야 함
-                    const tempCurrencyInfo = {
-                      current: 0,
-                      required: 0,
-                      lastFlight: null,
-                      nextRequired: null
-                    };
+                  <div className="grid grid-cols-2 gap-6">
+                    <CurrencyCard title="이륙" currencyInfo={takeoffCurrency} onClick={() => handleCurrencyCardClick('takeoff', takeoffCurrency)} />
+                    <CurrencyCard title="착륙" currencyInfo={landingCurrency} onClick={() => handleCurrencyCardClick('landing', landingCurrency)} />
+                    {selectedCurrencyCards.map((cardType) => {
+                      // 임시 데이터 - 실제로는 각 카드 타입에 맞는 데이터를 가져와야 함
+                      const tempCurrencyInfo = {
+                        current: 0,
+                        required: 0,
+                        lastFlight: null,
+                        nextRequired: null
+                      };
 
-                    const cardNames: { [key: string]: string } = {
-                      'passport': '여권',
-                      'visa': '비자',
-                      'epta': 'EPTA',
-                      'radio': 'Radio',
-                      'whitecard': 'White Card'
-                    };
+                      const cardNames: { [key: string]: string } = {
+                        'passport': '여권',
+                        'visa': '비자',
+                        'epta': 'EPTA',
+                        'radio': 'Radio',
+                        'whitecard': 'White Card',
+                        'crm': 'CRM'
+                      };
 
-                    // 카드가 긴급한지 확인
-                    const expiryDate = cardExpiryDates[cardType];
-                    let isUrgent = false;
-                    if (expiryDate) {
-                      const today = new Date();
-                      const expiry = new Date(expiryDate);
-                      const timeDiff = expiry.getTime() - today.getTime();
-                      const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24));
-                      
-                      // White Card는 30일 이하, 다른 카드는 90일 이하
-                      if (cardType === 'whitecard') {
-                        isUrgent = daysUntilExpiry <= 30;
-                      } else {
-                        isUrgent = daysUntilExpiry <= 90;
-                      }
-                    }
+                      // 카드가 긴급한지 확인
+                      const expiryDate = cardExpiryDates[cardType];
+                      let isUrgent = false;
+                      if (expiryDate) {
+                        const today = new Date();
+                        const expiry = new Date(expiryDate);
+                        const timeDiff = expiry.getTime() - today.getTime();
+                        const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
-                    // 긴급한 카드는 항상 표시, 일반 카드는 접기 상태에 따라 표시
-                    const shouldShow = isUrgent || isCurrencyExpanded;
-
-
-                    if (!shouldShow) return null;
-
-                    return (
-                      <CurrencyCard 
-                        key={cardType}
-                        title={cardNames[cardType] || cardType}
-                        currencyInfo={tempCurrencyInfo}
-                        cardType={cardType}
-                        expiryDate={cardExpiryDates[cardType]}
-                        onClick={() => handleCardClick(cardType, cardNames[cardType] || cardType)}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-            </>
-          )}
-
-          {activeTab === 'rest' && (
-            <div className={`${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-              <RestCalculator isDark={isDarkMode} />
-            </div>
-          )}
-
-          {activeTab === 'flightData' && (
-            <div className={`${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'} p-3 rounded-lg`}>
-              {/* Flight Data 섹션 */}
-              <section className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">Flight Data</h2>
-                </div>
-                
-                {/* 검색 카드 그리드 */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  {/* 항공편 검색 카드 */}
-                  <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-4 rounded-lg shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-md transition-shadow`}>
-                    <div className="mb-3">
-                      <div className="font-semibold text-gray-700 dark:text-gray-300">항공편 검색</div>
-                    </div>
-                    <div className="mb-3">
-                      <input
-                        type="text"
-                        placeholder="항공편명 입력 (예: OZ521)"
-                        value={flightSearchQuery}
-                        onChange={(e) => setFlightSearchQuery(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !isLoadingFlightData) {
-                            handleFlightSearch();
-                          }
-                        }}
-                        className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ${
-                          isDarkMode 
-                            ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400' 
-                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                        }`}
-                      />
-                    </div>
-                    <button 
-                      onClick={handleFlightSearch}
-                      disabled={isLoadingFlightData}
-                      className={`w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ${
-                        isLoadingFlightData 
-                          ? 'bg-gray-400 cursor-not-allowed' 
-                          : 'bg-blue-500 hover:bg-blue-600'
-                      }`}
-                    >
-                      {isLoadingFlightData ? '검색 중...' : '검색'}
-                    </button>
-                  </div>
-
-                  {/* 항공사 정보 카드 */}
-                  <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-4 rounded-lg shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-md transition-shadow`}>
-                    <div className="mb-3">
-                      <div className="font-semibold text-gray-700 dark:text-gray-300">항공사 정보</div>
-                    </div>
-                    <div className="mb-3">
-                      <input
-                        type="text"
-                        placeholder="IATA/ICAO 코드 입력"
-                        value={airlineSearchQuery}
-                        onChange={(e) => setAirlineSearchQuery(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !isLoadingAirlineData) {
-                            handleAirlineSearch();
-                          }
-                        }}
-                        className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ${
-                          isDarkMode 
-                            ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400' 
-                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                        }`}
-                      />
-                    </div>
-                    <button 
-                      onClick={handleAirlineSearch}
-                      disabled={isLoadingAirlineData}
-                      className={`w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ${
-                        isLoadingAirlineData 
-                          ? 'bg-gray-400 cursor-not-allowed' 
-                          : 'bg-blue-500 hover:bg-blue-600'
-                      }`}
-                    >
-                      {isLoadingAirlineData ? '로딩 중...' : '검색'}
-                    </button>
-                  </div>
-
-
-                </div>
-
-                {/* 항공편 검색 결과 섹션 */}
-                {showFlightResults && (
-                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-4 mb-4 relative`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공편 검색 결과</h3>
-                    <button 
-                      onClick={() => setShowFlightResults(false)}
-                      className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
-                      title="닫기"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  
-                  
-
-                  
-                  {/* 항공편 검색 결과 */}
-                  {flightSearchResults.length > 0 ? (
-                    flightSearchResults.map((flight, index) => (
-                      <div key={index} className={`${isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white'} p-4 rounded-xl shadow-md border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all duration-300 mb-3`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                              <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">
-                                {flight.flightNumber}({getICAOCode(flight.airline)}{flight.flightNumber?.replace(/^[A-Z]+/, '')})
-                              </h4>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {getAirlineName(flight.airline)}
-                            </div>
-                          </div>
-                          <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-semibold rounded-full shadow-sm">
-                            {flight.type.includes('인천공항 API') ? '온라인' : flight.type}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center mb-4">
-                          <div className="flex-1 text-center">
-                            <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">출발</div>
-                            <div className="font-semibold text-gray-700 dark:text-gray-300 text-lg md:text-xl">{flight.origin || flight.departure}</div>
-                            <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                              {getCityInfo(flight.origin || flight.departure)?.name || ''}
-                            </div>
-                          </div>
-                          
-                          <div className="flex-1 text-center">
-                            <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">도착</div>
-                            <div className="font-semibold text-gray-700 dark:text-gray-300 text-lg md:text-xl">{flight.destination || flight.arrival}</div>
-                            <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                              {getCityInfo(flight.destination || flight.arrival)?.name || ''}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2 text-sm">
-                          {flight.aircraft && flight.aircraft.trim() && flight.type.includes('인천공항 API') && (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                              <span className="text-gray-500 dark:text-gray-400">기종:</span>
-                              <span className="font-medium text-gray-700 dark:text-gray-300">
-                                {flight.aircraft}
-                              </span>
-                            </div>
-                          )}
-                          {flight.weeklySchedule && flight.type.includes('인천공항 API') && (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                              <span className="text-gray-500 dark:text-gray-400">운항:</span>
-                              <span className="font-medium text-gray-700 dark:text-gray-300">
-                                {flight.weeklySchedule}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {flight.operatingDays && flight.operatingDays.length > 0 && (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                              <span className="text-gray-500 dark:text-gray-400">운항:</span>
-                              <span className="font-medium text-gray-700 dark:text-gray-300">
-                                {(() => {
-                                  const days = flight.operatingDays.map(date => {
-                                    const dateObj = new Date(date);
-                                    return ['일', '월', '화', '수', '목', '금', '토'][dateObj.getDay()];
-                                  });
-                                  
-                                  // 요일 정렬 (월요일부터 시작)
-                                  const dayOrder = ['월', '화', '수', '목', '금', '토', '일'];
-                                  const sortedDays = days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
-                                  
-                                  // 중복 제거
-                                  const uniqueDays = [...new Set(sortedDays)];
-                                  
-                                  // 매일인지 확인
-                                  if (uniqueDays.length === 7) {
-                                    return '매일';
-                                  }
-                                  
-                                  return uniqueDays.join(', ');
-                                })()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        
-
-                      </div>
-                    ))
-                  ) : (
-                    <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-6 rounded-lg text-center`}>
-                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {flightSearchQuery.trim() ? 
-                          '검색 결과가 없습니다.' : 
-                          '항공편명, 항공사, 출발지, 도착지를 입력하고 검색하세요.'
+                        // White Card는 30일 이하, 다른 카드는 90일 이하
+                        if (cardType === 'whitecard') {
+                          isUrgent = daysUntilExpiry <= 30;
+                        } else {
+                          isUrgent = daysUntilExpiry <= 90;
                         }
-                      </p>
-                    </div>
-                  )}
-                  
-                  {/* 주의사항 */}
-                  <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                    <p className="text-xs text-gray-400 dark:text-gray-500 text-right">
-                      주의 : 실제 정보와 다를 수 있습니다
-                    </p>
-                  </div>
-                </div>
-                )}
+                      }
 
-                {/* 항공사 정보 검색 결과 섹션 */}
-                {showAirlineResults && (
-                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-4 relative`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공사 정보 검색 결과</h3>
-                    <button 
-                      onClick={() => setShowAirlineResults(false)}
-                      className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
-                      title="닫기"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                      // 긴급한 카드는 항상 표시, 일반 카드는 접기 상태에 따라 표시
+                      const shouldShow = isUrgent || isCurrencyExpanded;
+
+
+                      if (!shouldShow) return null;
+
+                      return (
+                        <CurrencyCard
+                          key={cardType}
+                          title={cardNames[cardType] || cardType}
+                          currencyInfo={tempCurrencyInfo}
+                          cardType={cardType}
+                          expiryDate={cardExpiryDates[cardType]}
+                          onClick={() => handleCardClick(cardType, cardNames[cardType] || cardType)}
+                        />
+                      );
+                    })}
                   </div>
-                  
-                                    {/* 항공사 정보 결과 */}
-                  {airlineSearchResults.length > 0 ? (
-                    airlineSearchResults.map((airline, index) => (
-                      <div key={index} className={`${isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white'} p-4 rounded-xl shadow-md border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all duration-300 mb-3`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                              <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">{airline.name}</h4>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">{airline.koreanName}</p>
+                </section>
+              </motion.div>
+            )}
+
+            {activeTab === 'rest' && (
+              <motion.div
+                key="rest"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2 }}
+                className={`${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}
+              >
+                <RestCalculator key={`rest-calculator-${theme}`} isDark={isDarkMode} />
+              </motion.div>
+            )}
+
+            {activeTab === 'flightData' && (
+              <motion.div
+                key="flightData"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2 }}
+                className={`${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'} p-3 rounded-lg`}
+              >
+                {/* Flight Data 섹션 */}
+                <section className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">Flight Data</h2>
+                  </div>
+
+                  {/* 검색 카드 그리드 */}
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    {/* 항공편 검색 카드 */}
+                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-4 rounded-lg shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-md transition-shadow`}>
+                      <div className="mb-3">
+                        <div className="font-semibold text-gray-700 dark:text-gray-300">항공편 검색</div>
+                      </div>
+                      <div className="mb-3">
+                        <input
+                          type="text"
+                          placeholder="항공편명 입력 (예: OZ521)"
+                          value={flightSearchQuery}
+                          onChange={(e) => setFlightSearchQuery(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isLoadingFlightData) {
+                              handleFlightHistorySearch();
+                            }
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ${isDarkMode
+                            ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
+                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            }`}
+                        />
+                      </div>
+                      <button
+                        onClick={handleFlightHistorySearch}
+                        disabled={isLoadingFlightData}
+                        className={`w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ${isLoadingFlightData
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-blue-500 hover:bg-blue-600'
+                          }`}
+                      >
+                        {isLoadingFlightData ? '검색 중...' : '검색'}
+                      </button>
+                    </div>
+
+                    {/* 항공사 정보 카드 */}
+                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-4 rounded-lg shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-md transition-shadow`}>
+                      <div className="mb-3">
+                        <div className="font-semibold text-gray-700 dark:text-gray-300">항공사 정보</div>
+                      </div>
+                      <div className="mb-3">
+                        <input
+                          type="text"
+                          placeholder="IATA/ICAO 코드 입력"
+                          value={airlineSearchQuery}
+                          onChange={(e) => setAirlineSearchQuery(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isLoadingAirlineData) {
+                              handleAirlineSearch();
+                            }
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ${isDarkMode
+                            ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
+                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            }`}
+                        />
+                      </div>
+                      <button
+                        onClick={handleAirlineSearch}
+                        disabled={isLoadingAirlineData}
+                        className={`w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ${isLoadingAirlineData
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-blue-500 hover:bg-blue-600'
+                          }`}
+                      >
+                        {isLoadingAirlineData ? '로딩 중...' : '검색'}
+                      </button>
+                    </div>
+
+
+                  </div>
+
+                  {/* 항공편 검색 결과 섹션 */}
+                  {showFlightResults && (
+                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-4 mb-4 relative`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공편 검색 결과</h3>
+                        <button
+                          onClick={() => setShowFlightResults(false)}
+                          className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
+                          title="닫기"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+
+
+
+
+                      {/* 항공편 검색 결과 */}
+                      {flightSearchResults.length > 0 ? (
+                        <div className="mb-4">
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                            총 {flightSearchResults.length}개의 항공편을 찾았습니다. 경로를 보려면 항목을 선택하세요.
                           </div>
                         </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
-                            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">IATA</div>
-                            <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words">{airline.iata}</div>
+                      ) : null}
+                      {flightSearchResults.length > 0 ? (
+                        flightSearchResults.map((flight, index) => (
+                          <div key={index} className={`${isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white'} p-4 rounded-xl shadow-md border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all duration-300 mb-3`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">
+                                  {(() => {
+                                    const flightNumber = flight.flightNumber || '';
+                                    // 항공편 번호에서 항공사 코드와 번호 분리 (예: 7C1301 -> 7C, 1301)
+                                    const match = flightNumber.match(/^([A-Z0-9]+?)(\d+)$/);
+                                    const iata = match ? match[1] : flightNumber;
+                                    const number = match ? match[2] : '';
+                                    const icao = flight.airlineCode ? getICAOCode(flight.airlineCode) : getICAOCode(flight.airline);
+                                    return `${iata} ${number} (${icao} ${number})`;
+                                  })()}
+                                </h4>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {getAirlineName(flight.airline || flight.airlineCode || '')}
+                                </div>
+                              </div>
+                              <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-semibold rounded-full shadow-sm">
+                                {flight.type.includes('인천공항 API') ? '온라인' : flight.type}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1 text-center">
+                                <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">출발</div>
+                                <div className="font-semibold text-gray-700 dark:text-gray-300 text-lg md:text-xl">{flight.origin || flight.departure}</div>
+                                <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                                  {getCityInfo(flight.origin || flight.departure)?.name || ''}
+                                </div>
+                                {/* 시간 표시 로직 개선 */}
+                                {(flight.planTime || flight.time || flight.scheduledTime) && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    {flight.planTime
+                                      ? `${flight.planTime}`
+                                      : flight.time
+                                        ? flight.time
+                                        : !isNaN(new Date(flight.scheduledTime).getTime())
+                                          ? new Date(flight.scheduledTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+                                          : ''}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex-1 text-center">
+                                <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">도착</div>
+                                <div className="font-semibold text-gray-700 dark:text-gray-300 text-lg md:text-xl">{flight.destination || flight.arrival}</div>
+                                <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                                  {getCityInfo(flight.destination || flight.arrival)?.name || ''}
+                                </div>
+                                {flight.actualTime && (
+                                  <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                    실제: {new Date(flight.actualTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                              {/* 기종 정보 (인천공항 API) */}
+                              {(() => {
+                                // 일주일 데이터에서 모든 기종 추출
+                                if (flight.weeklyData && flight.type.includes('인천공항 API')) {
+                                  const aircraftTypes = new Set<string>();
+
+                                  Object.values(flight.weeklyData).forEach((dayFlights: any) => {
+                                    if (Array.isArray(dayFlights)) {
+                                      dayFlights.forEach((f: any) => {
+                                        const aircraftModel = f.aircraft?.model || f.aircraft;
+                                        if (aircraftModel && aircraftModel.trim()) {
+                                          aircraftTypes.add(aircraftModel.trim());
+                                        }
+                                      });
+                                    }
+                                  });
+
+                                  if (aircraftTypes.size > 0) {
+                                    return (
+                                      <div className="flex items-start space-x-2">
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full mt-1"></div>
+                                        <div className="flex-1">
+                                          <span className="text-gray-500 dark:text-gray-400">기종: </span>
+                                          <span className="font-medium text-gray-700 dark:text-gray-300">
+                                            {Array.from(aircraftTypes).map(type => simplifyAircraftType(type)).join(', ')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                }
+
+                                // 단일 기종 정보 (모든 기종 표시)
+                                if (flight.aircraft && flight.aircraft.trim()) {
+                                  // 여러 기종이 콤마로 구분되어 있는 경우 모두 표시
+                                  const aircraftTypes = flight.aircraft.split(',').map((type: string) => type.trim()).filter((type: string) => type);
+
+                                  return (
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                      <span className="text-gray-500 dark:text-gray-400">기종:</span>
+                                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                                        {aircraftTypes.map(type => simplifyAircraftType(type)).join(', ')}
+                                      </span>
+                                    </div>
+                                  );
+                                }
+
+                                return null;
+                              })()}
+
+
+                              {/* 주간 스케줄 (인천공항 API의 weeklySchedule) */}
+                              {flight.weeklySchedule && flight.type.includes('인천공항 API') && (
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                                  <span className="text-gray-500 dark:text-gray-400">운항 요일:</span>
+                                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                                    {flight.weeklySchedule}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* ADS-B 경로 표시 버튼 */}
+                            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                              <button
+                                onClick={() => handleFlightPathTracking(flight)}
+                                disabled={isLoadingFlightPath}
+                                className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                              >
+                                {isLoadingFlightPath ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    <span>경로 로딩 중...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                    </svg>
+                                    <span>경로 보기</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
                           </div>
-                          <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
-                            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">ICAO</div>
-                            <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words">{airline.icao}</div>
-                          </div>
-                          <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
-                            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">호출부호</div>
-                            <div className="font-bold text-gray-700 dark:text-gray-300 text-xs break-words leading-tight">{airline.callsign}</div>
-                          </div>
-                          <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
-                            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">국가</div>
-                            <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words flex items-center justify-center gap-1">
-                              <span>{getCountryFlag(airline.country)}</span>
-                              <span>{airline.country}</span>
+                        ))
+                      ) : (
+                        <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-6 rounded-lg text-center`}>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {flightSearchQuery.trim() ?
+                              '검색 결과가 없습니다.' :
+                              '항공편명, 항공사, 출발지, 도착지를 입력하고 검색하세요.'
+                            }
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 주의사항 */}
+                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                        <p className="text-xs text-gray-400 dark:text-gray-500 text-right">
+                          주의 : 실제 정보와 다를 수 있습니다
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 항공사 정보 검색 결과 섹션 */}
+                  {showAirlineResults && (
+                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-4 relative`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공사 정보 검색 결과</h3>
+                        <button
+                          onClick={() => setShowAirlineResults(false)}
+                          className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
+                          title="닫기"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* 항공사 정보 결과 */}
+                      {airlineSearchResults.length > 0 ? (
+                        airlineSearchResults.map((airline, index) => (
+                          <div key={index} className={`${isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white'} p-4 rounded-xl shadow-md border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all duration-300 mb-3`}>
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">{airline.name}</h4>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{airline.koreanName}</p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">IATA</div>
+                                <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words">{airline.iata}</div>
+                              </div>
+                              <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">ICAO</div>
+                                <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words">{airline.icao}</div>
+                              </div>
+                              <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">호출부호</div>
+                                <div className="font-bold text-gray-700 dark:text-gray-300 text-xs break-words leading-tight">{airline.callsign}</div>
+                              </div>
+                              <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">국가</div>
+                                <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words flex items-center justify-center gap-1">
+                                  <span>{getCountryFlag(airline.country)}</span>
+                                  <span>{airline.country}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-6 rounded-lg text-center`}>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {airlineSearchQuery.trim() ? '검색 결과가 없습니다.' : 'IATA/ICAO 코드, 항공사명, 호출부호로 검색하세요.'}
+                          </p>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-6 rounded-lg text-center`}>
-                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {airlineSearchQuery.trim() ? '검색 결과가 없습니다.' : 'IATA/ICAO 코드, 항공사명, 호출부호로 검색하세요.'}
-                      </p>
+                      )}
                     </div>
                   )}
-                </div>
-                )}
-              </section>
-            </div>
-          )}
-          
+                </section>
+              </motion.div>
+            )}
+          </AnimatePresence >
+
           <footer className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
             <div className="flex justify-center items-center gap-4">
-            <p>My KneeBoard © 2025. v{DISPLAY_VERSION}</p>
-              <button 
+              <p>My KneeBoard © 2025. v{DISPLAY_VERSION}</p>
+              <button
                 onClick={handleAboutClick}
                 className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
               >
@@ -3527,7 +3958,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
               </button>
             </div>
           </footer>
-        </div>
+        </div >
       )}
 
       {/* ---------- 3. 모든 모달들은 공통으로 맨 마지막에 렌더링 ---------- */}
@@ -3536,12 +3967,12 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
       </div>}>
-        <FlightDetailModal 
-          flight={selectedFlight} 
+        <FlightDetailModal
+          flight={selectedFlight}
           onClose={() => {
             setSelectedFlight(null);
             setSelectedFlightType(undefined);
-          }} 
+          }}
           onUpdateStatus={handleUpdateFlightStatus}
           onStatusChange={handleStatusChange}
           flightType={selectedFlightType}
@@ -3558,14 +3989,14 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
       </div>}>
-        <CurrencyDetailModal 
-          data={currencyModalData} 
-          onClose={() => setCurrencyModalData(null)} 
+        <CurrencyDetailModal
+          data={currencyModalData}
+          onClose={() => setCurrencyModalData(null)}
           onFlightClick={handleCurrencyFlightClick}
         />
-        <MonthlyScheduleModal 
-          data={monthlyModalData} 
-          onClose={() => setMonthlyModalData(null)} 
+        <MonthlyScheduleModal
+          data={monthlyModalData}
+          onClose={() => setMonthlyModalData(null)}
           onFlightClick={(flight) => {
             // 최신 데이터를 위해 flights 배열에서 해당 비행편을 찾아서 전달
             const latestFlight = flights.find(f => f.id === flight.id) || flight;
@@ -3584,7 +4015,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           onFlightClick={handleCalendarFlightClick}
           onMonthChange={handleCalendarMonthChange}
         />
-        <LoginModal 
+        <LoginModal
           isOpen={isLoginModalOpen}
           onClose={handleLoginClose}
           onLogin={handleLogin}
@@ -3593,14 +4024,14 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           isLoading={isLoginLoading}
           error={loginError}
         />
-        <RegisterModal 
+        <RegisterModal
           isOpen={isRegisterModalOpen}
           onClose={handleRegisterClose}
           onRegister={handleRegister}
           isLoading={isRegisterLoading}
           error={registerError}
         />
-        <NoFlightModal 
+        <NoFlightModal
           isOpen={noFlightModal.isOpen}
           type={noFlightModal.type}
           onClose={handleNoFlightModalClose}
@@ -3611,20 +4042,18 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
       </div>}>
-        <UserSettingsModal 
+        <UserSettingsModal
           isOpen={isUserSettingsModalOpen}
           onClose={handleUserSettingsClose}
           currentUser={user}
-          theme={theme}
-          setTheme={setTheme}
           selectedAirline={selectedAirline}
           setSelectedAirline={setSelectedAirline}
           userInfo={userInfo}
           onSettingsUpdate={handleUserSettingsUpdate}
         />
-        <ConflictResolutionModal 
-          isOpen={showConflictModal} 
-          onClose={handleConflictModalClose} 
+        <ConflictResolutionModal
+          isOpen={showConflictModal}
+          onClose={handleConflictModalClose}
           conflicts={conflicts}
           onResolve={handleConflictResolution}
         />
@@ -3667,17 +4096,22 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           initialMemo={cityMemos[selectedCityForMemo] || ''}
           onSave={handleCityMemoSave}
         />
+        <FlightMap
+          isVisible={isFlightMapOpen}
+          onClose={() => setIsFlightMapOpen(false)}
+          flightPath={selectedFlightPath}
+        />
       </Suspense>
       <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
       </div>}>
-        <AboutModal 
+        <AboutModal
           isOpen={isAboutModalOpen}
           onClose={handleAboutClose}
         />
-        <CurrencySettingsModal 
+        <CurrencySettingsModal
           isOpen={isCurrencySettingsModalOpen}
           onClose={handleCurrencySettingsClose}
           selectedCards={selectedCurrencyCards}
@@ -3706,7 +4140,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           flights={flights}
           isDeleting={isDeletingData}
         />
-        
+
         <SearchModal
           isOpen={isSearchModalOpen}
           onClose={() => setIsSearchModalOpen(false)}
@@ -3717,7 +4151,7 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           }}
           onCrewClick={(crewName) => {
             // 해당 CREW가 포함된 비행들 필터링
-            const flightsWithCrew = flights.filter(flight => 
+            const flightsWithCrew = flights.filter(flight =>
               flight.crew && flight.crew.some((member: any) => member.name === crewName)
             );
             setSelectedCrewName(crewName);
@@ -3732,7 +4166,8 @@ const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
           currentYear={new Date().getFullYear()}
         />
       </Suspense>
-    </div>
+
+    </div >
   );
 };
 

@@ -480,14 +480,6 @@ const processRow = (row: string[], rowIndex: number, tableData: any[][]): void =
   // C/I(L) 컬럼에서 SHOW UP 시간 추출 (컬럼 구조에 따라 다름)
   let showUpTime = '';
   
-  // 디버깅을 위한 로그 (항상 표시)
-  console.log('🔍 C/I(L) 추출 디버깅:', {
-    rowLength: row.length,
-    row: row,
-    actualActivity: actualActivity,
-    date: convertedDate,
-    isSpecialDate: convertedDate.includes('-02-') || convertedDate.includes('-28-') || convertedDate.includes('-08-') || convertedDate.includes('-27-')
-  });
   
   // 컬럼 수에 따른 C/I(L) 컬럼 위치 매핑
   // 실제 7C PDF 헤더: Date, Pairing, DC, C/I(L), C/O(L), Activity, From, STD(L), STD(B), To, STA(L), STA(B), AC/Hotel, Blk Hrs

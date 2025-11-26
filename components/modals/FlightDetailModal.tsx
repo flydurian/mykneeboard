@@ -42,7 +42,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0);
     const [isEditMode, setIsEditMode] = useState(false);
     const [editingCrew, setEditingCrew] = useState<string | null>(null);
-    const [newCrewMember, setNewCrewMember] = useState({ empl: '', name: '', rank: '', posnType: '', posn: '' });
+    const [newCrewMember, setNewCrewMember] = useState({ empl: '', name: '', rank: '', posnType: '', posn: '', gisu: '' });
     const [editingRegNo, setEditingRegNo] = useState<string>('');
     const [isCabinCrewExpanded, setIsCabinCrewExpanded] = useState(false);
     const [timeDisplayMode, setTimeDisplayMode] = useState<'local' | 'utc' | 'kst'>('local'); // L/Z/K 버튼 상태
@@ -52,7 +52,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
         }
         return [];
     });
-    const [newCabinCrewMember, setNewCabinCrewMember] = useState({ empl: '', name: '', rank: '' });
+    const [newCabinCrewMember, setNewCabinCrewMember] = useState({ empl: '', name: '', rank: '', gisu: '' });
     const [crewList, setCrewList] = useState(() => {
         if (flight?.crew) {
             return Array.isArray(flight.crew) ? flight.crew : Object.values(flight.crew);
@@ -224,9 +224,9 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
     const handleCancelEdit = () => {
         setIsEditMode(false);
         setEditingCrew(null);
-        setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '' });
+        setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '', gisu: '' });
         setEditingRegNo('');
-        setNewCabinCrewMember({ empl: '', name: '', rank: '' });
+        setNewCabinCrewMember({ empl: '', name: '', rank: '', gisu: '' });
         // 기존 승무원 데이터로 복원
         const crewArray = flight.crew ? Object.values(flight.crew) : [];
         const cabinCrewArray = flight.cabinCrew ? Object.values(flight.cabinCrew) : [];
@@ -244,7 +244,8 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                 name: crewMember.name,
                 rank: crewMember.rank,
                 posnType: crewMember.posnType,
-                posn: crewMember.posn
+                posn: crewMember.posn,
+                gisu: crewMember.gisu || ''
             });
         }
     };
@@ -377,7 +378,8 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                 name: newCrewMember.name,
                 rank: newCrewMember.rank,
                 posnType: newCrewMember.posnType,
-                posn: newCrewMember.posn
+                posn: newCrewMember.posn,
+                gisu: newCrewMember.gisu || ''
             };
             
             // 기존 crew 객체에서 마지막 인덱스 찾기
@@ -395,7 +397,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
             // UI용 배열로 변환
             const updatedCrewList = Object.values(updatedCrewObject);
             setCrewList(updatedCrewList);
-            setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '' });
+            setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '', gisu: '' });
             
             // 즉시 Firebase에 저장
             if (onEditFlight) {
@@ -479,13 +481,14 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                 empl: newCabinCrewMember.empl,
                 name: newCabinCrewMember.name,
                 rank: newCabinCrewMember.rank,
+                gisu: newCabinCrewMember.gisu ? newCabinCrewMember.gisu.trim().toUpperCase() : '',
                 posnType: '', // 객실 승무원은 posnType과 posn이 없음
                 posn: ''
             };
             
             const updatedCabinCrewList = [...cabinCrewList, newMember];
             setCabinCrewList(updatedCabinCrewList);
-            setNewCabinCrewMember({ empl: '', name: '', rank: '' });
+            setNewCabinCrewMember({ empl: '', name: '', rank: '', gisu: '' });
             
             // Firebase에 즉시 저장
             if (onEditFlight) {
@@ -1208,6 +1211,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                         <th className="px-1 py-1 w-20 sm:w-24">EMPL</th>
                                                         <th className="px-2 py-1 w-28 sm:w-32">NAME</th>
                                                         <th className="px-1 py-1 w-16 sm:w-20 text-center">RANK</th>
+                                                        <th className="px-1 py-1 w-16 sm:w-20 text-center">GISU</th>
                                                         {isEditMode && <th className="px-1 py-1 w-20 text-center">ACTIONS</th>}
                                                     </tr>
                                                 </thead>
@@ -1234,6 +1238,9 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                                 <td className="px-1 py-1 text-gray-900 dark:text-gray-200 w-16 sm:w-20 text-center">
                                                                     {member.rank}
                                                                 </td>
+                                                                <td className="px-1 py-1 text-gray-900 dark:text-gray-200 w-16 sm:w-20 text-center">
+                                                                    {member.gisu || '-'}
+                                                                </td>
                                                                 {isEditMode && (
                                                                     <td className="px-1 py-1 w-20 text-center">
                                                                         <button
@@ -1250,7 +1257,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                         })
                                                     ) : (
                                                         <tr>
-                                                            <td colSpan={isEditMode ? 4 : 3} className="px-2 py-4 text-center text-gray-500 dark:text-gray-400">
+                                                            <td colSpan={isEditMode ? 5 : 4} className="px-2 py-4 text-center text-gray-500 dark:text-gray-400">
                                                                 객실 승무원 정보가 없습니다.
                                                             </td>
                                                         </tr>
@@ -1263,7 +1270,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                         {isEditMode && (
                                             <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                                 <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">새 객실 승무원 추가</h4>
-                                                <div className="flex gap-2 items-end w-full">
+                                                <div className="flex gap-2 items-end w-full flex-wrap sm:flex-nowrap">
                                                     <div className="flex-1">
                                                         <input
                                                             type="text"
@@ -1290,6 +1297,16 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                             placeholder="RANK"
                                                             value={newCabinCrewMember.rank}
                                                             onChange={(e) => setNewCabinCrewMember({...newCabinCrewMember, rank: e.target.value.toUpperCase()})}
+                                                            style={{ textTransform: 'uppercase' }}
+                                                            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-200 text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="GISU"
+                                                            value={newCabinCrewMember.gisu}
+                                                            onChange={(e) => setNewCabinCrewMember({...newCabinCrewMember, gisu: e.target.value.toUpperCase()})}
                                                             style={{ textTransform: 'uppercase' }}
                                                             className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-200 text-xs"
                                                         />

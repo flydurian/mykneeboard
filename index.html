@@ -1,536 +1,552 @@
-
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- 개발 환경에서는 더 관대한 CSP 사용 -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' *; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' *; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' *; img-src 'self' data: *; connect-src 'self' * wss: ws: https://datis.clowd.io https://aviationweather.gov; frame-src 'self' *; font-src 'self' data: *; object-src 'none'; base-uri 'self'; form-action 'self';" />
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
-    
-    <!-- 캐시 정책은 서버 헤더로 관리 -->
-    <title>My KneeBoard - Flight Dashboard</title>
-    
-    <!-- 해시 기반 버전 관리 시스템 -->
-    <script>
-      console.log('🚀 Flight Dashboard - 해시 기반 버전 관리 시스템');
-    </script>
-    
-    <!-- Favicon 설정 - 북마크 호환성 향상 -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
-    <link rel="shortcut icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180x180.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/icon-120x120.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="/icon-114x114.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="/icon-76x76.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="/icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="60x60" href="/icon-60x60.png">
-    <link rel="apple-touch-icon" sizes="57x57" href="/icon-57x57.png">
-    
-    <!-- PWA Configuration -->
-    <meta name="theme-color" content="#3B82F6">
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#3B82F6">
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1F2937">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="My KneeBoard">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="My KneeBoard">
-    <meta name="msapplication-TileColor" content="#3B82F6">
-    <meta name="msapplication-tap-highlight" content="no">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="apple-touch-fullscreen" content="yes">
-    <meta name="apple-mobile-web-app-orientations" content="portrait">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-touch-startup-image" content="/icon-512x512.png">
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json">
-    
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png">
-    <!-- Tailwind CSS CDN - 개발환경에서 사용 -->
-    <!-- 개발 환경에서만 Tailwind CDN 사용 -->
-    <script>
-      // Tailwind CSS 경고 억제
-      const originalWarn = console.warn;
-      console.warn = function(...args) {
-        if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) {
-          return; // Tailwind CDN 경고 억제
-        }
-        originalWarn.apply(console, args);
-      };
+<html lang="ko" class="dark">
 
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port === '5173') {
-        // 개발 환경에서만 CDN 로드
-        const script = document.createElement('script');
-        script.src = 'https://cdn.tailwindcss.com';
-        script.onload = function() {
-          if (typeof tailwind !== 'undefined') {
-            tailwind.config = {
-              darkMode: 'class',
-              theme: { extend: {} },
-            }
-            console.log('Tailwind CSS configured successfully (Development Mode)');
-          }
-        };
-        script.onerror = function() {
-          console.warn('Tailwind CSS CDN 로드 실패');
-        };
-        document.head.appendChild(script);
-      } else {
-        // 프로덕션 환경에서도 CDN 로드 (빌드된 CSS 미사용)
-        const script = document.createElement('script');
-        script.src = 'https://cdn.tailwindcss.com';
-        script.onload = function() {
-          if (typeof tailwind !== 'undefined') {
-            tailwind.config = {
-              darkMode: 'class',
-              theme: { extend: {} },
-            }
-            console.log('Tailwind CSS configured successfully (Production Mode)');
-          }
-        };
-        script.onerror = function() {
-          console.warn('Tailwind CSS CDN 로드 실패');
-        };
-        document.head.appendChild(script);
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- 개발 환경에서는 더 관대한 CSP 사용 -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cesium.com https://cdn.cesium.com *; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://cesium.com https://cdn.cesium.com *; worker-src 'self' blob: https://cesium.com https://cdn.cesium.com; style-src 'self' 'unsafe-inline' *; img-src 'self' data: https: * https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:* * wss: ws: https: data: blob: https://datis.clowd.io https://aviationweather.gov https://api.cesium.com https://assets.cesium.com https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; frame-src 'self' *; font-src 'self' data: *; object-src 'none'; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+
+  <!-- 캐시 정책은 서버 헤더로 관리 -->
+  <title>My KneeBoard - Flight Dashboard</title>
+
+  <!-- 해시 기반 버전 관리 시스템 -->
+  <script>
+    // Flight Dashboard - 해시 기반 버전 관리 시스템
+  </script>
+
+  <!-- Favicon 설정 - 북마크 호환성 향상 -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icon-180x180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="/icon-144x144.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="/icon-120x120.png">
+  <link rel="apple-touch-icon" sizes="114x114" href="/icon-114x114.png">
+  <link rel="apple-touch-icon" sizes="76x76" href="/icon-76x76.png">
+  <link rel="apple-touch-icon" sizes="72x72" href="/icon-72x72.png">
+  <link rel="apple-touch-icon" sizes="60x60" href="/icon-60x60.png">
+  <link rel="apple-touch-icon" sizes="57x57" href="/icon-57x57.png">
+
+  <!-- PWA Configuration -->
+  <meta name="theme-color" content="#3B82F6">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#3B82F6">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1F2937">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="My KneeBoard">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="My KneeBoard">
+  <meta name="msapplication-TileColor" content="#3B82F6">
+  <meta name="msapplication-tap-highlight" content="no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-touch-fullscreen" content="yes">
+  <meta name="apple-mobile-web-app-orientations" content="portrait">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-touch-startup-image" content="/icon-512x512.png">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icon-192x192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png">
+  <!-- Tailwind CSS - 로컬 빌드로 전환됨 -->
+  <style>
+    @keyframes fade-in-up {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
       }
-    </script>
-    <style>
-      @keyframes fade-in-up {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
-      .animate-fade-in-up { 
-        animation: fade-in-up 0.3s ease-out forwards; 
-      }
-      
-      /* 스크롤바 숨기기 */
-      .scrollbar-hide {
-        -ms-overflow-style: none;  /* IE and Edge */
-        -webkit-scrollbar-width: none;  /* Safari */
-        scrollbar-width: none;  /* Firefox */
-      }
-      .scrollbar-hide::-webkit-scrollbar {
-        display: none;  /* Chrome, Safari and Opera */
-      }
-      
-      /* 스크롤바 표시 */
-      .scrollbar-show {
-        -ms-overflow-style: auto;
-        -webkit-scrollbar-width: auto;  /* Safari */
-        scrollbar-width: auto;  /* Firefox */
-        position: relative;
-      }
-      .scrollbar-show::-webkit-scrollbar {
-        display: block;
-        width: 8px;
-        position: fixed;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        z-index: 9999;
-      }
-      .scrollbar-show::-webkit-scrollbar-track {
-        background: transparent;
-        position: fixed;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        z-index: 9999;
-      }
-      .scrollbar-show::-webkit-scrollbar-thumb {
-        background: rgba(209, 213, 219, 0.9);
-        border-radius: 4px;
-        position: fixed;
-        right: 2px;
-        min-height: 20px;
-        z-index: 10000;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      
-      /* 다크모드 스크롤바 */
-      .dark .scrollbar-show::-webkit-scrollbar-thumb {
-        background: rgba(75, 85, 99, 0.9);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-      }
-      
-      /* 커스텀 스크롤바 - 스크롤할 때만 나타남 */
-      .custom-scrollbar {
-        /* Safari */
-        -webkit-scrollbar-width: thin;
-        -webkit-scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
-        /* Firefox */
-        scrollbar-width: thin;
-        scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
-        transition: scrollbar-color 0.2s ease;
-        /* 터치 스크롤 활성화 */
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-        /* 터치 스크롤 강화 */
-        touch-action: pan-y;
-        overscroll-behavior-y: contain;
-      }
-      
-      .custom-scrollbar:hover {
-        -webkit-scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-        scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(156, 163, 175, 0.3);
-        border-radius: 3px;
-        transition: background 0.2s ease;
-      }
-      
-      .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-        background: rgba(156, 163, 175, 0.5);
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(156, 163, 175, 0.7);
-      }
-      
-      /* 다크모드 커스텀 스크롤바 */
-      .dark .custom-scrollbar:hover {
-        -webkit-scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
-        scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
-      }
-      
-      .dark .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-        background: rgba(75, 85, 99, 0.5);
-      }
-      
-      .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(75, 85, 99, 0.7);
-      }
-      
-      /* 전역 호환성 설정 */
+    }
+
+    .animate-fade-in-up {
+      animation: fade-in-up 0.3s ease-out forwards;
+    }
+
+    /* 스크롤바 숨기기 */
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      /* IE and Edge */
+      -webkit-scrollbar-width: none;
+      /* Safari */
+      scrollbar-width: none;
+      /* Firefox */
+    }
+
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+      /* Chrome, Safari and Opera */
+    }
+
+    /* 스크롤바 표시 */
+    .scrollbar-show {
+      -ms-overflow-style: auto;
+      -webkit-scrollbar-width: auto;
+      /* Safari */
+      scrollbar-width: auto;
+      /* Firefox */
+      position: relative;
+    }
+
+    .scrollbar-show::-webkit-scrollbar {
+      display: block;
+      width: 8px;
+      position: fixed;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 9999;
+    }
+
+    .scrollbar-show::-webkit-scrollbar-track {
+      background: transparent;
+      position: fixed;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 9999;
+    }
+
+    .scrollbar-show::-webkit-scrollbar-thumb {
+      background: rgba(209, 213, 219, 0.9);
+      border-radius: 4px;
+      position: fixed;
+      right: 2px;
+      min-height: 20px;
+      z-index: 10000;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 다크모드 스크롤바 */
+    .dark .scrollbar-show::-webkit-scrollbar-thumb {
+      background: rgba(75, 85, 99, 0.9);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 커스텀 스크롤바 - 스크롤할 때만 나타남 */
+    .custom-scrollbar {
+      /* Safari */
+      -webkit-scrollbar-width: thin;
+      -webkit-scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+      /* Firefox */
+      scrollbar-width: thin;
+      scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+      transition: scrollbar-color 0.2s ease;
+      /* 터치 스크롤 활성화 */
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      /* 터치 스크롤 강화 */
+      touch-action: pan-y;
+      overscroll-behavior-y: contain;
+    }
+
+    .custom-scrollbar:hover {
+      -webkit-scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+      scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.3);
+      border-radius: 3px;
+      transition: background 0.2s ease;
+    }
+
+    .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.5);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.7);
+    }
+
+    /* 다크모드 커스텀 스크롤바 */
+    .dark .custom-scrollbar:hover {
+      -webkit-scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+      scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+    }
+
+    .dark .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+      background: rgba(75, 85, 99, 0.5);
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(75, 85, 99, 0.7);
+    }
+
+    /* 전역 호환성 설정 */
+    body {
+      -webkit-text-size-adjust: 100%;
+      -moz-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    /* 텍스트 선택 가능한 요소들 */
+    input,
+    textarea,
+    [contenteditable] {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
+
+    /* backdrop-filter 호환성 */
+    .backdrop-blur {
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+
+    .backdrop-blur-sm {
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+    }
+
+    .backdrop-blur-md {
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+
+    .backdrop-blur-lg {
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+    }
+
+    /* iOS PWA(홈화면 추가)에서 노치/상단 가림 방지: 안전영역 반영 */
+    body.pwa-standalone {
+      padding-top: constant(safe-area-inset-top);
+      padding-top: env(safe-area-inset-top);
+      padding-left: constant(safe-area-inset-left);
+      padding-left: env(safe-area-inset-left);
+      padding-right: constant(safe-area-inset-right);
+      padding-right: env(safe-area-inset-right);
+      padding-bottom: constant(safe-area-inset-bottom);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* React 컴포넌트에서 쓸 수 있는 유틸리티 클래스 (Tailwind 없는 환경 대비) */
+    .pt-safe {
+      padding-top: env(safe-area-inset-top);
+    }
+
+    .pl-safe {
+      padding-left: env(safe-area-inset-left);
+    }
+
+    .pr-safe {
+      padding-right: env(safe-area-inset-right);
+    }
+
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* iPad Safari 호환성 */
+    @supports (-webkit-touch-callout: none) {
       body {
         -webkit-text-size-adjust: 100%;
         -moz-text-size-adjust: 100%;
         -ms-text-size-adjust: 100%;
         text-size-adjust: 100%;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-      }
-      
-      /* 텍스트 선택 가능한 요소들 */
-      input, textarea, [contenteditable] {
-        -webkit-user-select: text;
-        -moz-user-select: text;
-        -ms-user-select: text;
-        user-select: text;
-      }
-      
-      /* backdrop-filter 호환성 */
-      .backdrop-blur {
-        -webkit-backdrop-filter: blur(8px);
-        backdrop-filter: blur(8px);
-      }
-      
-      .backdrop-blur-sm {
-        -webkit-backdrop-filter: blur(4px);
-        backdrop-filter: blur(4px);
-      }
-      
-      .backdrop-blur-md {
-        -webkit-backdrop-filter: blur(12px);
-        backdrop-filter: blur(12px);
-      }
-      
-      .backdrop-blur-lg {
-        -webkit-backdrop-filter: blur(16px);
-        backdrop-filter: blur(16px);
-      }
-      
-      /* iOS PWA(홈화면 추가)에서 노치/상단 가림 방지: 안전영역 반영 */
-      body.pwa-standalone {
-        padding-top: constant(safe-area-inset-top);
-        padding-top: env(safe-area-inset-top);
-        padding-left: constant(safe-area-inset-left);
-        padding-left: env(safe-area-inset-left);
-        padding-right: constant(safe-area-inset-right);
-        padding-right: env(safe-area-inset-right);
-        padding-bottom: constant(safe-area-inset-bottom);
-        padding-bottom: env(safe-area-inset-bottom);
+        -webkit-tap-highlight-color: transparent;
       }
 
-      /* React 컴포넌트에서 쓸 수 있는 유틸리티 클래스 (Tailwind 없는 환경 대비) */
-      .pt-safe { padding-top: env(safe-area-inset-top); }
-      .pl-safe { padding-left: env(safe-area-inset-left); }
-      .pr-safe { padding-right: env(safe-area-inset-right); }
-      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-      
-      /* iPad Safari 호환성 */
-      @supports (-webkit-touch-callout: none) {
-        body {
-          -webkit-text-size-adjust: 100%;
-          -moz-text-size-adjust: 100%;
-          -ms-text-size-adjust: 100%;
-          text-size-adjust: 100%;
-          -webkit-tap-highlight-color: transparent;
-        }
-        
-        input, textarea, select {
-          -webkit-appearance: none;
-          -moz-appearance: none;
-          appearance: none;
-          border-radius: 0;
-        }
-        
-        button {
-          -webkit-appearance: none;
-          -moz-appearance: none;
-          appearance: none;
-          border-radius: 0;
-        }
+      input,
+      textarea,
+      select {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        border-radius: 0;
       }
-      
-      /* iPad Safari viewport fix */
-      @media screen and (min-width: 768px) and (max-width: 1024px) {
-        body {
-          -webkit-text-size-adjust: 100%;
-          -moz-text-size-adjust: 100%;
-          -ms-text-size-adjust: 100%;
-          text-size-adjust: 100%;
-        }
+
+      button {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        border-radius: 0;
       }
-      
-      /* 시계 바늘 애니메이션 */
-      @keyframes clock-rotation {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+    }
+
+    /* iPad Safari viewport fix */
+    @media screen and (min-width: 768px) and (max-width: 1024px) {
+      body {
+        -webkit-text-size-adjust: 100%;
+        -moz-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
       }
-      .animate-clock-rotation {
-        animation: clock-rotation 2s linear infinite;
+    }
+
+    /* 시계 바늘 애니메이션 */
+    @keyframes clock-rotation {
+      from {
+        transform: rotate(0deg);
       }
-      
-      /* 팝업 메시지 애니메이션 */
-      @keyframes popup-fade-in {
-        from { opacity: 0; transform: translateY(-20px) scale(0.9); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
+
+      to {
+        transform: rotate(360deg);
       }
-      @keyframes popup-fade-out {
-        from { opacity: 1; transform: translateY(0) scale(1); }
-        to { opacity: 0; transform: translateY(-20px) scale(0.9); }
+    }
+
+    .animate-clock-rotation {
+      animation: clock-rotation 2s linear infinite;
+    }
+
+    /* 팝업 메시지 애니메이션 */
+    @keyframes popup-fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
       }
-      .animate-popup-in {
-        animation: popup-fade-in 0.3s ease-out forwards;
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
-      .animate-popup-out {
-        animation: popup-fade-out 0.3s ease-out forwards;
+    }
+
+    @keyframes popup-fade-out {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
-      
-      /* ContentEditable placeholder */
-      [contenteditable] {
-        outline: none;
-        line-height: 1.5;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
+
+      to {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
       }
-      
-      /* 붙여넣기된 내용 스타일 개선 */
-      [contenteditable] p {
-        margin: 0.5em 0;
-        line-height: 1.5;
-      }
-      
-      [contenteditable] h1, [contenteditable] h2, [contenteditable] h3, 
-      [contenteditable] h4, [contenteditable] h5, [contenteditable] h6 {
-        margin: 0.8em 0 0.4em 0;
-        font-weight: bold;
-      }
-      
-      [contenteditable] strong, [contenteditable] b {
-        font-weight: bold;
-      }
-      
-      [contenteditable] em, [contenteditable] i {
-        font-style: italic;
-      }
-      
-      [contenteditable] u {
-        text-decoration: underline;
-      }
-      
-      [contenteditable]:empty:before {
-        content: attr(data-placeholder);
-        color: #9ca3af;
-        pointer-events: none;
-      }
-      
-      .dark [contenteditable]:empty:before {
-        color: #6b7280;
-      }
-      
-      /* ContentEditable 목록 스타일 */
-      [contenteditable] ul {
-        margin: 0;
-        padding-left: 1.5rem;
-        list-style-type: disc;
-      }
-      
-      [contenteditable] li {
-        margin: 0;
-        line-height: 1.5;
-      }
-      
-      [contenteditable] ul ul {
-        margin: 0;
-        padding-left: 1.5rem;
-        list-style-type: circle;
-      }
-      
-      [contenteditable] ul ul ul {
-        margin: 0;
-        list-style-type: square;
-      }
-      
-      /* ContentEditable 이미지 스타일 */
-      [contenteditable] img {
-        max-width: 100%;
-        height: auto;
-        cursor: pointer;
-        border: 2px dashed transparent;
-        transition: border-color 0.2s ease;
-        position: relative;
-        display: inline-block;
-      }
-      
-      [contenteditable] img:hover {
-        border-color: #3b82f6;
-      }
-      
-      [contenteditable] img.selected {
-        border-color: #3b82f6;
-        border-style: solid;
-      }
-      
-      /* 이미지 리사이즈 핸들 */
-      .resize-handle {
-        position: absolute;
-        background: #3b82f6;
-        border: 2px solid white;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        cursor: nw-resize;
-        z-index: 10000;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-      }
-      
-      .resize-handle.se {
-        bottom: -6px;
-        right: -6px;
-        cursor: se-resize;
-      }
-      
-      .resize-handle.sw {
-        bottom: -6px;
-        left: -6px;
-        cursor: sw-resize;
-      }
-      
-      .resize-handle.ne {
-        top: -6px;
-        right: -6px;
-        cursor: ne-resize;
-      }
-      
-      .resize-handle.nw {
-        top: -6px;
-        left: -6px;
-        cursor: nw-resize;
-      }
-      
-      /* 이미지 컨테이너 */
-      .image-container {
-        position: relative;
-        display: inline-block;
-      }
-      
-      /* 이미지 크기 조절 버튼 */
-      .resize-controls {
-        position: absolute !important;
-        top: -40px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        display: flex !important;
-        gap: 8px !important;
-        background: rgba(0, 0, 0, 0.9) !important;
-        padding: 8px 12px !important;
-        border-radius: 25px !important;
-        z-index: 10001 !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-      }
-      
-      .resize-btn {
-        background: #3b82f6 !important;
-        color: white !important;
-        border: none !important;
-        width: 28px !important;
-        height: 28px !important;
-        border-radius: 50% !important;
-        cursor: pointer !important;
-        font-size: 16px !important;
-        font-weight: bold !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        transition: all 0.2s ease !important;
-        line-height: 1 !important;
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-        user-select: none !important;
-      }
-      
-      .resize-btn:hover {
-        background: #2563eb !important;
-        transform: scale(1.1) !important;
-      }
-      
-      .resize-btn:active {
-        background: #1d4ed8 !important;
-        transform: scale(0.95) !important;
-      }
-      
-      /* contentEditable placeholder */
-      [contenteditable]:empty:before {
-        content: attr(data-placeholder);
-        color: #9ca3af;
-        pointer-events: none;
-      }
-      
-      .dark [contenteditable]:empty:before {
-        color: #6b7280;
-      }
-    </style>
+    }
+
+    .animate-popup-in {
+      animation: popup-fade-in 0.3s ease-out forwards;
+    }
+
+    .animate-popup-out {
+      animation: popup-fade-out 0.3s ease-out forwards;
+    }
+
+    /* ContentEditable placeholder */
+    [contenteditable] {
+      outline: none;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    /* 붙여넣기된 내용 스타일 개선 */
+    [contenteditable] p {
+      margin: 0.5em 0;
+      line-height: 1.5;
+    }
+
+    [contenteditable] h1,
+    [contenteditable] h2,
+    [contenteditable] h3,
+    [contenteditable] h4,
+    [contenteditable] h5,
+    [contenteditable] h6 {
+      margin: 0.8em 0 0.4em 0;
+      font-weight: bold;
+    }
+
+    [contenteditable] strong,
+    [contenteditable] b {
+      font-weight: bold;
+    }
+
+    [contenteditable] em,
+    [contenteditable] i {
+      font-style: italic;
+    }
+
+    [contenteditable] u {
+      text-decoration: underline;
+    }
+
+    [contenteditable]:empty:before {
+      content: attr(data-placeholder);
+      color: #9ca3af;
+      pointer-events: none;
+    }
+
+    .dark [contenteditable]:empty:before {
+      color: #6b7280;
+    }
+
+    /* ContentEditable 목록 스타일 */
+    [contenteditable] ul {
+      margin: 0;
+      padding-left: 1.5rem;
+      list-style-type: disc;
+    }
+
+    [contenteditable] li {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    [contenteditable] ul ul {
+      margin: 0;
+      padding-left: 1.5rem;
+      list-style-type: circle;
+    }
+
+    [contenteditable] ul ul ul {
+      margin: 0;
+      list-style-type: square;
+    }
+
+    /* ContentEditable 이미지 스타일 */
+    [contenteditable] img {
+      max-width: 100%;
+      height: auto;
+      cursor: pointer;
+      border: 2px dashed transparent;
+      transition: border-color 0.2s ease;
+      position: relative;
+      display: inline-block;
+    }
+
+    [contenteditable] img:hover {
+      border-color: #3b82f6;
+    }
+
+    [contenteditable] img.selected {
+      border-color: #3b82f6;
+      border-style: solid;
+    }
+
+    /* 이미지 리사이즈 핸들 */
+    .resize-handle {
+      position: absolute;
+      background: #3b82f6;
+      border: 2px solid white;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      cursor: nw-resize;
+      z-index: 10000;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .resize-handle.se {
+      bottom: -6px;
+      right: -6px;
+      cursor: se-resize;
+    }
+
+    .resize-handle.sw {
+      bottom: -6px;
+      left: -6px;
+      cursor: sw-resize;
+    }
+
+    .resize-handle.ne {
+      top: -6px;
+      right: -6px;
+      cursor: ne-resize;
+    }
+
+    .resize-handle.nw {
+      top: -6px;
+      left: -6px;
+      cursor: nw-resize;
+    }
+
+    /* 이미지 컨테이너 */
+    .image-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    /* 이미지 크기 조절 버튼 */
+    .resize-controls {
+      position: absolute !important;
+      top: -40px !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      display: flex !important;
+      gap: 8px !important;
+      background: rgba(0, 0, 0, 0.9) !important;
+      padding: 8px 12px !important;
+      border-radius: 25px !important;
+      z-index: 10001 !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+    .resize-btn {
+      background: #3b82f6 !important;
+      color: white !important;
+      border: none !important;
+      width: 28px !important;
+      height: 28px !important;
+      border-radius: 50% !important;
+      cursor: pointer !important;
+      font-size: 16px !important;
+      font-weight: bold !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: all 0.2s ease !important;
+      line-height: 1 !important;
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+
+    .resize-btn:hover {
+      background: #2563eb !important;
+      transform: scale(1.1) !important;
+    }
+
+    .resize-btn:active {
+      background: #1d4ed8 !important;
+      transform: scale(0.95) !important;
+    }
+
+    /* contentEditable placeholder */
+    [contenteditable]:empty:before {
+      content: attr(data-placeholder);
+      color: #9ca3af;
+      pointer-events: none;
+    }
+
+    .dark [contenteditable]:empty:before {
+      color: #6b7280;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -540,30 +556,32 @@
   }
 }
 </script>
-<script>
-// iPad Safari 호환성을 위한 fallback
-if (!window.customElements) {
-  window.customElements = {
-    define: function() {},
-    get: function() { return undefined; },
-    whenDefined: function() { return Promise.resolve(); }
-  };
-}
-</script>
+  <script>
+    // iPad Safari 호환성을 위한 fallback
+    if (!window.customElements) {
+      window.customElements = {
+        define: function () { },
+        get: function () { return undefined; },
+        whenDefined: function () { return Promise.resolve(); }
+      };
+    }
+  </script>
 
 </head>
-  <body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-    <script>
-      // iOS PWA(홈화면 추가) 감지 후 안전영역 패딩 적용
-      (function() {
-        const isIOS = /iphone|ipod|ipad/i.test(navigator.userAgent);
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator.standalone === true);
-        if (isIOS && isStandalone) {
-          document.body.classList.add('pwa-standalone');
-        }
-      })();
-    </script>
-  </body>
+
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+  <script>
+    // iOS PWA(홈화면 추가) 감지 후 안전영역 패딩 적용
+    (function () {
+      const isIOS = /iphone|ipod|ipad/i.test(navigator.userAgent);
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator.standalone === true);
+      if (isIOS && isStandalone) {
+        document.body.classList.add('pwa-standalone');
+      }
+    })();
+  </script>
+</body>
+
 </html>

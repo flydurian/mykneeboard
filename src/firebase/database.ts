@@ -10,10 +10,13 @@ let isOfflineMode = false;
 // Firebase 연결 상태 관리
 export const setFirebaseOfflineMode = (offline: boolean) => {
   isOfflineMode = offline;
-  if (offline) {
-    goOffline(database);
-  } else {
-    goOnline(database);
+  
+  if (database) {
+    if (offline) {
+      goOffline(database);
+    } else {
+      goOnline(database);
+    }
   }
 };
 
@@ -748,16 +751,65 @@ export const saveUserSettings = async (userId: string, settings: { airline?: str
 // 사용자 설정 정보 가져오기 (암호화 없음)
 export const getUserSettings = async (userId: string) => {
   try {
+    // 오프라인이거나 Firebase 연결이 끊긴 경우 IndexedDB에서 먼저 시도
+    if (isFirebaseOffline()) {
+      const localSettings = await indexedDBCache.loadUserSettings(userId);
+      if (localSettings) {
+        return {
+          airline: localSettings.company || 'OZ',
+          base: localSettings.base ? String(localSettings.base).toUpperCase() : undefined
+        };
+      }
+    }
+
     const settingsPath = `users/${userId}/settings`;
     const settings = await readData(settingsPath);
     
     if (!settings) {
+      // 원격 데이터가 없으면 IndexedDB에서 다시 시도
+      const localSettings = await indexedDBCache.loadUserSettings(userId);
+      if (localSettings) {
+        return {
+          airline: localSettings.company || 'OZ',
+          base: localSettings.base ? String(localSettings.base).toUpperCase() : undefined
+        };
+      }
       return { airline: 'OZ' }; // 기본값 설정
     }
     
-    return settings;
+    const normalizedSettings = {
+      ...settings,
+      base: settings.base ? String(settings.base).toUpperCase() : settings.base
+    };
+
+    // 최신 설정을 IndexedDB에 동기화 (오프라인 대비)
+    try {
+      const company = normalizedSettings.airline || normalizedSettings.company;
+      const base = normalizedSettings.base;
+      if (company || base) {
+        await indexedDBCache.saveUserSettings(userId, { company, base });
+      }
+    } catch (e) {
+      console.warn('⚠️ IndexedDB 사용자 설정 업데이트 경고:', e);
+    }
+    
+    return normalizedSettings;
   } catch (error) {
     console.error('Error getting user settings:', error);
+    
+    // 오류 시 IndexedDB에서 최후로 시도
+    try {
+      const localSettings = await indexedDBCache.loadUserSettings(userId);
+      if (localSettings) {
+        return {
+          airline: localSettings.company || 'OZ',
+          base: localSettings.base ? String(localSettings.base).toUpperCase() : undefined
+        };
+      }
+    } catch (e) {
+      console.warn('⚠️ IndexedDB 사용자 설정 로드 실패:', e);
+    }
+    
     return { airline: 'OZ' }; // 오류 시 기본값 반환
   }
 };
@@ -1019,18 +1071,22 @@ export const getCityMemos = async (userId: string): Promise<{[key: string]: stri
 // REST 정보 타입 정의
 export interface RestInfo {
   activeTab: '2set' | '3pilot';
-  twoSetMode: '1교대' | '2교대';
+  twoSetMode: '1교대' | '2교대' | '5P';
   flightTime: string;
+  flightTime5P: string;
   flightTime3Pilot: string;
   departureTime: string;
   crz1Time: string;
+  crz1Time5P: string;
   afterTakeoff: string;
   afterTakeoff1교대: string;
+  afterTakeoff5P: string;
   afterTakeoff3Pilot: string;
+  afterTakeoff3PilotCase2?: string;
   beforeLanding: string;
   beforeLanding1교대: string;
   timeZone: string;
-  threePilotCase: '1교대' | '2교대' | '3교대';
+  threePilotCase: 'CASE1' | 'CASE2';
   lastUpdated: string;
 }
 

@@ -2,18 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Flight } from '../../types';
 import { XIcon, InfoIcon, MetarIcon, MemoIcon } from '../icons';
 import { networkDetector } from '../../utils/networkDetector';
+import { decodeDatis, formatDatisInfo, DatisDecodedInfo } from '../../utils/datisDecoder';
+import { decodeTaf, formatTafInfo, TafDecodedInfo } from '../../utils/tafDecoder';
 import { getICAO, getCityName, getCurrency, getExchangeRateUrl, getUTCOffset, getCityInfo, getCountry } from '../../utils/cityData';
 import { isActualFlight } from '../../utils/helpers';
-import { 
+import { formatInTimeZone } from 'date-fns-tz';
+import {
     SunIcon as HeroSunIcon,
     CloudIcon,
     BoltIcon,
     EyeSlashIcon,
     EyeIcon
 } from '@heroicons/react/24/outline';
-import { 
-    WiRain, 
-    WiSnow, 
+import {
+    WiRain,
+    WiSnow,
     WiFog,
     WiDaySunny,
     WiNightClear,
@@ -58,7 +61,7 @@ interface CityScheduleModalProps {
 // 국기 아이콘을 가져오는 함수
 const getCountryFlag = (country: string | null): string => {
     if (!country) return '🏳️';
-    
+
     const flagMap: { [key: string]: string } = {
         'South Korea': '🇰🇷',
         'United States': '🇺🇸',
@@ -112,7 +115,7 @@ const getCountryFlag = (country: string | null): string => {
         'Kazakhstan': '🇰🇿',
         'Egypt': '🇪🇬'
     };
-    
+
     return flagMap[country] || '🏳️';
 };
 
@@ -146,7 +149,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             console.warn(`캐시 데이터 저장 실패: ${key}`, error);
         }
     };
-    
+
     const [showWeather, setShowWeather] = useState(false);
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [loadingWeather, setLoadingWeather] = useState(false);
@@ -163,7 +166,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
     const [taf, setTaf] = useState<string | null>(null);
     const [loadingMetarTaf, setLoadingMetarTaf] = useState(false);
     const [metarTafError, setMetarTafError] = useState<string | null>(null);
-    const [showDecoded, setShowDecoded] = useState(true); // 기본적으로 디코딩된 정보 표시
+    const [showDecoded, setShowDecoded] = useState(false); // 기본적으로 RAW 정보 표시
     const [showDatis, setShowDatis] = useState(false);
     const [datisInfo, setDatisInfo] = useState<string | null>(null);
     const [loadingDatis, setLoadingDatis] = useState(false);
@@ -183,21 +186,21 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 const cachedData = getCachedData(`air_pollution_${city}`);
                 if (cachedData) {
                     setAirPollution(cachedData);
-                        return;
+                    return;
                 }
 
                 const aqiResponse = await fetch(`/api/air-pollution?lat=${cityInfo.lat}&lon=${cityInfo.lon}`);
-                
+
                 if (aqiResponse.ok) {
                     const aqiData = await aqiResponse.json();
                     setAirPollution(aqiData);
-                    
+
                     setCachedData(`air_pollution_${city}`, aqiData);
                 } else {
                     const errorText = await aqiResponse.text();
-                    console.error('🔍 AQI API 오류:', { 
-                        city, 
-                        status: aqiResponse.status, 
+                    console.error('🔍 AQI API 오류:', {
+                        city,
+                        status: aqiResponse.status,
                         statusText: aqiResponse.statusText,
                         error: errorText,
                         lat: cityInfo.lat,
@@ -205,8 +208,8 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                     });
                 }
             } catch (error) {
-                console.error('🔍 AQI 데이터를 가져올 수 없습니다:', { 
-                    city, 
+                console.error('🔍 AQI 데이터를 가져올 수 없습니다:', {
+                    city,
                     error: error instanceof Error ? error.message : error,
                     lat: cityInfo?.lat,
                     lon: cityInfo?.lon
@@ -220,21 +223,21 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
     // RMK 섹션 디코딩 함수
     const decodeRemarks = (rmkParts: string[]) => {
         let decodedRemarks: string[] = [];
-        
+
         rmkParts.forEach(part => {
             // AO1, AO2 - 자동 관측 장비
             if (/^AO[12]$/.test(part)) {
                 decodedRemarks.push(`${part}: Automatic observation ${part === 'AO1' ? 'without precipitation sensor' : 'with precipitation sensor'}`);
             }
             // SLP - 해면기압
-                else if (/^SLP\d{3}$/.test(part)) {
+            else if (/^SLP\d{3}$/.test(part)) {
                 const pressure = part.substring(3);
                 // SLP236 -> 1023.6 hPa (앞자리 10, 뒤 2자리.마지막자리)
                 const hPa = `10${pressure.substring(0, 2)}.${pressure.substring(2)}`;
                 decodedRemarks.push(`SLP: Sea level pressure ${hPa} hPa`);
             }
             // T - 상세 기온/이슬점
-                else if (/^T\d{4}\d{4}$/.test(part)) {
+            else if (/^T\d{4}\d{4}$/.test(part)) {
                 const temp = part.substring(1, 5);
                 const dew = part.substring(5, 9);
                 // T01780156 -> 17.8°C, 15.6°C (첫 자리가 0이면 양수, 1이면 음수)
@@ -330,14 +333,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 decodedRemarks.push('$: Maintenance needed');
             }
             // 1 - 기압 변화 (1시간)
-                else if (/^1\d{4}$/.test(part)) {
+            else if (/^1\d{4}$/.test(part)) {
                 const change = part.substring(1);
                 const direction = change.startsWith('0') ? 'rising' : 'falling';
                 const amount = change.substring(1);
                 decodedRemarks.push(`1: Pressure ${direction} ${amount} hPa in last 1 hour`);
             }
             // 2 - 기압 변화 (3시간)
-                else if (/^2\d{4}$/.test(part)) {
+            else if (/^2\d{4}$/.test(part)) {
                 const change = part.substring(1);
                 const direction = change.startsWith('0') ? 'rising' : 'falling';
                 const amount = change.substring(1);
@@ -367,22 +370,22 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 // ③ 261: 최고 기온 값 (26.1℃)
                 // ④ 0: 최저 기온의 부호 (0=영상, 1=영하)
                 // ⑤ 183: 최저 기온 값 (18.3℃)
-                
+
                 const maxTempSign = tempData.substring(0, 1); // 0
                 const maxTempValue = tempData.substring(1, 4); // 261
                 const minTempSign = tempData.substring(4, 5); // 0
                 const minTempValue = tempData.substring(5, 8); // 183
-                
+
                 // 최고 기온: 부호 + 값
-                const maxTempC = maxTempSign === '0' 
-                    ? `${(parseInt(maxTempValue) / 10).toFixed(1)}` 
+                const maxTempC = maxTempSign === '0'
+                    ? `${(parseInt(maxTempValue) / 10).toFixed(1)}`
                     : `-${(parseInt(maxTempValue) / 10).toFixed(1)}`;
-                
+
                 // 최저 기온: 부호 + 값
-                const minTempC = minTempSign === '0' 
-                    ? `${(parseInt(minTempValue) / 10).toFixed(1)}` 
+                const minTempC = minTempSign === '0'
+                    ? `${(parseInt(minTempValue) / 10).toFixed(1)}`
                     : `-${(parseInt(minTempValue) / 10).toFixed(1)}`;
-                
+
                 decodedRemarks.push(`4: 지난 6시간 동안의 최고 기온은 ${maxTempC}℃, 최저 기온은 ${minTempC}℃였음`);
             }
             // R - 활주로 시정
@@ -438,11 +441,11 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 decodedRemarks.push('NIL: No significant weather');
             }
             // 알 수 없는 코드는 그대로 표시
-                else {
+            else {
                 decodedRemarks.push(part);
             }
         });
-        
+
         return decodedRemarks.join('; ');
     };
 
@@ -460,14 +463,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         let remarks = '';
         let auto = false;
         let corrected = false;
-        
+
         parts.forEach((part, index) => {
             // 공항 코드 (METAR 다음 부분)
             if (index === 1 && /^[A-Z]{4}$/.test(part)) {
                 airport = part;
             }
             // 시간 (Z로 끝나는 6자리 숫자)
-                else if (/^\d{6}Z$/.test(part)) {
+            else if (/^\d{6}Z$/.test(part)) {
                 const day = part.substring(0, 2);
                 const hour = part.substring(2, 4);
                 const minute = part.substring(4, 6);
@@ -482,11 +485,11 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 corrected = true;
             }
             // 바람 (3자리 방향 + 2-3자리 속도 + KT)
-                else if (/^\d{3}\d{2,3}KT$/.test(part)) {
-                    const direction = part.substring(0, 3);
-                    const speed = part.substring(3, part.length - 2);
-                        wind = `${direction}° ${speed}kt`;
-                    }
+            else if (/^\d{3}\d{2,3}KT$/.test(part)) {
+                const direction = part.substring(0, 3);
+                const speed = part.substring(3, part.length - 2);
+                wind = `${direction}° ${speed}kt`;
+            }
             // 바람 (G 포함 - 돌풍)
             else if (/^\d{3}\d{2,3}G\d{2,3}KT$/.test(part)) {
                 const direction = part.substring(0, 3);
@@ -496,14 +499,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             }
             // 바람 (VRB - 가변)
             else if (/^VRB\d{2,3}KT$/.test(part)) {
-                    const speed = part.substring(3, part.length - 2);
-                    wind = `Variable ${speed}kt`;
-                }
+                const speed = part.substring(3, part.length - 2);
+                wind = `Variable ${speed}kt`;
+            }
             // 시정 (4자리 숫자)
-                else if (/^\d{4}$/.test(part)) {
-                    if (part === '9999') {
+            else if (/^\d{4}$/.test(part)) {
+                if (part === '9999') {
                     visibility = '10km+';
-                    } else {
+                } else {
                     visibility = `${part}m`;
                 }
             }
@@ -575,21 +578,21 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 weather += intensity + (weatherMap[code] || code) + ' ';
             }
             // 구름 (FEW, SCT, BKN, OVC + 높이 + CB/TCU)
-                else if (/^(FEW|SCT|BKN|OVC)\d{3}(CB|TCU)?$/.test(part)) {
-                    const type = part.substring(0, 3);
-                    const height = parseInt(part.substring(3, 6)) * 100;
-                    const cloudType = part.substring(6);
-                    const typeMap: { [key: string]: string } = {
-                        'FEW': 'Few',
-                        'SCT': 'Scattered',
-                        'BKN': 'Broken',
-                        'OVC': 'Overcast'
-                    };
-                    const cloudTypeMap: { [key: string]: string } = {
-                        'CB': ' Cumulonimbus', 'TCU': ' Towering Cumulus'
-                    };
-                    clouds += `${typeMap[type]} ${height}ft${cloudTypeMap[cloudType] || ''} `;
-                }
+            else if (/^(FEW|SCT|BKN|OVC)\d{3}(CB|TCU)?$/.test(part)) {
+                const type = part.substring(0, 3);
+                const height = parseInt(part.substring(3, 6)) * 100;
+                const cloudType = part.substring(6);
+                const typeMap: { [key: string]: string } = {
+                    'FEW': 'Few',
+                    'SCT': 'Scattered',
+                    'BKN': 'Broken',
+                    'OVC': 'Overcast'
+                };
+                const cloudTypeMap: { [key: string]: string } = {
+                    'CB': ' Cumulonimbus', 'TCU': ' Towering Cumulus'
+                };
+                clouds += `${typeMap[type]} ${height}ft${cloudTypeMap[cloudType] || ''} `;
+            }
             // 구름 (CAVOK)
             else if (part === 'CAVOK') {
                 clouds = 'CAVOK (Ceiling and Visibility OK)';
@@ -603,14 +606,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 clouds = 'NCD (No Cloud Detected)';
             }
             // 기온/이슬점
-                else if (/^M?\d{2}\/M?\d{2}$/.test(part)) {
+            else if (/^M?\d{2}\/M?\d{2}$/.test(part)) {
                 const [tempVal, dewVal] = part.split('/');
                 const tempC = tempVal.startsWith('M') ? `-${tempVal.substring(1)}` : tempVal;
                 const dewC = dewVal.startsWith('M') ? `-${dewVal.substring(1)}` : dewVal;
                 temp = `${tempC}°C / ${dewC}°C`;
             }
             // 기압 (QNH - hPa)
-                else if (/^Q\d{4}$/.test(part)) {
+            else if (/^Q\d{4}$/.test(part)) {
                 pressure = `QNH ${part.substring(1)} hPa`;
             }
             // 기압 (A - inHg)
@@ -620,8 +623,8 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 pressure = `Altimeter ${inHg} inHg`;
             }
         });
-        
-        return { 
+
+        return {
             airport,
             time,
             wind: wind || '',
@@ -636,7 +639,8 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         };
     };
 
-    // TAF 완전 해석 함수
+    // TAF 디코딩은 이제 별도 모듈에서 처리
+    /*
     const decodeTaf = (tafText: string) => {
         const parts = tafText.split(' ');
         let airport = '';
@@ -1045,21 +1049,22 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             forecasts
         };
     };
+    */
 
     // Sub-functions for efficiency and readability
     const parseRmk = (rmkContent: string) => {
         const decoded = [];
         if (rmkContent.includes('AO2')) decoded.push('Automated Weather Station (AO2)');
-        
+
         const pkWndMatch = rmkContent.match(/PK\s+WND\s+(\d{3})(\d{2})\/(\d{4})/i);
         if (pkWndMatch) decoded.push(`Peak Wind: ${pkWndMatch[1]}° at ${pkWndMatch[2]}kt at ${pkWndMatch[3]}Z`);
-        
+
         const slpMatch = rmkContent.match(/SLP(\d{3})/i);
         if (slpMatch) {
             const pressure = (parseInt(slpMatch[1], 10) / 10 + (parseInt(slpMatch[1], 10) < 500 ? 1000 : 900)).toFixed(1); // FAA standard for SLP
             decoded.push(`Sea Level Pressure: ${pressure} hPa`);
         }
-        
+
         // FAA AIM 7-1-9 기준: T 코드는 온도/이슬점을 나타냄 (T02110178 = 온도 2.1°C, 이슬점 1.8°C)
         const tMatch = rmkContent.match(/T(\d{4})(\d{4})/i);
         if (tMatch) {
@@ -1067,7 +1072,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             const dew = parseInt(tMatch[2], 10) / 10;
             decoded.push(`Temperature: ${temp.toFixed(1)}°C, Dew Point: ${dew.toFixed(1)}°C`);
         }
-        
+
         // Pressure Tendency (5xxxx) per FAA AIM
         const pressureMatch = rmkContent.match(/5(\d)(\d{3})/);
         if (pressureMatch) {
@@ -1076,7 +1081,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             const tendencies = ['Increasing then decreasing', 'Increasing then steady', 'Increasing', 'Decreasing or steady then increasing', 'Steady', 'Decreasing then increasing', 'Decreasing then steady', 'Decreasing', 'Steady or increasing then decreasing', 'Unsteady'];
             decoded.push(`Pressure Tendency: ${tendencies[parseInt(tendencyCode)] || 'Unknown'}, Change: ${change} hPa`);
         }
-        
+
         return [...new Set(decoded)]; // Deduplicate
     };
 
@@ -1086,18 +1091,18 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             // 복합 패턴 (활주로 번호 포함)
             { type: 'INST APCHS AND RNAV RNP APCHS', pattern: /INST\s+APCHS?\s+AND\s+RNAV\s+RNP\s+APCHS?\s+R(?:WY?|Y)\s+([0-9]{2}[LRC]?\s+(?:AND|and)\s+[0-9]{2}[LRC]?)/gi },
             { type: 'RNAV RNP APCHS', pattern: /RNAV\s+RNP\s+APCHS?\s+R(?:WY?|Y)\s+([0-9]{2}[LRC]?\s+(?:AND|and)\s+[0-9]{2}[LRC]?)/gi },
-            
+
             // 개별 ILS 패턴
             { type: 'ILS', pattern: /ILS\s+R(?:WY?|Y)\s+([0-9]{2}[LRC]?)/gi },
-            
+
             // Visual Approach 패턴
             { type: 'VISUAL APCH', pattern: /VISUAL\s+APCH\s+R(?:WY?|Y)\s+([0-9]{2}[LRC]?)/gi },
-            
+
             // 일반적인 패턴 (활주로 번호 없음)
             { type: 'OR VCTR FOR VISUAL APCH', pattern: /OR\s+VCTR\s+FOR\s+VISUAL\s+APCH\s+WILL\s+BE\s+PROVIDED/gi },
             { type: 'SIMUL VISUAL APCHS TO ALL RWYS', pattern: /SIMUL\s+VISUAL\s+APCHS?\s+TO\s+ALL\s+RWYS\s+ARE\s+IN\s+PROG/gi }
         ];
-        
+
         const approaches: string[] = [];
         approachPatterns.forEach(({ type, pattern }) => {
             const matches = [...text.matchAll(pattern)];
@@ -1112,7 +1117,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 }
             });
         });
-        
+
         return [...new Set(approaches)]; // Deduplicate
     };
 
@@ -1125,7 +1130,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
     const parseNotams = (text: string, matchedTexts: Set<string>) => {
         // FAA AIM 7-1-9 기준: NOTAM 정보 디코딩
         const notamContent: string[] = [];
-        
+
         // TWY CLSD BTN 패턴 (FAA AIM 표준) - 더 정확한 패턴
         const twyClsdBtwnMatches = [...text.matchAll(/\bTWY\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)\s+(?:BTN|BETWEEN)\s+([^\.]+?)(?=\s*,\s*|\.|$)/gi)];
         twyClsdBtwnMatches.forEach(match => {
@@ -1136,7 +1141,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 notamContent.push(`TWY ${match[1]} Closed Between ${cleanedText}`);
             }
         });
-        
+
         // PAPI OTS (FAA AIM 표준)
         const papiOtsMatches = [...text.matchAll(/\bPAPI\s+OTS\s+([0-9]{2}[LRC]?)/gi)];
         papiOtsMatches.forEach(match => {
@@ -1146,7 +1151,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 notamContent.push(`PAPI OTS on RWY ${match[1]}`);
             }
         });
-        
+
         // VOR OTS (FAA AIM 표준)
         const vorOtsMatches = [...text.matchAll(/\b([A-Z]+)\s+VOR\s+OTS\b/gi)];
         vorOtsMatches.forEach(match => {
@@ -1156,7 +1161,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 notamContent.push(`${match[1]} VOR OTS`);
             }
         });
-        
+
         return notamContent;
     };
 
@@ -1176,45 +1181,71 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
     };
 
 
-    // DATIS 디코더: FAA AIM 7-1-9 기준에 따른 ATIS 문구 파싱
+    // DATIS 디코딩은 이제 별도 모듈에서 처리
+    /*
     const decodeDatis = (datisText: string) => {
         const text = (datisText || '').replace(/\n/g, ' ').trim();
+        
+        // FAA 표준 정규화: RWY, RY → RWY, 표준 구두점 처리
         const normText = text
             .replace(/\bRY\b/gi, 'RWY')
+            .replace(/\bRWYS?\b/gi, 'RWY')
             .replace(/AND,/gi, 'AND')
             .replace(/\s+,/g, ',')
             .replace(/,\s+/g, ', ')
-            .replace(/\s{2,}/g, ' ');
+            .replace(/\s{2,}/g, ' ')
+            .replace(/\bAPCH\b/gi, 'APPROACH')
+            .replace(/\bDEPG\b/gi, 'DEPARTURES')
+            .replace(/\bTWY\b/gi, 'TAXIWAY')
+            .replace(/\bCLSD\b/gi, 'CLOSED')
+            .replace(/\bBTN\b/gi, 'BETWEEN')
+            .replace(/\bCTC\b/gi, 'CONTACT')
+            .replace(/\bGC\b/gi, 'GROUND CONTROL');
 
+        // FAA 표준 ATIS 정보 헤더 파싱 (INFO [LETTER] [TIME]Z)
         const infoMatch = text.match(/\bINFO\s+([A-Z])\s+(\d{3,4})Z/i);
+        
+        // FAA 표준 바람 정보 (VRB 또는 3자리 방향 + 2-3자리 속도 + 선택적 GUST)
         const windParts = text.match(/\b(VRB|\d{3})(\d{2,3})(?:G(\d{2,3}))?KT\b/);
+        
+        // FAA 표준 가시거리 (P6SM = 6마일 이상, 또는 1-2자리 + SM)
         const visMatch = text.match(/\b(P6|\d{1,2})SM\b/);
+        
+        // FAA 표준 구름 정보 (FEW/SCT/BKN/OVC + 3자리 높이)
         const cloudMatches = [...text.matchAll(/\b(FEW|SCT|BKN|OVC)(\d{3})\b/gi)].map(m => ({
-            amount: m[1].toUpperCase(), heightFt: parseInt(m[2], 10) * 100
+            amount: m[1].toUpperCase(), 
+            heightFt: parseInt(m[2], 10) * 100
         }));
+        
+        // FAA 표준 온도/이슬점 (온도/이슬점)
         const tempDewMatch = text.match(/\b(\d{1,2})\/(\d{1,2})\b/);
-        const altimMatchA = text.match(/\bA(\d{4})\b/i); // inHg
-        const altimMatchQ = text.match(/\bQ(\d{4})\b/i); // hPa
-        // 다양한 approach 패턴 검색
-        // APPROACH IN USE ILS RY 4R, ILS RY 4L 패턴을 모두 매칭
-        const approachMatch = text.match(/APPROACH IN USE\s+([^\.]+?)(?=\s*\.|$)/i);
-        // 추가 approach 패턴들
+        
+        // FAA 표준 기압 (A = inHg, Q = hPa/mb)
+        const altimMatchA = text.match(/\bA(\d{4})\b/i); // inHg (미국 표준)
+        const altimMatchQ = text.match(/\bQ(\d{4})\b/i); // hPa (국제 표준)
+        // FAA 표준 접근 방식 패턴 검색
+        // APPROACH IN USE 패턴 (FAA 표준)
+        const approachMatch = text.match(/APPROACH\s+IN\s+USE\s+([^\.]+?)(?=\s*\.|$)/i);
+        
+        // ILS APPROACH 패턴 (FAA 표준)
         const ilsApproachMatch = text.match(/ILS\s+APPROACH\s+([^\.,]+)/i);
         
-        // ILS RWY XX APP IN USE 패턴
-        const ilsRwyAppMatch = text.match(/ILS\s+RY\s+([0-9]{2}[LRC]?)\s+APP\s+IN\s+USE/i);
+        // ILS RWY XX APPROACH IN USE 패턴 (FAA 표준)
+        const ilsRwyAppMatch = text.match(/ILS\s+RWY\s+([0-9]{2}[LRC]?)\s+APPROACH\s+IN\s+USE/i);
         
+        // VISUAL APPROACH 패턴 (FAA 표준)
         const visualApproachMatch = text.match(/VISUAL\s+APPROACH\s+([^\.,]+)/i);
         
+        // RNAV APPROACH 패턴 (FAA 표준)
         const rnavApproachMatch = text.match(/RNAV\s+APPROACH\s+([^\.,]+)/i);
         
-        // SIMUL CHARTED VISUAL FLIGHT PROCEDURES 추출
-        const simulVisualMatch = text.match(/SIMUL CHARTED VISUAL FLIGHT PROCEDURES RWYS?\s+([^\.]+)/i);
+        // SIMULTANEOUS CHARTED VISUAL FLIGHT PROCEDURES (FAA 표준)
+        const simulVisualMatch = text.match(/SIMULTANEOUS\s+CHARTED\s+VISUAL\s+FLIGHT\s+PROCEDURES\s+RWYS?\s+([^\.]+)/i);
         
-        // INST APCHS AND RNAV RNP APCHS 패턴 추출
-        const instRnavApchsMatch = text.match(/INST\s+APCHS\s+AND\s+RNAV\s+RNP\s+APCHS\s+RY\s+([^\.]+)/i);
+        // INSTRUMENT APPROACHES AND RNAV RNP APPROACHES (FAA 표준)
+        const instRnavApchsMatch = text.match(/INSTRUMENT\s+APPROACHES\s+AND\s+RNAV\s+RNP\s+APPROACHES\s+RWY\s+([^\.]+)/i);
         
-        // 복합 접근 방식 정보를 한 번에 파싱
+        // FAA 표준 복합 접근 방식 정보 파싱
         const approachInfo = {
             simulInstApchs: null,
             rnavRnp: null,
@@ -1222,38 +1253,39 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             simulInstrDep: null
         };
         
-        // SIMUL INST APCHS AND RNAV RNP RWYS 24R AND 25L APCHS 패턴 처리
-        const simulInstRnavMatch = text.match(/SIMUL INST APCHS AND RNAV RNP RWYS?\s+([^\.]+)/i);
+        // SIMULTANEOUS INSTRUMENT APPROACHES AND RNAV RNP RWYS 패턴 (FAA 표준)
+        const simulInstRnavMatch = text.match(/SIMULTANEOUS\s+INSTRUMENT\s+APPROACHES\s+AND\s+RNAV\s+RNP\s+RWYS?\s+([^\.]+)/i);
         
         if (simulInstRnavMatch) {
             approachInfo.simulInstApchs = simulInstRnavMatch[1];
             approachInfo.rnavRnp = simulInstRnavMatch[1];
         } else {
-            // 개별 패턴 매칭
-            const simulInstMatch = text.match(/SIMUL INST APCHS[^\.]*?RWYS?\s+([^\.]+?)(?:\s+APCHS?)?/i);
+            // 개별 패턴 매칭 (FAA 표준)
+            const simulInstMatch = text.match(/SIMULTANEOUS\s+INSTRUMENT\s+APPROACHES[^\.]*?RWYS?\s+([^\.]+?)(?:\s+APPROACHES?)?/i);
             if (simulInstMatch) approachInfo.simulInstApchs = simulInstMatch[1];
             
-            const rnavMatch = text.match(/RNAV RNP RWYS?\s+([^\.]+?)(?:\s+APCHS?)?/i);
+            const rnavMatch = text.match(/RNAV\s+RNP\s+RWYS?\s+([^\.]+?)(?:\s+APPROACHES?)?/i);
             if (rnavMatch) approachInfo.rnavRnp = rnavMatch[1];
         }
         
-        // SIMUL APCHS IN PROG BTWN 추출
-        const simulApchsBtwnMatch = text.match(/SIMUL APCHS IN PROG BTWN\s+([^\.]+?)(?:\s+APCHS?)?/i);
+        // SIMULTANEOUS APPROACHES IN PROGRESS BETWEEN (FAA 표준)
+        const simulApchsBtwnMatch = text.match(/SIMULTANEOUS\s+APPROACHES\s+IN\s+PROGRESS\s+BETWEEN\s+([^\.]+?)(?:\s+APPROACHES?)?/i);
         if (simulApchsBtwnMatch) approachInfo.simulApchsBtwn = simulApchsBtwnMatch[1];
         
-        // SIMUL INSTR DEPARTURES 추출
-        const simulInstrDepMatch = text.match(/SIMUL INSTR DEPARTURES[^\.]*?RWYS?\s+([^\.]+?)(?:\s+IN\s+PROG)?/i);
+        // SIMULTANEOUS INSTRUMENT DEPARTURES (FAA 표준)
+        const simulInstrDepMatch = text.match(/SIMULTANEOUS\s+INSTRUMENT\s+DEPARTURES[^\.]*?RWYS?\s+([^\.]+?)(?:\s+IN\s+PROGRESS)?/i);
         
-        // SIMUL INSTR DEPARTURES IN PROG RWYS 패턴 추출
-        const simulInstrDepProgMatch = text.match(/SIMUL INSTR DEPARTURES IN PROG RWYS\s+([^\.]+)/i);
+        // SIMULTANEOUS INSTRUMENT DEPARTURES IN PROGRESS RWYS (FAA 표준)
+        const simulInstrDepProgMatch = text.match(/SIMULTANEOUS\s+INSTRUMENT\s+DEPARTURES\s+IN\s+PROGRESS\s+RWYS\s+([^\.]+)/i);
         if (simulInstrDepMatch) approachInfo.simulInstrDep = simulInstrDepMatch[1];
         
-        // CTC L A GC (지상 관제 연락) 추출
-        const ctcGcMatch = text.match(/CTC L A GC ON\s+([^\.]+)/i);
+        // CONTACT LOCAL GROUND CONTROL (FAA 표준)
+        const ctcGcMatch = text.match(/CONTACT\s+LOCAL\s+GROUND\s+CONTROL\s+ON\s+([^\.]+)/i);
         
-        // DEPG (이륙 활주로) 추출
-        // DEPG / DEPARTURES 문구 모두 허용, 콤마/AND 정규화
-        const depgMatch = text.match(/DEPG\s+RWYS?\s+([^\.]*)/i) || text.match(/DEPARTURES\s+IN\s+PROG\s+RWYS?\s+([^\.]*)/i) || text.match(/DEPARTURES\s+RWY[S]?\s+([^\.]*)/i);
+        // DEPARTURES (이륙 활주로) 추출 (FAA 표준)
+        const depgMatch = text.match(/DEPARTURES\s+RWYS?\s+([^\.]*)/i) || 
+                         text.match(/DEPARTURES\s+IN\s+PROGRESS\s+RWYS?\s+([^\.]*)/i) || 
+                         text.match(/DEPARTURES\s+RWY[S]?\s+([^\.]*)/i);
         
         // RMK (비고) 섹션 추출 및 디코딩
         const rmkMatch = text.match(/\bRMK\s+([^\.]+)/i);
@@ -1266,33 +1298,33 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         const pressureTendencyCodes = allPressureChangeMatches.filter(m => m[1].startsWith('5'));
         
         
-        // CLSD (폐쇄) 패턴 추출 - 더 정확한 패턴 매칭
-        const clsdMatches = [...normText.matchAll(/\b(TWY|RWY|RY)\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)[^\.]*\.?/gi)];
+        // CLOSED (폐쇄) 패턴 추출 (FAA 표준)
+        const clsdMatches = [...normText.matchAll(/\b(TAXIWAY|RWY|RWY)\s+([A-Z0-9]+)\s+(?:CLOSED)[^\.]*\.?/gi)];
         
-        // TWY CLSD 상세 정보 추출 (CLSD|CLOSED, BTN|BETWEEN 모두 허용)
-        const twyClsdMatches = [...normText.matchAll(/\bTWY\s+([A-Z0-9]+)\s+(?:CLSD|CLOSED)\s+(?:BTN|BETWEEN)\s+([^\.]+)/gi)];
-        const ilsRunwayMatches = [...text.matchAll(/\bILS\s+RY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
-        console.log('ILS Runway Matches:', ilsRunwayMatches);
+        // TAXIWAY CLOSED 상세 정보 추출 (FAA 표준)
+        const twyClsdMatches = [...normText.matchAll(/\bTAXIWAY\s+([A-Z0-9]+)\s+(?:CLOSED)\s+(?:BETWEEN)\s+([^\.]+)/gi)];
         
-        const visualApproachMatches = [...normText.matchAll(/\bVISUAL\s+APCH\s+RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
-        console.log('Visual Approach Matches:', visualApproachMatches);
+        // ILS RWY 매칭 (FAA 표준)
+        const ilsRunwayMatches = [...text.matchAll(/\bILS\s+RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
         
+        // VISUAL APPROACH RWY 매칭 (FAA 표준)
+        const visualApproachMatches = [...normText.matchAll(/\bVISUAL\s+APPROACH\s+RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
+        
+        // RNAV GPS APPROACH 매칭 (FAA 표준)
         const rnavGpsMatches = [...normText.matchAll(/\bRNAV\s+GPS\s+([A-Z]?)\s*RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => ({ type: m[1] || 'Z', runway: m[2] }));
-        console.log('RNAV GPS Matches:', rnavGpsMatches);
         
-        const depRunwayMatches = [...normText.matchAll(/\bDEP(?:G|ARTURE)?\s+RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
-        console.log('Departure Runway Matches:', depRunwayMatches);
+        // DEPARTURE RWY 매칭 (FAA 표준)
+        const depRunwayMatches = [...normText.matchAll(/\bDEPARTURE\s+RWY\s+([0-9]{2}[LRC]?)/gi)].map(m => m[1]);
 
+        // NOTAM 정보 검사 (FAA 표준)
         const hasNotamsWord = /\bNOTAMS?\b/i.test(normText);
         const explicitNoNotams = /\bNO\s+NOTAMS?\b/i.test(normText);
-        const hasClsdInfo = /\b(TWY|RWY|RY|GAT|HELIPAD)[^\.]*\b(CLSD|CLOSED)\b/i.test(normText);
+        
+        // 폐쇄 정보 검사 (FAA 표준)
+        const hasClsdInfo = /\b(TAXIWAY|RWY|GATE|HELIPAD)[^\.]*\b(CLOSED)\b/i.test(normText);
+        
         // NOTAM은 반드시 디코딩 - CLSD 정보가 있으면 NOTAM으로 처리
         const hasNotams = hasClsdInfo || (hasNotamsWord && !explicitNoNotams);
-        
-        console.log('- hasNotamsWord:', hasNotamsWord);
-        console.log('- explicitNoNotams:', explicitNoNotams);
-        console.log('- hasClsdInfo:', hasClsdInfo);
-        console.log('- hasNotams:', hasNotams);
         
         // NOTAM 내용 추출 (시설/장비 관련 공식 통지만)
         const notamContent = [];
@@ -1418,14 +1450,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         const windShearOnFinal = [...text.matchAll(/WIND SHEAR.*?(FINAL|DEPARTURE).*?RWY\s*([0-9]{2}[LRC]?)/gi)];
         const cautionSnippets = [...text.matchAll(/USE CAUTION[^\.]*\./gi)].map(m => m[0].replace(/\.$/, ''));
         
-        // 항공 약어 디코딩
+        // FAA 표준 항공 약어 디코딩 (AIM 7-1-9 기준)
         const aviationAbbreviations = {
             'SFL': 'Sequenced Flashing Lights',
             'OTS': 'Out of Service',
-            'CLSD': 'Closed',
+            'CLOSED': 'Closed',
             'RWY': 'Runway',
-            'RY': 'Runway',
-            'GAT': 'General Aviation Terminal',
+            'TAXIWAY': 'Taxiway',
+            'GATE': 'Gate',
             'RVR': 'Runway Visual Range',
             'ILS': 'Instrument Landing System',
             'LLWS': 'Low Level Wind Shear',
@@ -1436,35 +1468,63 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             'SCT': 'Scattered',
             'BKN': 'Broken',
             'OVC': 'Overcast',
-            'FEW': 'Few'
+            'FEW': 'Few',
+            'APPROACH': 'Approach',
+            'DEPARTURE': 'Departure',
+            'CONTACT': 'Contact',
+            'GROUND CONTROL': 'Ground Control',
+            'SIMULTANEOUS': 'Simultaneous',
+            'INSTRUMENT': 'Instrument',
+            'VISUAL': 'Visual',
+            'RNAV': 'Area Navigation',
+            'RNP': 'Required Navigation Performance',
+            'GPS': 'Global Positioning System'
         };
 
+        // FAA 표준 바람 정보 포맷팅
         let wind: string | null = null;
         if (windParts) {
             const dir = windParts[1];
             const spd = windParts[2];
             const gust = windParts[3];
-            wind = dir === 'VRB' ? `VRB ${spd}kt${gust ? ` gust ${gust}kt` : ''}` : `${dir}° ${spd}kt${gust ? ` gust ${gust}kt` : ''}`;
+            // FAA 표준: VRB 또는 방향각 + 속도 + 선택적 GUST
+            wind = dir === 'VRB' ? 
+                `Variable ${spd} knots${gust ? ` gusting to ${gust} knots` : ''}` : 
+                `${dir} degrees at ${spd} knots${gust ? ` gusting to ${gust} knots` : ''}`;
         }
 
+        // FAA 표준 가시거리 포맷팅
         let visibility: string | null = null;
-        if (visMatch) visibility = visMatch[1] === 'P6' ? '6+ SM' : `${visMatch[1]} SM`;
+        if (visMatch) {
+            visibility = visMatch[1] === 'P6' ? 
+                'Greater than 6 statute miles' : 
+                `${visMatch[1]} statute miles`;
+        }
 
+        // FAA 표준 구름 정보 포맷팅
         const clouds = cloudMatches.length > 0
-            ? cloudMatches.map(c => `${c.amount} ${c.heightFt.toLocaleString()} ft`).join(', ')
+            ? cloudMatches.map(c => {
+                const amount = c.amount === 'FEW' ? 'Few' :
+                              c.amount === 'SCT' ? 'Scattered' :
+                              c.amount === 'BKN' ? 'Broken' :
+                              c.amount === 'OVC' ? 'Overcast' : c.amount;
+                return `${amount} at ${c.heightFt.toLocaleString()} feet`;
+            }).join(', ')
             : null;
 
+        // FAA 표준 기압 정보 포맷팅 (미국은 inHg 우선)
         let altimeterInHg: string | null = null;
         let altimeterHpa: string | null = null;
         if (altimMatchA) {
             const inHg = (parseInt(altimMatchA[1], 10) / 100).toFixed(2);
-            altimeterInHg = `${inHg} inHg`;
+            altimeterInHg = `Altimeter ${inHg} inches of mercury`;
         } else if (altimMatchQ) {
-            altimeterHpa = `${parseInt(altimMatchQ[1], 10)} hPa`;
+            altimeterHpa = `Altimeter ${parseInt(altimMatchQ[1], 10)} hectopascals`;
         }
 
-        const temperature = tempDewMatch ? `${tempDewMatch[1]}°C` : null;
-        const dewpoint = tempDewMatch ? `${tempDewMatch[2]}°C` : null;
+        // FAA 표준 온도/이슬점 포맷팅 (섭씨)
+        const temperature = tempDewMatch ? `Temperature ${tempDewMatch[1]} degrees Celsius` : null;
+        const dewpoint = tempDewMatch ? `Dewpoint ${tempDewMatch[2]} degrees Celsius` : null;
 
         // Use sub-functions for better organization
         const rmkDecoded = parseRmk(rmkContent || '');
@@ -1514,12 +1574,13 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             departures: departures.length > 0 ? departures.join(', ') : null,
         } as const;
     };
+    */
 
 
     // 일출/일몰 시간 상태
-    const [sunTimes, setSunTimes] = useState<{sunrise: string | null, sunset: string | null}>({sunrise: null, sunset: null});
+    const [sunTimes, setSunTimes] = useState<{ sunrise: string | null, sunset: string | null }>({ sunrise: null, sunset: null });
     const [loadingSun, setLoadingSun] = useState(false);
-    
+
 
     // 일출/일몰 시간을 API로 가져오기
     const fetchSunTimes = async (cityCode: string) => {
@@ -1533,24 +1594,31 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
 
             // 온라인 상태에서만 API 호출
             if (networkDetector.getStatus().isOnline) {
-                const response = await fetch(`/api/sunrise?lat=${cityInfo.lat}&lng=${cityInfo.lon}&date=${new Date().toISOString().split('T')[0]}`);
-                
+                const currentDate = new Date().toISOString().split('T')[0];
+                const targetTimezone = cityInfo.timezone || 'UTC';
+                const response = await fetch(`/api/sunrise?lat=${cityInfo.lat}&lng=${cityInfo.lon}&date=${currentDate}&timezone=${encodeURIComponent(targetTimezone)}`);
+
                 if (!response.ok) {
                     throw new Error('일출/일몰 API 호출 실패');
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.results) {
-                    // API에서 받은 시간을 그대로 파싱 (이미 해당 도시의 현지시간)
                     const sunriseTime = data.results.sunrise;
                     const sunsetTime = data.results.sunset;
-                    
-                    // ISO 8601 형식에서 시간 부분만 추출 (예: "2025-09-06T06:40:54+02:00" → "06:40")
-                    const sunriseFormatted = sunriseTime.split('T')[1].split(':').slice(0, 2).join(':');
-                    const sunsetFormatted = sunsetTime.split('T')[1].split(':').slice(0, 2).join(':');
-                    
-                    setSunTimes({ sunrise: sunriseFormatted, sunset: sunsetFormatted });
+
+                    if (sunriseTime && sunsetTime) {
+                        const sunriseDate = new Date(sunriseTime);
+                        const sunsetDate = new Date(sunsetTime);
+
+                        const sunriseFormatted = formatInTimeZone(sunriseDate, targetTimezone, 'HH:mm');
+                        const sunsetFormatted = formatInTimeZone(sunsetDate, targetTimezone, 'HH:mm');
+
+                        setSunTimes({ sunrise: sunriseFormatted, sunset: sunsetFormatted });
+                    } else {
+                        setSunTimes({ sunrise: null, sunset: null });
+                    }
                 } else {
                     throw new Error('API 응답에 results가 없습니다');
                 }
@@ -1574,7 +1642,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         try {
             const cityInfo = getCityInfo(cityCode);
             if (!cityInfo) return 0;
-            
+
             const now = new Date();
             const utcTime = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
             const localTime = new Date(now.toLocaleString('en-US', { timeZone: cityInfo.timezone }));
@@ -1594,12 +1662,12 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         if (!icon) {
             return <WiDaySunny size={48} color="#9ca3af" />;
         }
-        
+
         // 현재 날씨 아이콘인지 확인 (size prop이 '@4x'인 경우)
         const isCurrentWeather = size === '@4x';
         // 작은 화면에서는 더 작은 크기 사용
         const iconSize = isCurrentWeather ? 64 : 48; // 현재 날씨는 64px (작은 화면), 예보는 48px
-        
+
         // 맑음 (낮)
         if (icon === '01d') {
             return <WiDaySunny size={iconSize} color="#f59e0b" />;
@@ -1635,9 +1703,9 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         // 기본값: OpenWeatherMap 아이콘 사용
         return (
             <div className={`bg-white dark:bg-gray-800 rounded-lg p-1 ${className}`}>
-                <img 
-                    src={`https://openweathermap.org/img/wn/${icon}${size}.png`} 
-                    alt="weather icon" 
+                <img
+                    src={`https://openweathermap.org/img/wn/${icon}${size}.png`}
+                    alt="weather icon"
                     className="w-full h-full"
                 />
             </div>
@@ -1662,11 +1730,11 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
     // 스크롤 이벤트 핸들러
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         setShowScrollbar(true);
-        
+
         if (scrollTimeoutRef.current) {
             clearTimeout(scrollTimeoutRef.current);
         }
-        
+
         scrollTimeoutRef.current = setTimeout(() => {
             setShowScrollbar(false);
         }, 1000);
@@ -1680,14 +1748,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 setLoadingWeather(true);
                 setWeatherError(null);
                 const cityName = getCityNameFromCode(city);
-                
+
                 try {
                     // 캐시된 데이터 확인
                     const cachedData = getCachedData(`weather_${city}`);
                     if (cachedData) {
                         setWeather(cachedData);
-                            setLoadingWeather(false);
-                            return;
+                        setLoadingWeather(false);
+                        return;
                     }
 
                     // 온라인 상태에서만 API 호출
@@ -1695,19 +1763,19 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                         // Vercel 서버리스 함수 사용 (OpenWeatherMap 2.5 Forecast API)
                         const cityInfo = getCityInfo(city);
                         const cityId = cityInfo?.openWeatherId || 1843564; // 기본값: 인천
-                        
+
                         const response = await fetch(`/api/weather?id=${cityId}`);
                         if (!response.ok) {
                             const errorData = await response.json();
                             throw new Error(errorData.error || '날씨 정보를 가져올 수 없습니다.');
                         }
                         const weatherData = await response.json();
-                        
+
                         setWeather(weatherData);
-                        
+
                         // AQI 데이터도 가져오기
                         await fetchAQIData(city, cityInfo);
-                        
+
                         setCachedData(`weather_${city}`, weatherData);
                     } else {
                         // 오프라인 상태에서 캐시된 데이터가 있으면 사용
@@ -1718,7 +1786,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                         } else {
                             setWeatherError('오프라인 상태에서 캐시된 날씨 정보가 없습니다.');
                         }
-                        
+
                         // 캐시된 AQI 데이터도 확인
                         const cachedAQIData = getCachedData(`air_pollution_${city}`, 24 * 60 * 60 * 1000); // 24시간
                         if (cachedAQIData) {
@@ -1731,7 +1799,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                     if (offlineCachedData && !networkDetector.getStatus().isOnline) {
                         setWeather(offlineCachedData);
                         setWeatherError('오프라인 모드: 캐시된 데이터를 표시합니다.');
-                        
+
                         // 캐시된 AQI 데이터도 확인
                         const cachedAQIData = getCachedData(`air_pollution_${city}`, 24 * 60 * 60 * 1000); // 24시간
                         if (cachedAQIData) {
@@ -1764,30 +1832,30 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 setLoadingForecast(true);
                 setForecastError(null);
                 const cityName = getCityNameFromCode(city);
-                
+
                 try {
                     // 캐시된 데이터 확인
                     const cachedData = getCachedData(`forecast_${city}`);
                     if (cachedData) {
-                            // 캐시된 데이터를 현지시간으로 다시 계산
-                            const cityInfo = getCityInfo(city);
-                            if (cachedData.next24hForecast && cityInfo) {
-                                const updatedNext24hForecast = cachedData.next24hForecast.map((item: any) => {
-                                    // 원본 UTC 시간을 현지시간으로 변환
-                                    const localTime = new Date(item.dt * 1000).toLocaleString("en-US", { timeZone: cityInfo.timezone });
-                                    const localHour = new Date(localTime).getHours();
-                                    return {
-                                        ...item,
-                                        time: localHour + '시'
-                                    };
-                                });
-                                setThreeHourForecast(updatedNext24hForecast);
-                            } else {
-                                setThreeHourForecast(cachedData.next24hForecast);
-                            }
-                            setForecast(cachedData.processedForecast);
-                            setLoadingForecast(false);
-                            return;
+                        // 캐시된 데이터를 현지시간으로 다시 계산
+                        const cityInfo = getCityInfo(city);
+                        if (cachedData.next24hForecast && cityInfo) {
+                            const updatedNext24hForecast = cachedData.next24hForecast.map((item: any) => {
+                                // 원본 UTC 시간을 현지시간으로 변환
+                                const localTime = new Date(item.dt * 1000).toLocaleString("en-US", { timeZone: cityInfo.timezone });
+                                const localHour = new Date(localTime).getHours();
+                                return {
+                                    ...item,
+                                    time: localHour + '시'
+                                };
+                            });
+                            setThreeHourForecast(updatedNext24hForecast);
+                        } else {
+                            setThreeHourForecast(cachedData.next24hForecast);
+                        }
+                        setForecast(cachedData.processedForecast);
+                        setLoadingForecast(false);
+                        return;
                     }
 
                     // 온라인 상태에서만 API 호출
@@ -1795,32 +1863,32 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                         // Vercel 서버리스 함수 사용 (OpenWeatherMap 2.5 Forecast API)
                         const cityInfo = getCityInfo(city);
                         const cityId = cityInfo?.openWeatherId || 1843564; // 기본값: 인천
-                        
-                        
+
+
                         const response = await fetch(`/api/weather?id=${cityId}`);
-                        
+
                         if (!response.ok) {
                             const errorText = await response.text();
                             console.error('API 오류 응답:', errorText);
                             throw new Error(`예보 정보를 가져올 수 없습니다. (${response.status})`);
                         }
-                        
+
                         const weatherData = await response.json();
-                        
+
                         // 현재 날씨 정보 설정
                         if (weatherData.main && weatherData.weather) {
                             setWeather(weatherData);
                         }
-                        
+
                         const data = weatherData.forecastData; // Forecast API 원본 데이터
 
                         // Forecast API의 list 데이터를 사용 (24시간 예보)
                         const next24hForecast = data.list.slice(0, 8).map((item: any) => {
-                            const localTime = cityInfo ? 
+                            const localTime = cityInfo ?
                                 new Date(item.dt * 1000).toLocaleString("en-US", { timeZone: cityInfo.timezone }) :
                                 new Date(item.dt * 1000);
                             const localHour = new Date(localTime).getHours();
-                            
+
                             return {
                                 time: localHour + '시',
                                 icon: item.weather[0].icon,
@@ -1856,14 +1924,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                 icon: dayData.icon || data.list.find((item: any) => item.dt_txt.startsWith(date)).weather[0].icon,
                             };
                         });
-                        
+
                         setForecast(processedForecast);
 
                         setCachedData(`forecast_${city}`, {
-                                processedForecast,
-                                next24hForecast
+                            processedForecast,
+                            next24hForecast
                         });
-                        
+
                     } else {
                         // 오프라인 상태에서 캐시된 데이터가 있으면 사용
                         const offlineCachedData = getCachedData(`forecast_${city}`, 24 * 60 * 60 * 1000); // 24시간
@@ -1938,17 +2006,17 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 setLoadingMetarTaf(true);
                 setMetarTafError(null);
                 const icaoCode = getIcaoCode(city); // ICAO 코드로 변환
-                
+
                 try {
                     // 캐시된 데이터 확인 (15분 캐시)
                     const cachedMetarData = getCachedData(`metar_${city}`, 15 * 60 * 1000);
                     const cachedTafData = getCachedData(`taf_${city}`, 15 * 60 * 1000);
-                    
+
                     if (cachedMetarData && cachedTafData) {
                         setMetar(cachedMetarData);
                         setTaf(cachedTafData);
-                            setLoadingMetarTaf(false);
-                            return;
+                        setLoadingMetarTaf(false);
+                        return;
                     }
 
                     // 온라인 상태에서만 API 호출
@@ -1957,13 +2025,13 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                         const response = await fetch(`/api/metar?icao=${icaoCode}`);
                         if (!response.ok) throw new Error('METAR/TAF 정보를 가져올 수 없습니다.');
                         const data = await response.json();
-                        
+
                         const metarText = data.metar ? data.metar.raw_text : 'METAR 정보 없음';
                         const tafText = data.taf ? data.taf.raw_text : 'TAF 정보 없음';
-                        
+
                         setMetar(metarText);
                         setTaf(tafText);
-                        
+
                         setCachedData(`metar_${city}`, metarText);
                         setCachedData(`taf_${city}`, tafText);
                     } else {
@@ -1999,80 +2067,52 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
 
     // DATIS API를 사용한 정보 가져오기
     useEffect(() => {
-        console.log('DATIS useEffect 체크:', {
-            showDatis,
-            city,
-            datisInfo: !!datisInfo,
-            cityInfo: cityInfo,
-            country: cityInfo?.country,
-            condition: showDatis && city && !datisInfo && cityInfo?.country === 'United States'
-        });
-        
         if (showDatis && city && !datisInfo && cityInfo?.country === 'United States') {
             const fetchDatis = async () => {
                 setLoadingDatis(true);
                 setDatisError(null);
-                
+
                 try {
-                    // 항상 실제 API를 우선 호출
-                    console.log('🚀 DATIS API 호출 시작:', cityInfo.icao);
+                    // Vercel 서버리스 함수(프록시) 사용
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 10000);
-                    
-                    const datisUrl = `https://datis.clowd.io/api/${cityInfo.icao}`;
-                    const response = await fetch(datisUrl, {
-                        signal: controller.signal,
-                        mode: 'cors',
-                        headers: {
-                            'Accept': 'application/json',
-                        }
+
+                    const response = await fetch(`/api/datis?icao=${cityInfo.icao}`, {
+                        signal: controller.signal
                     });
-                    
+
                     clearTimeout(timeoutId);
-                    
+
                     if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
                     }
-                    
+
                     const data = await response.json();
-                    
+
                     // 디버깅: 실제 응답 구조 확인
                     console.log('DATIS API Response:', data);
-                    console.log('Is Array:', Array.isArray(data));
-                    console.log('Data length:', data?.length);
-                    
+
                     // DATIS 정보 포맷팅 (실제 DATIS API 응답)
-                    let formattedDatis = '';
                     if (Array.isArray(data) && data.length > 0) {
                         // DATIS API는 배열 형태로 응답
-                        const datisInfo = data[0];
-                        console.log('DATIS Info for', cityInfo.icao, ':', datisInfo);
-                        if (datisInfo.datis) {
-                            // DATIS 내용에서 공항 코드가 올바른지 확인
-                            console.log('DATIS Content:', datisInfo.datis);
-                            formattedDatis = `DATIS (${cityInfo.icao}) - INFO ${datisInfo.code || 'N/A'} ${datisInfo.time || ''}Z:\n\n${datisInfo.datis}`;
+                        const datisItem = data[0];
+                        if (datisItem.datis) {
+                            // RAW 데이터 저장
+                            setDatisInfo(datisItem.datis);
                         } else {
-                            formattedDatis = `DATIS (${cityInfo.icao}):\n정보를 사용할 수 없습니다.`;
+                            setDatisError('정보를 사용할 수 없습니다.');
                         }
                     } else if (data.error) {
-                        formattedDatis = `DATIS (${cityInfo.icao}):\n정보를 사용할 수 없습니다.\n\n오류: ${data.error}`;
+                        setDatisError(data.error);
                     } else {
-                        formattedDatis = `DATIS (${cityInfo.icao}):\n정보를 사용할 수 없습니다.\n\n예상치 못한 응답 형식입니다.`;
+                        setDatisError('정보를 사용할 수 없습니다. (예상치 못한 응답 형식)');
                     }
-                    
-                    console.log('🎯 setDatisInfo 호출됨:', formattedDatis);
-                    setDatisInfo(formattedDatis);
                 } catch (err) {
                     // API 호출 실패 시 대체 메시지 표시
                     console.error('❌ DATIS API 오류:', err);
                     const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
-                    
-                    // CORS 오류인 경우 특별 처리
-                    if (errorMessage.includes('CORS') || errorMessage.includes('fetch')) {
-                        setDatisInfo(`DATIS (${cityInfo.icao}):\n⚠️ 브라우저 보안 정책으로 인해 직접 접근이 제한됩니다.\n\n대안: https://datis.clowd.io/${cityInfo.icao} 에서 직접 확인하세요.\n\n또는 잠시 후 다시 시도해보세요.`);
-                    } else {
-                        setDatisInfo(`DATIS (${cityInfo.icao}):\n현재 DATIS 정보를 사용할 수 없습니다.\n\n오류: ${errorMessage}\n\nDATIS는 미국 공항의 디지털 자동 터미널 정보 서비스입니다.\n실시간 공항 정보, 활주로 상태, 기상 정보 등을 제공합니다.\n\n자세한 정보는 https://datis.clowd.io/${cityInfo.icao} 에서 확인하세요.`);
-                    }
+                    setDatisError(`DATIS 정보를 가져올 수 없습니다: ${errorMessage}`);
                 } finally {
                     setLoadingDatis(false);
                 }
@@ -2097,14 +2137,14 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
 
                 setLoadingExchangeRate(true);
                 setExchangeRateError(null);
-                
+
                 try {
                     // 캐시된 데이터 확인 (1시간 캐시)
                     const cachedData = getCachedData(`exchange_${city}`, 60 * 60 * 1000);
                     if (cachedData) {
                         setExchangeRate(cachedData);
-                            setLoadingExchangeRate(false);
-                            return;
+                        setLoadingExchangeRate(false);
+                        return;
                     }
 
                     // 온라인 상태에서만 API 호출
@@ -2119,13 +2159,13 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                 // 10초 타임아웃 설정
                                 signal: AbortSignal.timeout(10000)
                             });
-                            
+
                             if (!response.ok) {
                                 throw new Error(`환율 API 응답 오류: ${response.status} ${response.statusText}`);
                             }
-                            
+
                             const data = await response.json();
-                            
+
                             if (data.success && data.conversion_rate) {
                                 let exchangeRateText;
                                 if (targetCurrency === 'JPY') {
@@ -2137,7 +2177,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                     exchangeRateText = `1 ${targetCurrency} ≈ ${Math.round(data.conversion_rate).toLocaleString('ko-KR')} KRW`;
                                 }
                                 setExchangeRate(exchangeRateText);
-                                
+
                                 setCachedData(`exchange_${city}`, exchangeRateText);
                             } else {
                                 throw new Error(data['error-type'] || `환율 API 오류: ${JSON.stringify(data)}`);
@@ -2162,7 +2202,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                     }
                 } catch (err) {
                     console.error('환율 API 호출 실패:', err);
-                    
+
                     // 오프라인 상태에서 캐시된 데이터가 있으면 사용
                     const offlineCachedData = getCachedData(`exchange_${city}`, 24 * 60 * 60 * 1000); // 24시간
                     if (offlineCachedData && !networkDetector.getStatus().isOnline) {
@@ -2251,22 +2291,22 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 dark:text-gray-300">
                     <XIcon className="w-6 h-6" />
                 </button>
-                
-                
+
+
                 <div className="mb-4">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
                         <span className="mr-2">{getCountryFlag(city ? getCountry(city) : null)}</span>
                         <span><span className="text-xl">{city} 정보</span> <span className="text-sm">{city ? getUTCOffset(city) || '(UTC)' : '(UTC)'}</span></span>
-                        <button 
-                            onClick={() => onMemoClick && onMemoClick(city || '')} 
-                            title="도시 메모 작성/수정" 
+                        <button
+                            onClick={() => onMemoClick && onMemoClick(city || '')}
+                            title="도시 메모 작성/수정"
                             className="ml-2"
                         >
                             <MemoIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                         </button>
-                        <button 
-                            onClick={() => setShowWeather(!showWeather)} 
-                            title="날씨 정보 보기/숨기기" 
+                        <button
+                            onClick={() => setShowWeather(!showWeather)}
+                            title="날씨 정보 보기/숨기기"
                             className="ml-2"
                         >
                             <InfoIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -2278,47 +2318,38 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                         >
                             TAF
                         </button>
-                {/* 미국 도시에만 DATIS 버튼 표시 */}
-                {(() => {
-                    const shouldShowDatis = cityInfo?.country === 'United States';
-                    console.log('🔍 DATIS 버튼 표시 조건:', {
-                        city: city,
-                        country: cityInfo?.country,
-                        icao: cityInfo?.icao,
-                        shouldShowDatis
-                    });
-                    return shouldShowDatis;
-                })() && (
-                    <button
-                        onClick={() => {
-                            console.log('🔘 DATIS 버튼 클릭됨:', { 
-                                currentShowDatis: showDatis, 
-                                newShowDatis: !showDatis,
-                                cityInfo: cityInfo 
-                            });
-                            
-                            // DATIS 토글 시 기존 데이터 초기화
-                            if (!showDatis) {
-                                setDatisInfo(null);
-                                setDatisError(null);
-                            }
-                            
-                            setShowDatis(!showDatis);
-                        }}
-                        title="DATIS 정보 보기/숨기기"
-                        className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-600 transition-colors"
-                    >
-                        DATIS
-                    </button>
-                )}
+                        {/* 미국 도시에만 DATIS 버튼 표시 */}
+                        {(() => {
+                            const shouldShowDatis = cityInfo?.country === 'United States';
+                            // DATIS 버튼 표시 조건 확인
+                            return shouldShowDatis;
+                        })() && (
+                                <button
+                                    onClick={() => {
+                                        // DATIS 버튼 클릭됨
+
+                                        // DATIS 토글 시 기존 데이터 초기화
+                                        if (!showDatis) {
+                                            setDatisInfo(null);
+                                            setDatisError(null);
+                                        }
+
+                                        setShowDatis(!showDatis);
+                                    }}
+                                    title="DATIS 정보 보기/숨기기"
+                                    className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-600 transition-colors"
+                                >
+                                    DATIS
+                                </button>
+                            )}
                     </h2>
                 </div>
 
-                <div 
+                <div
                     className={`max-h-[70vh] overflow-y-auto ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
                     onScroll={handleScroll}
                 >
-                    
+
                     {showMetar && (
                         <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
                             <div className="flex justify-between items-center mb-2">
@@ -2344,213 +2375,208 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                             {metar && (
                                                 <div>
                                                     <h4 className="font-semibold text-blue-600 dark:text-blue-400 mb-2">METAR</h4>
-                                                        {(() => {
-													const d = decodeMetar(metar);
-                                                            return (
-														<div className="space-y-3">
-															{d.time && (
-																<div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-700">
-																	<div className="text-gray-600 dark:text-gray-400 text-xs">Observation Time</div>
-																	<div className="font-semibold text-blue-800 dark:text-blue-200 text-sm">{d.time}</div>
-																</div>
-															)}
-															<div className="grid grid-cols-2 gap-2 text-xs">
-																{d.wind && (
+                                                    {(() => {
+                                                        const d = decodeMetar(metar);
+                                                        return (
+                                                            <div className="space-y-3">
+                                                                {d.time && (
+                                                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-700">
+                                                                        <div className="text-gray-600 dark:text-gray-400 text-xs">Observation Time</div>
+                                                                        <div className="font-semibold text-blue-800 dark:text-blue-200 text-sm">{d.time}</div>
+                                                                    </div>
+                                                                )}
+                                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                                    {d.wind && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-																		<div className="text-gray-600 dark:text-gray-400">Wind</div>
-																		<div className="font-semibold text-blue-800 dark:text-blue-200">{d.wind}</div>
+                                                                            <div className="text-gray-600 dark:text-gray-400">Wind</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{d.wind}</div>
                                                                         </div>
                                                                     )}
-																{d.visibility && (
+                                                                    {d.visibility && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-																		<div className="text-gray-600 dark:text-gray-400">Visibility</div>
-																		<div className="font-semibold text-blue-800 dark:text-blue-200">{d.visibility}</div>
+                                                                            <div className="text-gray-600 dark:text-gray-400">Visibility</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{d.visibility}</div>
                                                                         </div>
                                                                     )}
-																{d.temp && (
+                                                                    {d.temp && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-																		<div className="text-gray-600 dark:text-gray-400">Temperature</div>
-																		<div className="font-semibold text-blue-800 dark:text-blue-200">{d.temp}</div>
+                                                                            <div className="text-gray-600 dark:text-gray-400">Temperature</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{d.temp}</div>
                                                                         </div>
                                                                     )}
-																{d.pressure && (
+                                                                    {d.pressure && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-																		<div className="text-gray-600 dark:text-gray-400">Pressure</div>
-																		<div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.pressure}</div>
+                                                                            <div className="text-gray-600 dark:text-gray-400">Pressure</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.pressure}</div>
                                                                         </div>
                                                                     )}
-																{d.weather && d.weather !== 'No significant weather' && (
+                                                                    {d.weather && d.weather !== 'No significant weather' && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
-																		<div className="text-gray-600 dark:text-gray-400">Weather</div>
-																		<div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.weather}</div>
+                                                                            <div className="text-gray-600 dark:text-gray-400">Weather</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.weather}</div>
                                                                         </div>
                                                                     )}
-																{d.clouds && (
+                                                                    {d.clouds && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
-																		<div className="text-gray-600 dark:text-gray-400">Clouds</div>
-																		<div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.clouds}</div>
+                                                                            <div className="text-gray-600 dark:text-gray-400">Clouds</div>
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.clouds}</div>
                                                                         </div>
                                                                     )}
-															</div>
-															{d.remarks && (
-																<div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-700 col-span-2">
-																	<div className="text-gray-600 dark:text-gray-400">Remarks (RMK)</div>
-																	<ul className="list-disc ml-4 space-y-1 text-yellow-800 dark:text-yellow-200">
-																		{d.remarks.split('; ').map((remark, idx) => (
-																			<li key={idx}>{remark}</li>
-																		))}
-																	</ul>
+                                                                </div>
+                                                                {d.remarks && (
+                                                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-700 col-span-2">
+                                                                        <div className="text-gray-600 dark:text-gray-400">Remarks (RMK)</div>
+                                                                        <ul className="list-disc ml-4 space-y-1 text-yellow-800 dark:text-yellow-200">
+                                                                            {d.remarks.split('; ').map((remark, idx) => (
+                                                                                <li key={idx}>{remark}</li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </div>
+                                                                )}
+                                                                {(d.auto || d.corrected) && (
+                                                                    <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                                                        <div className="text-gray-600 dark:text-gray-400 text-xs">Status</div>
+                                                                        <div className="font-semibold text-gray-800 dark:text-gray-200 text-xs">
+                                                                            {d.auto && <span className="text-blue-600 dark:text-blue-400">AUTO</span>}
+                                                                            {d.auto && d.corrected && <span className="mx-1">•</span>}
+                                                                            {d.corrected && <span className="text-green-600 dark:text-green-400">COR</span>}
                                                                         </div>
-                                                                    )}
-															{(d.auto || d.corrected) && (
-																<div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
-																	<div className="text-gray-600 dark:text-gray-400 text-xs">Status</div>
-																	<div className="font-semibold text-gray-800 dark:text-gray-200 text-xs">
-																		{d.auto && <span className="text-blue-600 dark:text-blue-400">AUTO</span>}
-																		{d.auto && d.corrected && <span className="mx-1">•</span>}
-																		{d.corrected && <span className="text-green-600 dark:text-green-400">COR</span>}
-																	</div>
-                                                                        </div>
-                                                                    )}
-														</div>
-													);
-												})()}
-                                                                        </div>
-                                                                    )}
-										{taf && (
-											<div>
-												<h4 className="font-semibold text-green-600 dark:text-green-400 mb-2">TAF</h4>
-												{(() => {
-													const d = decodeTaf(taf);
-													return (
-														<div className="space-y-3">
-															<div className="bg-green-50 dark:bg-green-900/20 p-2 rounded border border-green-200 dark:border-green-700">
-																<div className="text-gray-600 dark:text-gray-400 text-xs">Valid Period</div>
-																<div className="font-semibold text-green-800 dark:text-green-200 text-sm">{d.validPeriod}</div>
-                                                                        </div>
-															{d.forecasts.map((f: any, idx: number) => (
-																<div key={idx} className={`p-3 rounded border ${
-																	f.type === 'Main' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
-																	f.type === 'Temporary' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700' :
-																	f.type === 'Becoming' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
-																	f.type === 'Probability' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700' :
-																	f.type === 'From' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
-																	'bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-																}`}>
-																	<div className="flex justify-between items-center mb-2">
-																		<div className="flex items-center gap-2">
-																			<span className={`font-semibold text-sm ${
-																				f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
-																				f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
-																				f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
-																				f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
-																				f.type === 'From' ? 'text-green-800 dark:text-green-200' :
-																				'text-green-800 dark:text-green-200'
-																			}`}>
-																				{f.time}
-																			</span>
-																			{f.type && (
-																				<span className={`text-xs px-1 py-0.5 rounded ${
-																					f.type === 'Main' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
-																					f.type === 'Temporary' ? 'bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200' :
-																					f.type === 'Becoming' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
-																					f.type === 'Probability' ? 'bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200' :
-																					f.type === 'From' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
-																					'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
-																				}`}>
-																					{f.type}
-																				</span>
-																			)}
-																		</div>
-																	</div>
-																	<div className="grid grid-cols-3 gap-2 text-xs">
-																		{f.wind && (
-																			<div className="bg-white dark:bg-gray-800 p-2 rounded">
-																				<div className="text-gray-600 dark:text-gray-400">Wind</div>
-																				<div className={`font-semibold ${
-																					f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
-																					f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
-																					f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
-																					f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
-																					f.type === 'From' ? 'text-green-800 dark:text-green-200' :
-																					'text-green-800 dark:text-green-200'
-																				}`}>
-																					{f.wind}
-																				</div>
-                                                                        </div>
-                                                                    )}
-																		{f.visibility && (
-																			<div className="bg-white dark:bg-gray-800 p-2 rounded">
-																				<div className="text-gray-600 dark:text-gray-400">Visibility</div>
-																				<div className={`font-semibold ${
-																					f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
-																					f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
-																					f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
-																					f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
-																					f.type === 'From' ? 'text-green-800 dark:text-green-200' :
-																					'text-green-800 dark:text-green-200'
-																				}`}>
-																					{f.visibility}
-																				</div>
-                                                                        </div>
-                                                                    )}
-																		{f.weather && (
-																			<div className="bg-white dark:bg-gray-800 p-2 rounded">
-																				<div className="text-gray-600 dark:text-gray-400">Weather</div>
-																				<div className={`font-semibold ${
-																					f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
-																					f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
-																					f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
-																					f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
-																					f.type === 'From' ? 'text-green-800 dark:text-green-200' :
-																					'text-green-800 dark:text-green-200'
-																				}`}>
-																					{f.weather}
-																				</div>
-                                                                        </div>
-                                                                    )}
-																		{f.clouds && (
-																			<div className="bg-white dark:bg-gray-800 p-2 rounded col-span-3">
-																				<div className="text-gray-600 dark:text-gray-400">Clouds</div>
-																				<div className={`font-semibold ${
-																					f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
-																					f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
-																					f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
-																					f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
-																					f.type === 'From' ? 'text-green-800 dark:text-green-200' :
-																					'text-green-800 dark:text-green-200'
-																				}`}>
-																					{f.clouds}
-																				</div>
-                                                                        </div>
-                                                                    )}
-																	</div>
-																</div>
-															))}
-														</div>
-													);
-												})()}
-                                                                        </div>
-                                                                    )}
-									</div>
-								) : (
-									<div className="font-mono text-sm">
-										{metar && (
-											<div className="mb-2">
-												<span className="font-semibold">METAR</span>: <span className="break-all">{metar}</span>
-                                                                        </div>
-                                                                    )}
-										{taf && (
-											<div className="whitespace-pre-line break-words">
-												<span className="font-semibold">TAF</span>: {taf.replace(/BECMG/g, '\nBECMG').replace(/FM/g, '\nFM').replace(/TEMPO/g, '\nTEMPO')}
-                                                                        </div>
-                                                                    )}
-                                                    </div>
-								)}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             )}
-					</div>
-						)}
+                                            {taf && (
+                                                <div>
+                                                    <h4 className="font-semibold text-green-600 dark:text-green-400 mb-2">TAF</h4>
+                                                    {(() => {
+                                                        // TAF 디코딩 (새로운 모듈 사용)
+                                                        const d = decodeTaf(taf);
+                                                        const formattedTaf = formatTafInfo(d);
+                                                        return (
+                                                            <div className="space-y-3">
+                                                                <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded border border-green-200 dark:border-green-700">
+                                                                    <div className="text-gray-600 dark:text-gray-400 text-xs">Valid Period</div>
+                                                                    <div className="font-semibold text-green-800 dark:text-green-200 text-sm">{d.validFrom && d.validTo ? `${d.validFrom} - ${d.validTo}` : 'N/A'}</div>
+                                                                </div>
+                                                                {d.forecasts.map((f: any, idx: number) => (
+                                                                    <div key={idx} className={`p-3 rounded border ${f.type === 'Main' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
+                                                                        f.type === 'Temporary' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700' :
+                                                                            f.type === 'Becoming' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
+                                                                                f.type === 'Probability' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700' :
+                                                                                    f.type === 'From' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' :
+                                                                                        'bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                                                                        }`}>
+                                                                        <div className="flex justify-between items-center mb-2">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className={`font-semibold text-sm ${f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+                                                                                    f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                        f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+                                                                                            f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                                f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+                                                                                                    'text-green-800 dark:text-green-200'
+                                                                                    }`}>
+                                                                                    {f.time}
+                                                                                </span>
+                                                                                {f.type && (
+                                                                                    <span className={`text-xs px-1 py-0.5 rounded ${f.type === 'Main' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
+                                                                                        f.type === 'Temporary' ? 'bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200' :
+                                                                                            f.type === 'Becoming' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
+                                                                                                f.type === 'Probability' ? 'bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200' :
+                                                                                                    f.type === 'From' ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200' :
+                                                                                                        'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
+                                                                                        }`}>
+                                                                                        {f.type}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="grid grid-cols-3 gap-2 text-xs">
+                                                                            {f.wind && (
+                                                                                <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                                                                                    <div className="text-gray-600 dark:text-gray-400">Wind</div>
+                                                                                    <div className={`font-semibold ${f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+                                                                                        f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                            f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+                                                                                                f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                                    f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+                                                                                                        'text-green-800 dark:text-green-200'
+                                                                                        }`}>
+                                                                                        {f.wind}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                            {f.visibility && (
+                                                                                <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                                                                                    <div className="text-gray-600 dark:text-gray-400">Visibility</div>
+                                                                                    <div className={`font-semibold ${f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+                                                                                        f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                            f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+                                                                                                f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                                    f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+                                                                                                        'text-green-800 dark:text-green-200'
+                                                                                        }`}>
+                                                                                        {f.visibility}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                            {f.weather && (
+                                                                                <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                                                                                    <div className="text-gray-600 dark:text-gray-400">Weather</div>
+                                                                                    <div className={`font-semibold ${f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+                                                                                        f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                            f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+                                                                                                f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                                    f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+                                                                                                        'text-green-800 dark:text-green-200'
+                                                                                        }`}>
+                                                                                        {f.weather}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                            {f.clouds && (
+                                                                                <div className="bg-white dark:bg-gray-800 p-2 rounded col-span-3">
+                                                                                    <div className="text-gray-600 dark:text-gray-400">Clouds</div>
+                                                                                    <div className={`font-semibold ${f.type === 'Main' ? 'text-green-800 dark:text-green-200' :
+                                                                                        f.type === 'Temporary' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                            f.type === 'Becoming' ? 'text-green-800 dark:text-green-200' :
+                                                                                                f.type === 'Probability' ? 'text-purple-800 dark:text-purple-200' :
+                                                                                                    f.type === 'From' ? 'text-green-800 dark:text-green-200' :
+                                                                                                        'text-green-800 dark:text-green-200'
+                                                                                        }`}>
+                                                                                        {f.clouds}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="font-mono text-sm">
+                                            {metar && (
+                                                <div className="mb-2">
+                                                    <span className="font-semibold">METAR</span>: <span className="break-all">{metar}</span>
+                                                </div>
+                                            )}
+                                            {taf && (
+                                                <div className="whitespace-pre-line break-words">
+                                                    <span className="font-semibold">TAF</span>: {taf.replace(/BECMG/g, '\nBECMG').replace(/FM/g, '\nFM').replace(/TEMPO/g, '\nTEMPO')}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {/* DATIS 정보 섹션 */}
                     {showDatis && (
                         <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
@@ -2574,14 +2600,13 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                 <div className="space-y-2 text-xs bg-gray-100 dark:bg-gray-900/50 p-3 rounded text-gray-800 dark:text-gray-300">
                                     {showDecoded ? (
                                         <div className="space-y-4">
-                                                <div>
+                                            <div>
                                                 <h4 className="font-semibold text-blue-600 dark:text-blue-400 mb-2">DATIS Information</h4>
                                                 <div className="space-y-2">
                                                     {(() => {
-                                                        console.log('🚀 decodeDatis 호출 전 - datisInfo:', datisInfo);
-                                                        console.log('🚀 decodeDatis 호출 전 - datisInfo 타입:', typeof datisInfo);
-                                                        // datisInfo는 이미 포맷팅된 문자열이므로 그대로 사용
+                                                        // DATIS 디코딩 (새로운 모듈 사용)
                                                         const decoded = decodeDatis(datisInfo || '');
+                                                        // const formattedDatis = formatDatisInfo(decoded); // Not used in this view anymore
                                                         return (
                                                             <>
                                                                 <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-700">
@@ -2589,9 +2614,9 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                                                         <span className="font-bold text-blue-800 dark:text-blue-200">
                                                                             {cityInfo?.icao}
                                                                         </span>
-                                                                        {decoded.infoLetter && decoded.timeZulu && (
+                                                                        {decoded.infoLetter && decoded.infoTime && (
                                                                             <span className="text-sm font-normal text-blue-600 dark:text-blue-300">
-                                                                                INFO {decoded.infoLetter} {decoded.timeZulu}
+                                                                                INFO {decoded.infoLetter} {decoded.infoTime}Z
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -2602,116 +2627,99 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
                                                                             <div className="text-gray-600 dark:text-gray-400">Wind</div>
                                                                             <div className="font-semibold text-blue-800 dark:text-blue-200">{decoded.wind}</div>
-                                                                            </div>
-                                                                        )}
+                                                                        </div>
+                                                                    )}
                                                                     {decoded.visibility && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
                                                                             <div className="text-gray-600 dark:text-gray-400">Visibility</div>
                                                                             <div className="font-semibold text-blue-800 dark:text-blue-200">{decoded.visibility}</div>
-                                                                                </div>
-                                                                            )}
+                                                                        </div>
+                                                                    )}
                                                                     {decoded.temperature && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
                                                                             <div className="text-gray-600 dark:text-gray-400">Temp</div>
                                                                             <div className="font-semibold text-blue-800 dark:text-blue-200">{decoded.temperature}</div>
-                                                                                </div>
-                                                                            )}
+                                                                        </div>
+                                                                    )}
                                                                     {decoded.dewpoint && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
                                                                             <div className="text-gray-600 dark:text-gray-400">Dew</div>
                                                                             <div className="font-semibold text-blue-800 dark:text-blue-200">{decoded.dewpoint}</div>
-                                                                                </div>
-                                                                            )}
-                                                                    {(decoded.altimeterInHg || decoded.altimeterHpa) && (
+                                                                        </div>
+                                                                    )}
+                                                                    {decoded.altimeter && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
                                                                             <div className="text-gray-600 dark:text-gray-400">Altimeter</div>
                                                                             <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">
-                                                                                {decoded.altimeterInHg || decoded.altimeterHpa}
+                                                                                {decoded.altimeter}
                                                                             </div>
-                                                                                </div>
-                                                                            )}
-                                                                    {decoded.rmkDecoded && decoded.rmkDecoded.length > 0 && (
+                                                                        </div>
+                                                                    )}
+                                                                    {decoded.remarks && decoded.remarks.length > 0 && (
                                                                         <div className="bg-gray-100 dark:bg-gray-900/20 p-2 rounded col-span-2">
                                                                             <div className="text-gray-600 dark:text-gray-400">Remarks (RMK)</div>
-                                                                            <div className="space-y-1">
-                                                                                {decoded.rmkDecoded.map((remark, i) => (
-                                                                                    <div key={i} className="font-semibold text-gray-800 dark:text-gray-200 text-xs">
-                                                                                        {remark}
-                                                                                    </div>
-                                                                                ))}
+                                                                            <div className="font-semibold text-gray-800 dark:text-gray-200 text-xs whitespace-pre-line">
+                                                                                {decoded.remarks.join('\n')}
                                                                             </div>
-                                                                                </div>
-                                                                            )}
+                                                                        </div>
+                                                                    )}
                                                                     {decoded.clouds && (
                                                                         <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
                                                                             <div className="text-gray-600 dark:text-gray-400">Clouds</div>
-                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{decoded.clouds}</div>
-                                                                                </div>
-                                                                            )}
-                                                                    {(decoded.departures || decoded.approaches?.length > 0 || decoded.ctcGc || decoded.departureRunways || decoded.runways?.ils?.length > 0 || decoded.runways?.visual?.length > 0 || decoded.runways?.dep?.length > 0) && (
+                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{decoded.clouds.join(', ')}</div>
+                                                                        </div>
+                                                                    )}
+                                                                    {(decoded.departures?.length > 0 || decoded.approaches?.length > 0) && (
                                                                         <div className="bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded border border-indigo-200 dark:border-indigo-700 col-span-2">
                                                                             <div className="text-gray-600 dark:text-gray-400">Runways</div>
                                                                             <div className="text-xs text-indigo-800 dark:text-indigo-200 font-semibold space-y-1">
-                                                                                {(decoded.departures || decoded.departureRunways || decoded.runways?.dep?.length > 0) && (
-                                                                                    <div>Departure: {decoded.departures || decoded.departureRunways || decoded.runways?.dep?.join(', ')}</div>
+                                                                                {decoded.departures?.length > 0 && (
+                                                                                    <div>Departure: {decoded.departures.join(', ')}</div>
                                                                                 )}
-                                                                                {(decoded.approaches?.length > 0 || decoded.runways?.ils?.length > 0 || decoded.runways?.visual?.length > 0) && (
-                                                                                    <div>
-                                                                                        Approach: {(() => {
-                                                                                            const allApproaches = [];
-                                                                                            if (decoded.approaches?.length > 0) {
-                                                                                                allApproaches.push(...decoded.approaches);
-                                                                                            }
-                                                                                            if (decoded.runways?.ils?.length > 0) {
-                                                                                                allApproaches.push(`ILS RWY ${decoded.runways.ils.join(', RWY ')}`);
-                                                                                            }
-                                                                                            if (decoded.runways?.visual?.length > 0) {
-                                                                                                allApproaches.push(`VISUAL RWY ${decoded.runways.visual.join(', RWY ')}`);
-                                                                                            }
-                                                                                            return allApproaches.join(', ');
-                                                                                        })()}
-                                                                                    </div>
+                                                                                {decoded.approaches?.length > 0 && (
+                                                                                    <div>Approach: {decoded.approaches.join(', ')}</div>
                                                                                 )}
-                                                                                {decoded.ctcGc && (
-                                                                                    <div>Ground Control: {decoded.ctcGc}</div>
-                                                                            )}
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
                                                                     )}
-                                                                    {decoded.notams && decoded.notams.length > 0 && (
+                                                                    {(decoded.notams?.length > 0 || decoded.closedRunways?.length > 0 || decoded.closedTaxiways?.length > 0) && (
                                                                         <div className="bg-orange-50 dark:bg-orange-900/20 p-2 rounded border border-orange-200 dark:border-orange-700 col-span-2">
                                                                             <div className="text-gray-600 dark:text-gray-400">NOTAMs (Notices to Airmen)</div>
                                                                             <ul className="list-disc ml-4 space-y-1 text-orange-800 dark:text-orange-200">
-                                                                                {decoded.notams.map((notam, i) => (
+                                                                                {[
+                                                                                    ...(decoded.closedRunways || []),
+                                                                                    ...(decoded.closedTaxiways || []),
+                                                                                    ...(decoded.notams || [])
+                                                                                ].map((notam, i) => (
                                                                                     <li key={i}>{notam}</li>
                                                                                 ))}
                                                                             </ul>
-                                                            </div>
+                                                                        </div>
                                                                     )}
                                                                     {decoded.advisories.length > 0 && (
-                                                                         <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-700 col-span-2">
-                                                                             <div className="text-gray-600 dark:text-gray-400">Advisories (Operational Information)</div>
-                                                                             <ul className="list-disc ml-4 space-y-1 text-yellow-800 dark:text-yellow-200">
-                                                                                 {decoded.advisories.map((a, i) => (
-                                                                                     <li key={i}>{a}</li>
-                                                                                 ))}
-                                                                             </ul>
-                                                                         </div>
-                                                                     )}
+                                                                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-700 col-span-2">
+                                                                            <div className="text-gray-600 dark:text-gray-400">Advisories (Operational Information)</div>
+                                                                            <ul className="list-disc ml-4 space-y-1 text-yellow-800 dark:text-yellow-200">
+                                                                                {decoded.advisories.map((a, i) => (
+                                                                                    <li key={i}>{a}</li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </>
                                                         );
                                                     })()}
                                                 </div>
-                                                    </div>
+                                            </div>
                                         </div>
                                     ) : (
-                                        <div className="whitespace-pre-line font-mono">{datisInfo}</div>
+                                        <div className="whitespace-pre-line font-mono text-sm">{datisInfo}</div>
                                     )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {showWeather && (
                         <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 relative">
@@ -2722,7 +2730,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                     <div className="space-y-4">
                                         {/* 현재 날씨 정보 - 가운데 정렬 */}
                                         <div className="flex items-center justify-center text-center space-x-2 sm:space-x-4">
-                                            <WeatherIcon 
+                                            <WeatherIcon
                                                 icon={weather.weather[0].icon}
                                                 size="@4x"
                                                 className="w-20 h-20 sm:w-32 sm:h-32 -my-2 sm:-my-4"
@@ -2740,7 +2748,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                             <div className="bg-gray-200 dark:bg-gray-900/50 p-2 rounded-lg">
                                                 <p className="font-semibold text-gray-500 dark:text-gray-400">최고/최저</p>
                                                 <p className="text-lg font-bold dark:text-gray-200">
-                                                    {forecast && forecast.length > 0 
+                                                    {forecast && forecast.length > 0
                                                         ? `${Math.round(forecast[0].maxTemp)}°/${Math.round(forecast[0].minTemp)}°`
                                                         : `${Math.round(weather.main.temp_max)}°/${Math.round(weather.main.temp_min)}°`
                                                     }
@@ -2752,18 +2760,17 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                             </div>
                                             <div className="bg-gray-200 dark:bg-gray-900/50 p-2 rounded-lg">
                                                 <p className="font-semibold text-gray-500 dark:text-gray-400">AQI</p>
-                                                <p className={`text-lg font-bold ${
-                                                    airPollution?.aqiInfo?.color === 'green' ? 'text-green-600 dark:text-green-400' :
+                                                <p className={`text-lg font-bold ${airPollution?.aqiInfo?.color === 'green' ? 'text-green-600 dark:text-green-400' :
                                                     airPollution?.aqiInfo?.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' :
-                                                    airPollution?.aqiInfo?.color === 'orange' ? 'text-orange-600 dark:text-orange-400' :
-                                                    airPollution?.aqiInfo?.color === 'red' ? 'text-red-600 dark:text-red-400' :
-                                                    airPollution?.aqiInfo?.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
-                                                    airPollution?.aqiInfo?.color === 'brown' ? 'text-amber-800 dark:text-amber-600' :
-                                                    'text-gray-600 dark:text-gray-400'
-                                                }`}>
+                                                        airPollution?.aqiInfo?.color === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                                                            airPollution?.aqiInfo?.color === 'red' ? 'text-red-600 dark:text-red-400' :
+                                                                airPollution?.aqiInfo?.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
+                                                                    airPollution?.aqiInfo?.color === 'brown' ? 'text-amber-800 dark:text-amber-600' :
+                                                                        'text-gray-600 dark:text-gray-400'
+                                                    }`}>
                                                     {airPollution ? (
                                                         <>
-                                                            {airPollution.aqiInfo.description} 
+                                                            {airPollution.aqiInfo.description}
                                                             <span className="text-xs opacity-75">({airPollution.internationalAQI || airPollution.aqiInfo.value})</span>
                                                         </>
                                                     ) : '--'}
@@ -2775,7 +2782,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                                 )}
                                             </div>
                                         </div>
-                                        
+
                                         {/* 일출/일몰 시간 - 좌측 상단 세로로 배치 */}
                                         <div className="absolute top-2 left-2 flex flex-col space-y-1 text-xs">
                                             <div className="flex items-center space-x-1 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded-md border border-orange-200 dark:border-orange-800">
@@ -2803,7 +2810,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                                     {threeHourForecast.map((item, index) => (
                                                         <div key={index} className="flex flex-col items-center space-y-1">
                                                             <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">{item.time}</p>
-                                                            <WeatherIcon 
+                                                            <WeatherIcon
                                                                 icon={item.icon}
                                                                 className="w-8 h-8"
                                                             />
@@ -2824,7 +2831,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                                     {forecast.map(day => (
                                                         <div key={day.date} className="flex flex-col items-center space-y-1">
                                                             <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">{day.day}</p>
-                                                            <WeatherIcon 
+                                                            <WeatherIcon
                                                                 icon={day.icon}
                                                                 className="w-8 h-8"
                                                             />
@@ -2838,7 +2845,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                             )}
                                         </div>
                                     )}
-                                    
+
                                     {getCurrencyFromCode(city) && getCurrencyFromCode(city) !== 'KRW' && (
                                         <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 text-center">
                                             {loadingExchangeRate && <p className="text-sm text-gray-500 dark:text-gray-400">환율 정보 로딩 중...</p>}
@@ -2850,13 +2857,13 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                             )}
                         </div>
                     )}
-                    
+
                     <div>
                         {sortedFlights.length > 0 ? (
                             <ul className="space-y-3">
                                 {sortedFlights.map(flight => (
-                                    <li 
-                                        key={flight.id} 
+                                    <li
+                                        key={flight.id}
                                         className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer"
                                         onClick={() => onFlightClick(flight)}
                                     >

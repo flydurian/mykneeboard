@@ -75,8 +75,8 @@ const CurrencyCard: React.FC<CurrencyCardProps> = memo(({ title, currencyInfo, o
         let textColor = 'text-gray-800 dark:text-white';
         let countColor = 'text-gray-800 dark:text-white';
         
-        // White Card는 다른 기준 적용
-        if (cardType === 'whitecard') {
+        // White Card와 CRM Card는 다른 기준 적용
+        if (cardType === 'whitecard' || cardType === 'crm') {
             if (daysUntilExpiry <= 7) {
                 textColor = 'text-black dark:text-red-500';
                 countColor = 'text-black dark:text-red-500';
@@ -121,8 +121,8 @@ const CurrencyCard: React.FC<CurrencyCardProps> = memo(({ title, currencyInfo, o
     
     const style = getExpiryStyle(currencyInfo.daysUntilExpiry, currencyInfo.isCurrent);
     
-    // 여권, 비자, EPTA, Radio, White Card 카드인지 확인
-    const isDocumentCard = cardType && ['passport', 'visa', 'epta', 'radio', 'whitecard'].includes(cardType);
+    // 여권, 비자, EPTA, Radio, White Card, CRM 카드인지 확인
+    const isDocumentCard = cardType && ['passport', 'visa', 'epta', 'radio', 'whitecard', 'crm'].includes(cardType);
     
     if (isDocumentCard) {
         const documentStyle = getDocumentExpiryStyle(expiryDate || '', cardType);

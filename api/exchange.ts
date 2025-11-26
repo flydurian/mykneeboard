@@ -26,9 +26,10 @@ export default async function handler(
       return res.status(400).json({ error: 'fromCurrency가 필요합니다.' });
     }
 
-    const API_KEY = process.env.VITE_EXCHANGE_API_KEY;
+    const API_KEY = process.env.EXCHANGE_API_KEY;
     
     if (!API_KEY) {
+      console.error('❌ EXCHANGE_API_KEY 환경변수가 설정되지 않았습니다.');
       return res.status(500).json({ error: '환율 API 키가 설정되지 않았습니다.' });
     }
 

@@ -86,3 +86,53 @@ export function getAirlineByCode(code: string, airlines: AirlineInfo[]): Airline
     airline.icao.toUpperCase() === upperCode
   ) || null;
 }
+
+// ICAO 코드를 IATA 코드로 변환
+export function convertICAOtoIATA(icaoCode: string): string {
+  const icaoToIataMap: { [key: string]: string } = {
+    'AAR': 'OZ',  // Asiana Airlines
+    'KAL': 'KE',  // Korean Air
+    'JJA': '7C',  // Jeju Air
+    'TWB': 'TW',  // T'way Air
+    'ABL': 'BX',  // Air Busan
+    'ESR': 'ZE',  // Eastar Jet
+    'JNA': 'LJ',  // Jin Air
+    'ASV': 'RS',  // Air Seoul
+    'APZ': 'YP',  // Air Premia
+    'EOK': 'RF',  // Aerokorea
+    'ANA': 'NH',  // All Nippon Airways
+    'JAL': 'JL',  // Japan Airlines
+    'APJ': 'MM',  // Peach Aviation
+  };
+  
+  const upperCode = icaoCode.toUpperCase();
+  return icaoToIataMap[upperCode] || icaoCode;
+}
+
+// 항공편 번호에서 ICAO 코드를 추출하여 IATA 코드로 변환된 항공편 번호 반환
+export function convertFlightNumberToIATA(flightNumber: string): string {
+  const upperFlight = flightNumber.toUpperCase().trim();
+  
+  console.log('🔍 ICAO→IATA 변환 시작:', upperFlight);
+  
+  // 항공편 번호에서 항공사 코드와 번호 분리
+  const match = upperFlight.match(/^([A-Z]{2,3})(\d+)$/);
+  if (!match) {
+    console.log('⚠️ 항공편 번호 형식 불일치:', upperFlight);
+    return upperFlight;
+  }
+  
+  const [, airlineCode, number] = match;
+  console.log('🔍 항공사 코드:', airlineCode, '번호:', number);
+  
+  // 3글자인 경우 ICAO 코드일 가능성이 높음
+  if (airlineCode.length === 3) {
+    const iataCode = convertICAOtoIATA(airlineCode);
+    const converted = `${iataCode}${number}`;
+    console.log('✅ ICAO→IATA 변환:', upperFlight, '→', converted);
+    return converted;
+  }
+  
+  console.log('✅ 이미 IATA 코드:', upperFlight);
+  return upperFlight;
+}

@@ -14,7 +14,9 @@ export interface AirlineInfo {
 // 압축된 항공사 데이터 (배열 형태)
 // [iata, icao, name, koreanName, callsign, country]
 export const compressedAirlines: string[][] = [
-  // ===== 대한민국 =====
+  // ============================================================================
+  // 대한민국
+  // ============================================================================
   ["KE", "KAL", "Korean Air", "대한항공", "KOREAN AIR", "대한민국"],
   ["OZ", "AAR", "Asiana Airlines", "아시아나항공", "ASIANA", "대한민국"],
   ["7C", "JJA", "Jeju Air", "제주항공", "JEJU AIR", "대한민국"],
@@ -26,7 +28,9 @@ export const compressedAirlines: string[][] = [
   ["YP", "APZ", "Air Premia", "에어프레미아", "AIR PREMIA", "대한민국"],
   ["RF", "EOK", "Aerokorea", "에어로케이항공", "AEROHANGUK", "대한민국"],
 
-  // ===== 아시아 =====
+  // ============================================================================
+  // 아시아
+  // ============================================================================
   
   // 일본
   ["NH", "ANA", "All Nippon Airways", "전일본공수", "ALL NIPPON", "일본"],
@@ -35,11 +39,11 @@ export const compressedAirlines: string[][] = [
   ["GK", "JJP", "Jetstar Japan", "제트스타재팬", "ORANGE LINER", "일본"],
   ["JW", "VNL", "Vanilla Air", "바닐라에어", "VANILLA", "일본"],
   ["NQ", "AJX", "Air Japan", "에어재팬", "AIR JAPAN", "일본"],
-  ["IJ", "JJP", "Spring Airlines Japan", "스프링항공재팬", "J-SPRING", "일본"],
+  ["IJ", "SJO", "Spring Airlines Japan", "스프링항공재팬", "J-SPRING", "일본"],
   ["7G", "SFJ", "Star Flyer", "스타플라이어", "STARFLYER", "일본"],
   ["HD", "ADO", "Air Do", "에어도", "AIR DO", "일본"],
   ["BC", "SKY", "Skymark Airlines", "스카이마크항공", "SKYMARK", "일본"],
-  ["JD", "CBJ", "Japan Air Commuter", "일본에어커뮤터", "COMMUTER", "일본"],
+  ["3X", "JAC", "Japan Air Commuter", "일본에어커뮤터", "COMMUTER", "일본"],
   ["ZG", "TZP", "ZIPAIR Tokyo", "집에어도쿄", "ZIPPY", "일본"],
 
   // 중국
@@ -50,6 +54,7 @@ export const compressedAirlines: string[][] = [
   ["3U", "CSC", "Sichuan Airlines", "사천항공", "SI CHUAN", "중국"],
   ["MF", "CXA", "Xiamen Airlines", "하문항공", "XIAMEN AIR", "중국"],
   ["GS", "GCR", "Tianjin Airlines", "천진항공", "BO HAI", "중국"],
+  ["SC", "CDG", "Shandong Airlines", "산둥항공", "SHANDONG", "중국"],
   ["9C", "CQH", "Spring Airlines", "춘추항공", "AIR SPRING", "중국"],
   ["KN", "CUA", "China United Airlines", "중국연합항공", "LIANHANG", "중국"],
   ["PN", "CHB", "West Air", "서부항공", "WEST CHINA", "중국"],
@@ -64,13 +69,26 @@ export const compressedAirlines: string[][] = [
   ["RY", "RYA", "Ruili Airlines", "루이리항공", "SENDI", "중국"],
   ["TV", "TBA", "Tibet Airlines", "티베트항공", "TIBET", "중국"],
   ["Y8", "YZR", "Suparna Airlines", "수파르나항공", "YANGTZE RIVER", "중국"],
-  ["OKA", "OKA", "Okay Airways", "오케이항공", "OKAYJET", "중국"],
+  ["BK", "OKA", "Okay Airways", "오케이항공", "OKAYJET", "중국"],
+  ["FM", "CSH", "Shanghai Airlines", "상하이항공", "SHANGHAI AIR", "중국"],
+  ["CK", "CAO", "China Cargo Airlines", "중국카고항공", "CARGO KING", "중국"],
 
-  // 대만
+  // 홍콩/대만
+  ["UO", "HKE", "Hong Kong Express Airways", "홍콩익스프레스항공", "HONGKONG SHUTTLE", "홍콩"],
+  ["CX", "CPA", "Cathay Pacific", "캐세이퍼시픽", "CATHAY", "홍콩"],
   ["BR", "EVA", "EVA Air", "에바항공", "EVA", "대만"],
   ["CI", "CAL", "China Airlines", "중화항공", "DYNASTY", "대만"],
   ["IT", "TTW", "Tigerair Taiwan", "타이거에어대만", "SMART CAT", "대만"],
   ["JX", "SJX", "Starlux Airlines", "스타룩스항공", "STARWALKER", "대만"],
+
+  // 몽골/중앙아시아
+  ["OM", "MGL", "MIAT Mongolian Airlines", "몽골항공", "MONGOL AIR", "몽골"],
+  ["M0", "MNG", "Aero Mongolia", "에어로몽골리아", "AERO MONGOLIA", "몽골"],
+  ["J2", "AHY", "Azerbaijan Airlines", "아제르바이잔항공", "AZAL", "아제르바이잔"],
+  ["HY", "UZB", "Uzbekistan Airways", "우즈베키스탄항공", "UZBEK", "우즈베키스탄"],
+  ["A9", "TGZ", "Georgian Airways", "조지아항공", "TAMAZI", "조지아"],
+  ["QH", "LYN", "Kyrgyzstan Airlines", "키르기스스탄항공", "ALTYN AVIA", "키르기스스탄"],
+  ["K9", "KZR", "Kazakhstan Airlines", "카자흐스탄항공", "KAZAKHSTAN", "카자흐스탄"],
 
   // 동남아시아
   ["SQ", "SIA", "Singapore Airlines", "싱가포르항공", "SINGAPORE", "싱가포르"],
@@ -78,8 +96,8 @@ export const compressedAirlines: string[][] = [
   ["TR", "TGW", "Scoot", "스쿠트", "SCOOTER", "싱가포르"],
   ["3K", "JSA", "Jetstar Asia Airways", "제트스타아시아항공", "JETSTAR ASIA", "싱가포르"],
   ["TZ", "SCO", "Scoot Tigerair", "스쿠트타이거에어", "SCOOT TIGER", "싱가포르"],
-  ["8Q", "OHY", "Flynas", "플라이나스", "NAS EXPRESS", "싱가포르"],
   ["TG", "THA", "Thai Airways International", "타이항공", "THAI", "태국"],
+  ["VZ", "TVJ", "Thai Vietjet Air", "타이비엣젯항공", "THAIVIET JET", "태국"],
   ["FD", "AIQ", "Thai AirAsia", "타이에어아시아", "THAI ASIA", "태국"],
   ["WE", "THD", "Thai Smile", "타이스마일", "THAI SMILE", "태국"],
   ["SL", "THM", "Thai Lion Air", "타이라이언에어", "MENTARI", "태국"],
@@ -110,8 +128,10 @@ export const compressedAirlines: string[][] = [
   ["Z2", "EZD", "AirAsia Zest", "에어아시아제스트", "ZEST", "필리핀"],
   ["2P", "GAP", "Air Philippines", "에어필리핀", "ORIENT PACIFIC", "필리핀"],
   ["6K", "RIT", "Royal Air Philippines", "로얄에어필리핀", "ROYAL AIR", "필리핀"],
+  ["8M", "MMA", "Myanmar Airways International", "미얀마국제항공", "MYANMAR", "미얀마"],
+  ["UB", "UBA", "Myanmar National Airlines", "미얀마국영항공", "UNIONAIR", "미얀마"],
 
-  // 인도
+  // 서남아시아 (인도 등)
   ["6E", "IGO", "IndiGo", "인디고", "IFLY", "인도"],
   ["AI", "AIC", "Air India", "에어인디아", "AIRINDIA", "인도"],
   ["9W", "JAI", "Jet Airways", "제트항공", "JET AIRWAYS", "인도"],
@@ -120,10 +140,32 @@ export const compressedAirlines: string[][] = [
   ["I5", "IAD", "AirAsia India", "에어아시아인디아", "RED KNIGHT", "인도"],
   ["G8", "GOW", "GoAir", "고에어", "GOAIR", "인도"],
   ["S2", "LLR", "Air India Express", "에어인디아익스프레스", "EXPRESS INDIA", "인도"],
+  ["UL", "ALK", "SriLankan Airlines", "스리랑카항공", "SRILANKAN", "스리랑카"],
 
-  // ===== 유럽 =====
-  
-  // 영국
+  // ============================================================================
+  // 중동
+  // ============================================================================
+  ["EK", "UAE", "Emirates", "에미레이트항공", "EMIRATES", "아랍에미리트"],
+  ["QR", "QTR", "Qatar Airways", "카타르항공", "QATARI", "카타르"],
+  ["EY", "ETD", "Etihad Airways", "에티하드항공", "ETIHAD", "아랍에미리트"],
+  ["TK", "THY", "Turkish Airlines", "터키항공", "TURKISH", "터키"],
+  ["MB", "MNB", "MNG Airlines", "MNG항공", "BLACK SEA", "터키"],
+  ["PC", "PGT", "Pegasus Airlines", "페가수스항공", "SUNTURK", "터키"],
+  ["MS", "MSR", "EgyptAir", "이집트항공", "EGYPTAIR", "이집트"],
+  ["SV", "SVA", "Saudia", "사우디아", "SAUDIA", "사우디아라비아"],
+  ["XY", "KNE", "Flynas", "플라이나스", "NAS EXPRESS", "사우디아라비아"],
+  ["KU", "KAC", "Kuwait Airways", "쿠웨이트항공", "KUWAITI", "쿠웨이트"],
+  ["J9", "JZR", "Jazeera Airways", "자지라항공", "JAZEERA", "쿠웨이트"],
+  ["GF", "GFA", "Gulf Air", "걸프항공", "GULF AIR", "바레인"],
+  ["WY", "OMA", "Oman Air", "오만항공", "OMAN AIR", "오만"],
+  ["FZ", "FDB", "Flydubai", "플라이두바이", "SKYDUBAI", "아랍에미리트"],
+  ["RJ", "RJA", "Royal Jordanian", "로얄조르단항공", "JORDANIAN", "요르단"],
+  ["ME", "MEA", "Middle East Airlines", "중동항공", "CEDAR JET", "레바논"],
+
+  // ============================================================================
+  // 유럽
+  // ============================================================================
+  // 서유럽
   ["BA", "BAW", "British Airways", "브리티시항공", "SPEEDBIRD", "영국"],
   ["VS", "VIR", "Virgin Atlantic", "버진애틀랜틱", "VIRGIN", "영국"],
   ["U2", "EZY", "easyJet", "이지젯", "EASY", "영국"],
@@ -131,52 +173,55 @@ export const compressedAirlines: string[][] = [
   ["BE", "BEE", "Flybe", "플라이비", "JERSEY", "영국"],
   ["LS", "EXS", "Jet2.com", "젯2닷컴", "CHANNEX", "영국"],
   ["MT", "TCX", "Thomas Cook Airlines", "토마스쿡항공", "KESTREL", "영국"],
-
-  // 독일
   ["LH", "DLH", "Lufthansa", "루프트한자", "LUFTHANSA", "독일"],
+  ["LH", "LHG", "Lufthansa Cargo", "루프트한자카고", "LUFTHANSA CARGO", "독일"],
   ["EW", "EWG", "Eurowings", "유로윙스", "EUROWINGS", "독일"],
   ["AB", "BER", "Air Berlin", "에어베를린", "AIR BERLIN", "독일"],
   ["DE", "CFG", "Condor", "콘도르", "CONDOR", "독일"],
   ["4U", "GWI", "Germanwings", "저먼윙스", "GERMAN WINGS", "독일"],
-
-  // 프랑스
+  ["X3", "TUI", "TUIfly", "TUI플라이", "TUIJET", "독일"],
+  ["ST", "GMI", "Germania", "게르마니아", "GERMANIA", "독일"],
+  ["D0", "DHK", "DHL Aviation", "DHL항공", "WORLD EXPRESS", "독일"],
+  ["6U", "GEC", "German Cargo", "독일카고", "GERMAN CARGO", "독일"],
   ["AF", "AFR", "Air France", "에어프랑스", "AIRFRANS", "프랑스"],
   ["A5", "AIG", "Aigle Azur", "에글아주르", "AIGLE AZUR", "프랑스"],
   ["TO", "TVF", "Transavia France", "트랜스아비아프랑스", "FRANCE SOLEIL", "프랑스"],
-
-  // 이탈리아
-  ["AZ", "ITY", "ITA Airways", "ITA항공", "ITARROW", "이탈리아"],
-  ["IG", "ISS", "Meridiana", "메리디아나", "MERIDIANA", "이탈리아"],
-
-  // 아일랜드
-  ["FR", "RYR", "Ryanair", "라이언에어", "RYANAIR", "아일랜드"],
-  ["EI", "EIN", "Aer Lingus", "에어링구스", "SHAMROCK", "아일랜드"],
-
-  // 네덜란드
+  ["TX", "FPO", "Air Caraibes", "에어캐리브", "FRENCH WEST", "프랑스"],
+  ["SS", "CRL", "Corsair International", "코르세어국제항공", "CORSAIR", "프랑스"],
   ["KL", "KLM", "KLM Royal Dutch Airlines", "KLM네덜란드항공", "KLM", "네덜란드"],
   ["HV", "TRA", "Transavia", "트랜스아비아", "TRANSAVIA", "네덜란드"],
+  ["OR", "TFL", "TUI fly Netherlands", "TUI플라이네덜란드", "ORANGE", "네덜란드"],
+  ["FR", "RYR", "Ryanair", "라이언에어", "RYANAIR", "아일랜드"],
+  ["EI", "EIN", "Aer Lingus", "에어링구스", "SHAMROCK", "아일랜드"],
+  ["CV", "CLX", "Cargolux", "카고룩스", "CARGOLUX", "룩셈부르크"],
 
-  // 스페인
+  // 남유럽
+  ["AZ", "ITY", "ITA Airways", "ITA항공", "ITARROW", "이탈리아"],
+  ["IG", "ISS", "Meridiana", "메리디아나", "MERIDIANA", "이탈리아"],
+  ["AP", "ADH", "Alitalia", "알리탈리아", "ALITALIA", "이탈리아"],
+  ["U2", "EZY", "easyJet Europe", "이지젯유럽", "ALPINE", "이탈리아"],
   ["IB", "IBE", "Iberia", "이베리아항공", "IBERIA", "스페인"],
   ["UX", "AEA", "Air Europa", "에어유로파", "EUROPA", "스페인"],
   ["VY", "VLG", "Vueling", "뷰링", "VUELING", "스페인"],
+  ["YW", "ANE", "Air Nostrum", "에어노스트룸", "NOSTRUM AIR", "스페인"],
+  ["NT", "IBB", "Binter Canarias", "빈테르카나리아스", "BINTER", "스페인"],
+  ["V7", "VOE", "Volotea", "볼로테아", "VOLOTEA", "스페인"],
 
-  // 스위스
+  // 중부/북부/동부 유럽
   ["LX", "SWR", "Swiss International Air Lines", "스위스국제항공", "SWISS", "스위스"],
-
-  // 오스트리아
   ["OS", "AUA", "Austrian Airlines", "오스트리아항공", "AUSTRIAN", "오스트리아"],
-
-  // 스칸디나비아
+  ["HG", "NLY", "Niki", "니키", "FLYNIKI", "오스트리아"],
   ["SK", "SAS", "Scandinavian Airlines", "스칸디나비아항공", "SCANDINAVIAN", "스웨덴"],
   ["DY", "NAX", "Norwegian Air Shuttle", "노르웨이언에어셔틀", "NOR SHUTTLE", "노르웨이"],
   ["AY", "FIN", "Finnair", "핀에어", "FINNAIR", "핀란드"],
-
-  // 동유럽
+  ["WF", "WIF", "Widerøe", "비데뢰에", "WIDEROE", "노르웨이"],
+  ["BU", "BF", "Braathens Regional Airlines", "브라덴스리저널항공", "BRAATHENS", "스웨덴"],
   ["LO", "LOT", "LOT Polish Airlines", "LOT폴란드항공", "POLLOT", "폴란드"],
+  ["W6", "WZZ", "Wizz Air", "위즈에어", "WIZZ AIR", "폴란드"],
   ["OK", "CSA", "Czech Airlines", "체코항공", "CSA", "체코"],
+  ["QS", "TVS", "Travel Service", "트래블서비스", "SKYTRAVEL", "체코"],
 
-  // 러시아/구소련
+  // 러시아/CIS
   ["SU", "AFL", "Aeroflot", "아에로플로트", "AEROFLOT", "러시아"],
   ["S7", "SBI", "S7 Airlines", "S7항공", "SIBERIAN", "러시아"],
   ["UT", "UTA", "UTair Aviation", "UT에어항공", "UTAIR", "러시아"],
@@ -188,9 +233,9 @@ export const compressedAirlines: string[][] = [
   ["5N", "AUL", "Aeroflot-Nord", "아에로플로트노르드", "DVINA", "러시아"],
   ["D2", "SSF", "Severstal Air Company", "세베르스탈항공", "SEVERSTAL", "러시아"],
 
-  // ===== 북미 =====
-  
-  // 미국
+  // ============================================================================
+  // 북미
+  // ============================================================================
   ["AA", "AAL", "American Airlines", "아메리칸항공", "AMERICAN", "미국"],
   ["DL", "DAL", "Delta Air Lines", "델타항공", "DELTA", "미국"],
   ["UA", "UAL", "United Airlines", "유나이티드항공", "UNITED", "미국"],
@@ -216,77 +261,53 @@ export const compressedAirlines: string[][] = [
   ["9K", "KAP", "Cape Air", "케이프에어", "CAIR", "미국"],
   ["3M", "JIA", "Silver Airways", "실버항공", "SILVER WINGS", "미국"],
   ["4B", "BKA", "Boutique Air", "부티크에어", "BOUTIQUE", "미국"],
-  ["5Y", "GTI", "Atlas Air", "아틀라스에어", "GIANT", "미국"],
   ["7H", "RYR", "Ryan Air Service", "라이언에어서비스", "RYAN AIR", "미국"],
   ["8E", "BRG", "Bering Air", "베링에어", "BERING AIR", "미국"],
   ["9L", "CJC", "Colgan Air", "콜건에어", "COLGAN", "미국"],
   ["C5", "UCA", "CommutAir", "커뮤테어", "COMMUTAIR", "미국"],
-
-  // 캐나다
+  ["5X", "UPS", "UPS Airlines", "UPS항공", "UPS", "미국"],
+  ["FX", "FDX", "FedEx Express", "페덱스익스프레스", "FEDEX", "미국"],
+  ["3S", "ABX", "ABX Air", "ABX에어", "ABEX", "미국"],
+  ["5Y", "GTI", "Atlas Air", "아틀라스에어", "GIANT", "미국"],
+  ["PO", "PAC", "Polar Air Cargo", "폴라에어카고", "POLAR", "미국"],
+  ["K4", "CKS", "Kalitta Air", "칼리타에어", "CONNIE", "미국"],
+  ["KD", "WGN", "Western Global Airlines", "웨스턴글로벌항공", "WESTERN GLOBAL", "미국"],
+  ["M1", "MFX", "Mountain Air Express", "마운틴에어익스프레스", "MOUNTAIN", "미국"],
   ["AC", "ACA", "Air Canada", "에어캐나다", "AIR CANADA", "캐나다"],
   ["WS", "WJA", "WestJet", "웨스트젯", "WESTJET", "캐나다"],
   ["PD", "POE", "Porter Airlines", "포터항공", "PORTER", "캐나다"],
   ["F8", "FLE", "Flair Airlines", "플레어항공", "FLAIR", "캐나다"],
   ["TS", "TSC", "Air Transat", "에어트랜샛", "TRANSAT", "캐나다"],
 
-  // ===== 중동 =====
-  ["EK", "UAE", "Emirates", "에미레이트항공", "EMIRATES", "아랍에미리트"],
-  ["QR", "QTR", "Qatar Airways", "카타르항공", "QATARI", "카타르"],
-  ["EY", "ETD", "Etihad Airways", "에티하드항공", "ETIHAD", "아랍에미리트"],
-  ["TK", "THY", "Turkish Airlines", "터키항공", "TURKISH", "터키"],
-  ["MNG", "MNG", "MNG Airlines", "MNG항공", "MNG", "터키"],
-  ["MS", "MSR", "EgyptAir", "이집트항공", "EGYPTAIR", "이집트"],
-  ["SV", "SVA", "Saudia", "사우디아", "SAUDIA", "사우디아라비아"],
-  ["KU", "KAC", "Kuwait Airways", "쿠웨이트항공", "KUWAITI", "쿠웨이트"],
-  ["GF", "GFA", "Gulf Air", "걸프항공", "GULF AIR", "바레인"],
-  ["WY", "OMA", "Oman Air", "오만항공", "OMAN AIR", "오만"],
-  ["J9", "JZR", "Jazeera Airways", "자지라항공", "JAZEERA", "쿠웨이트"],
-  ["FZ", "FDB", "Flydubai", "플라이두바이", "SKYDUBAI", "아랍에미리트"],
-  ["XY", "FNE", "flynas", "플라이나스", "NAS EXPRESS", "사우디아라비아"],
-
-  // ===== 남미 =====
+  // ============================================================================
+  // 중남미 (Latin America)
+  // ============================================================================
+  ["AM", "AMX", "Aeroméxico", "아에로멕시코", "AEROMEXICO", "멕시코"],
   ["JJ", "TAM", "LATAM Brasil", "라탐브라질", "TAM", "브라질"],
   ["LA", "LAN", "LATAM Airlines", "라탐항공", "LAN", "칠레"],
   ["AR", "ARG", "Aerolíneas Argentinas", "아에로리네아스아르헨티나스", "ARGENTINA", "아르헨티나"],
   ["AV", "AVA", "Avianca", "아비앙카", "AVIANCA", "콜롬비아"],
   ["CM", "CMP", "Copa Airlines", "코파항공", "COPA", "파나마"],
-  ["AM", "AMX", "Aeroméxico", "아에로멕시코", "AEROMEXICO", "멕시코"],
+  ["QT", "TPA", "Tampa Cargo", "탐파카고", "TAMPA", "콜롬비아"],
+  ["BW", "BWA", "Caribbean Airlines", "카리브항공", "CARIBBEAN", "트리니다드토바고"],
 
-  // ===== 오세아니아 =====
+  // ============================================================================
+  // 오세아니아
+  // ============================================================================
   ["QF", "QFA", "Qantas", "콴타스항공", "QANTAS", "호주"],
   ["VA", "VOZ", "Virgin Australia", "버진오스트레일리아", "VELOCITY", "호주"],
   ["JQ", "JST", "Jetstar Airways", "제트스타항공", "JETSTAR", "호주"],
   ["NZ", "ANZ", "Air New Zealand", "에어뉴질랜드", "NEW ZEALAND", "뉴질랜드"],
+  ["FJ", "FJI", "Fiji Airways", "피지항공", "PACIFIC", "피지"],
 
-  // ===== 아프리카 =====
+  // ============================================================================
+  // 아프리카
+  // ============================================================================
   ["ET", "ETH", "Ethiopian Airlines", "에티오피아항공", "ETHIOPIAN", "에티오피아"],
   ["SA", "SAA", "South African Airways", "사우스아프리카항공", "SPRINGBOK", "남아프리카공화국"],
   ["KQ", "KQA", "Kenya Airways", "케냐항공", "KENYA", "케냐"],
   ["AT", "RAM", "Royal Air Maroc", "로얄에어모로코", "ROYALAIR MAROC", "모로코"],
-  ["WB", "RWD", "RwandAir", "르완다에어", "RWANDAIR", "르완다"],
-  ["UL", "ALK", "SriLankan Airlines", "스리랑카항공", "SRILANKAN", "스리랑카"],
-
-  // ===== 카고 전문 =====
-  ["5X", "UPS", "UPS Airlines", "UPS항공", "UPS", "미국"],
-  ["FX", "FDX", "FedEx Express", "페덱스익스프레스", "FEDEX", "미국"],
-  ["3S", "ABX", "ABX Air", "ABX에어", "ABEX", "미국"],
-  ["AT", "AMT", "Atlas Air", "아틀라스에어", "GIANT", "미국"],
-  ["GTI", "GTI", "Atlas Air", "아틀라스에어", "GIANT", "미국"],
-  ["PO", "PAC", "Polar Air Cargo", "폴라에어카고", "POLAR", "미국"],
-  ["K4", "CKS", "Kalitta Air", "칼리타에어", "CONNIE", "미국"],
-  ["WGN", "WGN", "Western Global Airlines", "웨스턴글로벌항공", "WESTERN GLOBAL", "미국"],
-  ["QT", "TPA", "Tampa Cargo", "탐파카고", "TAMPA", "콜롬비아"],
-  ["CV", "CLX", "Cargolux", "카고룩스", "CARGOLUX", "룩셈부르크"],
-  ["CK", "CAO", "China Cargo Airlines", "중국카고항공", "CARGO KING", "중국"],
-  ["DHL", "DHK", "DHL Aviation", "DHL항공", "WORLD EXPRESS", "독일"],
-  ["GEC", "GEC", "German Cargo", "독일카고", "GERMAN CARGO", "독일"],
-  ["LHA", "LHA", "Lufthansa Cargo", "루프트한자카고", "LUFTHANSA CARGO", "독일"],
-  ["MFX", "MFX", "Mountain Air Express", "마운틴에어익스프레스", "MOUNTAIN", "미국"],
-  ["HKE", "HKE", "Hong Kong Express Airways", "홍콩익스프레스항공", "HONGKONG SHUTTLE", "홍콩"],
-  ["KZR", "KZR", "Kazakhstan Airlines", "카자흐스탄항공", "KAZAKHSTAN", "카자흐스탄"],
-  ["MGL", "MGL", "Mongolian Airlines", "몽골항공", "MONGOL AIR", "몽골"],
-  ["MMA", "MMA", "Myanmar Airways International", "미얀마항공", "MYANMAR", "미얀마"],
-  ["MML", "MML", "Myanmar National Airlines", "미얀마국영항공", "MYANMAR", "미얀마"]
+  ["WB", "RWD", "RwandAir", "르완다에어", "RWANDAIR", "르완다"]
 ];
 
 // ============================================================================

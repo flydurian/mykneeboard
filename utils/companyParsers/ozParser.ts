@@ -278,85 +278,126 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
     // 월 비행스케줄에서는 조종사 정보만 파싱됨
     let isInCabinSchedule = false;
     let isInCockpitSchedule = false;
+    const defaultCabinColumnIndices = { empl: 6, name: 10, rank: 17, gisu: 18 };
+    const cabinColumnIndices = { ...defaultCabinColumnIndices };
+    let cabinHeaderProcessed = false;
     
     jsonData.forEach((row, rowIndex) => {
       if (!Array.isArray(row)) return;
-      
-      row.forEach((cell, colIndex) => {
-        if (!cell) return;
-        const cellValue = String(cell).trim();
-        if (!cellValue) return;
-        
-        const cellUpper = cellValue.toUpperCase();
-        
-        // CABIN SCHEDULE 섹션 감지
-        if (cellUpper.includes('CABIN SCHEDULE')) {
-          isInCabinSchedule = true;
-          isInCockpitSchedule = false;
+
+      const normalizedRow = row.map((cell) => typeof cell === 'string'
+        ? cell.toUpperCase().replace(/\s+/g, ' ').trim()
+        : '');
+      const normalizedRowNoSpace = row.map((cell) => typeof cell === 'string'
+        ? cell.toUpperCase().replace(/\s+/g, '')
+        : '');
+
+      if (normalizedRow.some((value) => typeof value === 'string' && value.includes('CABIN SCHEDULE'))) {
+        isInCabinSchedule = true;
+        isInCockpitSchedule = false;
+        cabinHeaderProcessed = false;
+      }
+
+      if (normalizedRow.some((value) => typeof value === 'string' && value.includes('COCKPIT SCHEDULE'))) {
+        isInCockpitSchedule = true;
+        isInCabinSchedule = false;
+      }
+
+      if (isInCabinSchedule && !cabinHeaderProcessed) {
+        const headerEntries = normalizedRowNoSpace
+          .map((value, index) => ({ value, index }))
+          .filter(({ value }) => typeof value === 'string' && value.length > 0);
+
+        const findIndex = (labels: string[]) => {
+          const entry = headerEntries.find(({ value }) =>
+            labels.some((label) => value === label || value.includes(label))
+          );
+          return entry ? entry.index : -1;
+        };
+
+        const headerLabels = ['EMPL', 'EMPNO', 'EMP#', 'EMP', 'NAME', 'RANK', 'GISU', 'GISUNO', 'GISU#', 'GISU.', 'GI-SU', 'GISUSN', 'GISUSTR', 'GI SU'];
+        const hasHeader = headerEntries.some(({ value }) =>
+          headerLabels.some((label) => value === label || value.includes(label))
+        );
+
+        if (hasHeader) {
+          const emplIndex = findIndex(['EMPL', 'EMPNO', 'EMP#', 'EMP']);
+          if (emplIndex !== -1) cabinColumnIndices.empl = emplIndex;
+
+          const nameIndex = findIndex(['NAME']);
+          if (nameIndex !== -1) cabinColumnIndices.name = nameIndex;
+
+          const rankIndex = findIndex(['RANK']);
+          if (rankIndex !== -1) cabinColumnIndices.rank = rankIndex;
+
+          const gisuIndex = findIndex(['GISU', 'GISUNO', 'GISU#', 'GISU.', 'GI-SU', 'GISUSN', 'GISUSTR', 'GI SU']);
+          if (gisuIndex !== -1) cabinColumnIndices.gisu = gisuIndex;
+
+          cabinHeaderProcessed = true;
+          return;
         }
-        
-        // COCKPIT SCHEDULE 섹션 감지
-        if (cellUpper.includes('COCKPIT SCHEDULE')) {
-          isInCockpitSchedule = true;
-          isInCabinSchedule = false;
-        }
-        
-        // CABIN SCHEDULE에서 승무원 정보 파싱
-        if (isInCabinSchedule && row.length > 20) {
-          const empno = row[6] ? String(row[6]).trim() : '';
-          const name = row[10] ? String(row[10]).trim() : '';
-          const rank = row[17] ? String(row[17]).trim() : '';
-          
-          if (empno && name && rank && empno.match(/^\d+$/)) {
-            const cabinCrewMember: CrewMember = {
-              empl: empno,
-              name: name,
-              rank: rank,
-              posnType: '',
-              posn: ''
-            };
-            
-            // 중복 체크
-            const isDuplicate = briefingCabinCrew.some(crew => 
-              crew.empl === empno || crew.name === name
-            );
-            
-            if (!isDuplicate) {
-              briefingCabinCrew.push(cabinCrewMember);
-              console.log('🔍 BRIEFING INFO 캐빈 승무원 파싱:', cabinCrewMember);
-            }
+      }
+
+      if (isInCabinSchedule) {
+        const empIndex = cabinColumnIndices.empl ?? defaultCabinColumnIndices.empl;
+        const nameIndex = cabinColumnIndices.name ?? defaultCabinColumnIndices.name;
+        const rankIndex = cabinColumnIndices.rank ?? defaultCabinColumnIndices.rank;
+        const gisuIndex = cabinColumnIndices.gisu ?? -1;
+
+        const empno = row[empIndex] ? String(row[empIndex]).trim() : '';
+        const name = row[nameIndex] ? String(row[nameIndex]).trim() : '';
+        const rank = row[rankIndex] ? String(row[rankIndex]).trim() : '';
+        const gisu = gisuIndex >= 0 && row[gisuIndex] ? String(row[gisuIndex]).trim() : '';
+
+        if (empno && name && rank && empno.match(/^\d+$/)) {
+          const cabinCrewMember: CrewMember = {
+            empl: empno,
+            name,
+            rank,
+            posnType: '',
+            posn: '',
+            gisu
+          };
+
+          const isDuplicate = briefingCabinCrew.some((crew) =>
+            crew.empl === empno || crew.name === name
+          );
+
+          if (!isDuplicate) {
+            briefingCabinCrew.push(cabinCrewMember);
+            console.log('🔍 BRIEFING INFO 캐빈 승무원 파싱:', cabinCrewMember);
           }
         }
+        return;
+      }
+
+      if (isInCockpitSchedule && row.length > 30) {
+        const empno = row[4] ? String(row[4]).trim() : '';
+        const name = row[9] ? String(row[9]).trim() : '';
+        const rank = row[19] ? String(row[19]).trim() : '';
+        const duty = row[29] ? String(row[29]).trim() : '';
+        const position = row[33] ? String(row[33]).trim() : '';
         
-        // COCKPIT SCHEDULE에서 승무원 정보 파싱
-        if (isInCockpitSchedule && row.length > 30) {
-          const empno = row[4] ? String(row[4]).trim() : '';
-          const name = row[9] ? String(row[9]).trim() : '';
-          const rank = row[19] ? String(row[19]).trim() : '';
-          const duty = row[29] ? String(row[29]).trim() : '';
-          const position = row[33] ? String(row[33]).trim() : '';
+        if (empno && name && rank && empno.match(/^\d+$/)) {
+          const cockpitCrewMember: CrewMember = {
+            empl: empno,
+            name,
+            rank,
+            posnType: duty,
+            posn: position,
+            gisu: ''
+          };
           
-          if (empno && name && rank && empno.match(/^\d+$/)) {
-            const cockpitCrewMember: CrewMember = {
-              empl: empno,
-              name: name,
-              rank: rank,
-              posnType: duty,
-              posn: position
-            };
-            
-            // 중복 체크
-            const isDuplicate = briefingCockpitCrew.some(crew => 
-              crew.empl === empno || crew.name === name
-            );
-            
-            if (!isDuplicate) {
-              briefingCockpitCrew.push(cockpitCrewMember);
-              console.log('🔍 BRIEFING INFO 조종사 파싱:', cockpitCrewMember);
-            }
+          const isDuplicate = briefingCockpitCrew.some(crew => 
+            crew.empl === empno || crew.name === name
+          );
+          
+          if (!isDuplicate) {
+            briefingCockpitCrew.push(cockpitCrewMember);
+            console.log('🔍 BRIEFING INFO 조종사 파싱:', cockpitCrewMember);
           }
         }
-      });
+      }
     });
   }
   
@@ -394,6 +435,7 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
   let idxRank = 8;
   let idxPosnType = 9;
   let idxPosn = 10;
+  let idxGisu = -1;
 
   try {
     // 헤더 후보 영역(상위 10행)에서 각 컬럼 라벨 위치 탐색
@@ -419,12 +461,14 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
       const hasRank = upper.includes('RANK');
       const hasPosnType = upper.includes('POSN TYP') || upper.includes('POSN TYPE') || upper.includes('POSNTYPE');
       const hasPosn = upper.includes('POSN');
+      const gisuIndexCandidate = upper.findIndex((value: any) => typeof value === 'string' && value.replace(/\s+/g, '').replace(/-/g, '') === 'GISU');
       if (hasEmpl && hasName) {
         if (hasEmpl) idxEmpl = upper.indexOf('EMPL');
         if (hasName) idxName = upper.indexOf('NAME');
         if (hasRank) idxRank = upper.indexOf('RANK');
         if (hasPosnType) idxPosnType = upper.indexOf('POSN TYP') !== -1 ? upper.indexOf('POSN TYP') : (upper.indexOf('POSN TYPE') !== -1 ? upper.indexOf('POSN TYPE') : upper.indexOf('POSNTYPE'));
         if (hasPosn) idxPosn = upper.indexOf('POSN');
+        if (gisuIndexCandidate !== -1) idxGisu = gisuIndexCandidate;
         // 크루 헤더만 찾았다고 루프를 중단하지 말고, 다른 라벨도 계속 스캔
       }
     }
@@ -438,8 +482,9 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
     if (idxRank === -1) idxRank = 8;
     if (idxPosnType === -1) idxPosnType = 9;
     if (idxPosn === -1) idxPosn = 10;
+    if (idxGisu === -1) idxGisu = -1;
 
-    console.log('🧭 감지된 스케줄/크루 컬럼 인덱스:', { idxDate, idxFlight, idxShowUp, idxSector, idxSTD, idxSTA, idxEmpl, idxName, idxRank, idxPosnType, idxPosn });
+    console.log('🧭 감지된 스케줄/크루 컬럼 인덱스:', { idxDate, idxFlight, idxShowUp, idxSector, idxSTD, idxSTA, idxEmpl, idxName, idxRank, idxPosnType, idxPosn, idxGisu });
   } catch (e) {
     console.warn('⚠️ 크루 컬럼 인덱스 자동 감지 실패, 기본 인덱스 사용', e);
   }
@@ -493,7 +538,8 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
       name: row[idxName] ? String(row[idxName]).trim() : '',
       rank: row[idxRank] ? String(row[idxRank]).trim() : '',
       posnType: row[idxPosnType] ? String(row[idxPosnType]).trim() : '',
-      posn: row[idxPosn] ? String(row[idxPosn]).trim() : ''
+      posn: row[idxPosn] ? String(row[idxPosn]).trim() : '',
+      gisu: idxGisu !== -1 && row[idxGisu] ? String(row[idxGisu]).trim() : ''
     };
     
     // 🔍 컬럼 데이터 디버깅 (첫 번째 행에서만)

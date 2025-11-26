@@ -64,6 +64,7 @@ const COMPRESSED_CITY_DATA: [string, string, string, string, string, string, num
   ['VIE', 'LOWW', 'Vienna', 'Europe/Vienna', 'EUR', 'Austria', 48.1103, 16.5697, 2761369],
   ['MXP', 'LIMC', 'Milan', 'Europe/Rome', 'EUR', 'Italy', 45.6306, 8.7281, 3173435],
   ['IST', 'LTFM', 'Istanbul', 'Europe/Istanbul', 'TRY', 'Turkey', 41.2753, 28.7519, 745044],
+  ['BUD', 'LHBP', 'Budapest', 'Europe/Budapest', 'HUF', 'Hungary', 47.4369, 19.2556, 3054643],
   ['TLV', 'LLBG', 'Tel Aviv', 'Asia/Jerusalem', 'ILS', 'Israel', 32.0114, 34.8867, 293397],
   ['DOH', 'OTHH', 'Doha', 'Asia/Qatar', 'QAR', 'Qatar', 25.2611, 51.5651, 290030],
 
@@ -78,6 +79,17 @@ const COMPRESSED_CITY_DATA: [string, string, string, string, string, string, num
   ['TFU', 'RJFO', 'Tokyo', 'Asia/Tokyo', 'JPY', 'Japan', 35.7647, 140.3863, 1850147],
   ['UKB', 'RJBE', 'Kobe', 'Asia/Tokyo', 'JPY', 'Japan', 34.6328, 135.2239, 1859176],
   ['HIJ', 'RJOA', 'Hiroshima', 'Asia/Tokyo', 'JPY', 'Japan', 34.4361, 132.9194, 1862415],
+  ['KMJ', 'RJFT', 'Kumamoto', 'Asia/Tokyo', 'JPY', 'Japan', 32.8373, 130.8550, 1858421],
+  ['MYJ', 'RJOM', 'Matsuyama', 'Asia/Tokyo', 'JPY', 'Japan', 33.8272, 132.6997, 1857550],
+  ['KKJ', 'RJFR', 'Kitakyushu', 'Asia/Tokyo', 'JPY', 'Japan', 33.8455, 131.0344, 1859307],
+  ['KIJ', 'RJSN', 'Niigata', 'Asia/Tokyo', 'JPY', 'Japan', 37.9558, 139.1117, 0],
+  ['TKS', 'RJOS', 'Tokushima', 'Asia/Tokyo', 'JPY', 'Japan', 34.1322, 134.6092, 0],
+  ['KOJ', 'RJFK', 'Kagoshima', 'Asia/Tokyo', 'JPY', 'Japan', 31.8033, 130.7169, 0],
+  ['TAK', 'RJOT', 'Takamatsu', 'Asia/Tokyo', 'JPY', 'Japan', 34.2142, 134.0156, 0],
+  ['SDJ', 'RJSS', 'Sendai', 'Asia/Tokyo', 'JPY', 'Japan', 38.1397, 140.9169, 0],
+  ['ISG', 'ROIG', 'Ishigaki', 'Asia/Tokyo', 'JPY', 'Japan', 24.3964, 124.2450, 0],
+  ['KMQ', 'RJNK', 'Komatsu', 'Asia/Tokyo', 'JPY', 'Japan', 36.3939, 136.4075, 0],
+  ['NGS', 'RJFU', 'Nagasaki', 'Asia/Tokyo', 'JPY', 'Japan', 32.9169, 129.9136, 0],
 
   // 중국
   ['PEK', 'ZBAA', 'Beijing', 'Asia/Shanghai', 'CNY', 'China', 40.0799, 116.6031, 1816670],
@@ -95,6 +107,12 @@ const COMPRESSED_CITY_DATA: [string, string, string, string, string, string, num
   ['DLC', 'ZYTL', 'Dalian', 'Asia/Shanghai', 'CNY', 'China', 38.9657, 121.5386, 1814087],
   ['HRB', 'ZYHB', 'Harbin', 'Asia/Shanghai', 'CNY', 'China', 45.6234, 126.2503, 2037013],
   ['TSN', 'ZBTJ', 'Tianjin', 'Asia/Shanghai', 'CNY', 'China', 39.1244, 117.3464, 1792947],
+  ['WEH', 'ZSWH', 'Weihai', 'Asia/Shanghai', 'CNY', 'China', 37.5100, 122.1208, 0],
+  ['SYX', 'ZJSY', 'Sanya', 'Asia/Shanghai', 'CNY', 'China', 18.2431, 109.5050, 0],
+  ['CGQ', 'ZYCC', 'Changchun', 'Asia/Shanghai', 'CNY', 'China', 43.8800, 125.3228, 0],
+  ['XIY', 'ZLXY', 'Xi\'an', 'Asia/Shanghai', 'CNY', 'China', 34.2667, 108.9333, 0],
+  ['YNZ', 'ZSYN', 'Yancheng', 'Asia/Shanghai', 'CNY', 'China', 33.3575, 120.1573, 0],
+  ['PKX', 'ZBAD', 'Beijing', 'Asia/Shanghai', 'CNY', 'China', 39.5099, 116.4109, 0],
 
   // 대만
   ['TPE', 'RCTP', 'Taipei', 'Asia/Taipei', 'TWD', 'Taiwan', 25.0777, 121.2328, 1668341],
@@ -117,6 +135,9 @@ const COMPRESSED_CITY_DATA: [string, string, string, string, string, string, num
   ['CRK', 'RPLC', 'Clark', 'Asia/Manila', 'PHP', 'Philippines', 15.1860, 120.5603, 1717511],
   ['KUL', 'WMKK', 'Kuala Lumpur', 'Asia/Kuala_Lumpur', 'MYR', 'Malaysia', 2.7456, 101.7099, 1735161],
   ['MFM', 'VMMC', 'Macau', 'Asia/Macau', 'MOP', 'Macau', 22.1496, 113.5916, 1821274],
+  ['RGN', 'VYYY', 'Yangon', 'Asia/Yangon', 'MMK', 'Myanmar', 16.9073, 96.1332, 1298824],
+  ['CXR', 'VVCR', 'Nha Trang', 'Asia/Ho_Chi_Minh', 'VND', 'Vietnam', 11.9982, 109.2194, 1572151],
+  ['KLO', 'RPVK', 'Kalibo', 'Asia/Manila', 'PHP', 'Philippines', 11.6892, 122.3674, 0],
 
   // 인도
   ['BOM', 'VABB', 'Mumbai', 'Asia/Kolkata', 'INR', 'India', 19.0887, 72.8681, 1275339],
@@ -136,12 +157,14 @@ const COMPRESSED_CITY_DATA: [string, string, string, string, string, string, num
   // 태평양/중동
   ['GUM', 'PGUM', 'Guam', 'Pacific/Guam', 'USD', 'Guam', 13.4839, 144.7960, 4043909],
   ['DXB', 'OMDB', 'Dubai', 'Asia/Dubai', 'AED', 'United Arab Emirates', 25.2528, 55.3644, 292223],
+  ['AUH', 'OMAA', 'Abu Dhabi', 'Asia/Dubai', 'AED', 'United Arab Emirates', 24.4330, 54.6511, 292968],
 
   // 기타 아시아
   ['PNH', 'VDPP', 'Phnom Penh', 'Asia/Phnom_Penh', 'KHR', 'Cambodia', 11.5466, 104.8441, 1821306],
   ['VTE', 'VLVT', 'Vientiane', 'Asia/Vientiane', 'LAK', 'Laos', 17.9881, 102.5633, 1651944],
   ['TAG', 'RPVT', 'Tagbilaran', 'Asia/Manila', 'PHP', 'Philippines', 9.6641, 123.8531, 1684016],
   ['PQC', 'VVPQ', 'Phu Quoc', 'Asia/Ho_Chi_Minh', 'VND', 'Vietnam', 10.2270, 103.9672, 1566083],
+  ['KTI', 'VDKT', 'Kratie', 'Asia/Phnom_Penh', 'KHR', 'Cambodia', 12.4889, 106.0311, 1831065],
   ['TAS', 'UTTT', 'Tashkent', 'Asia/Tashkent', 'UZS', 'Uzbekistan', 41.2579, 69.2812, 1512569],
   ['ALA', 'UAAA', 'Almaty', 'Asia/Almaty', 'KZT', 'Kazakhstan', 43.3522, 77.0405, 1526384],
   ['BKI', 'WBKK', 'Kota Kinabalu', 'Asia/Kuching', 'MYR', 'Malaysia', 5.9372, 116.0512, 1733432],
@@ -149,7 +172,9 @@ const COMPRESSED_CITY_DATA: [string, string, string, string, string, string, num
   ['CAI', 'HECA', 'Cairo', 'Africa/Cairo', 'EGP', 'Egypt', 30.1127, 31.4000, 360630],
   ['DPS', 'WADD', 'Denpasar', 'Asia/Makassar', 'IDR', 'Indonesia', -8.7482, 115.1672, 1645528],
   ['SZX', 'ZGSZ', 'Shenzhen', 'Asia/Shanghai', 'CNY', 'China', 22.6393, 113.8106, 1795565],
-  ['WUH', 'ZHHH', 'Wuhan', 'Asia/Shanghai', 'CNY', 'China', 30.7838, 114.2081, 1791247]
+  ['FOC', 'ZSFZ', 'Fuzhou', 'Asia/Shanghai', 'CNY', 'China', 25.9344, 119.6633, 1810845],
+  ['WUH', 'ZHHH', 'Wuhan', 'Asia/Shanghai', 'CNY', 'China', 30.7838, 114.2081, 1791247],
+  ['UBN', 'ZMCK', 'Ulaanbaatar', 'Asia/Ulaanbaatar', 'MNT', 'Mongolia', 47.6466, 106.8226, 2028462]
 ];
 
 // 압축된 데이터를 CityInfo 객체로 변환
@@ -189,7 +214,7 @@ const COMPRESSED_FLIGHT_TIMES: [string, number, number][] = [
   ['SEA/ICN', 10, 30], ['ICN/SEA', 9, 40],
   ['SIN/ICN', 6, 30], ['ICN/SIN', 6, 30],
   ['CDG/ICN', 10, 30], ['ICN/CDG', 9, 40],
-  
+
   // 미국 노선
   ['ICN/ATL', 14, 30], ['ATL/ICN', 15, 30],
   ['ICN/DFW', 13, 30], ['DFW/ICN', 14, 30],
@@ -202,25 +227,26 @@ const COMPRESSED_FLIGHT_TIMES: [string, number, number][] = [
   ['ICN/LAS', 12, 30], ['LAS/ICN', 13, 30],
   ['ICN/HNL', 8, 30], ['HNL/ICN', 9, 30],
   ['ICN/EWR', 14, 30], ['EWR/ICN', 15, 30],
-  
+
   // 유럽 노선
   ['ICN/ZRH', 11, 0], ['ZRH/ICN', 12, 0],
+  ['ICN/BUD', 11, 30], ['BUD/ICN', 10, 30],
   ['ICN/TLV', 10, 30], ['TLV/ICN', 11, 30],
   ['ICN/DOH', 8, 30], ['DOH/ICN', 9, 30],
- 
- 
+
+
   // 동남아시아 노선
   ['ICN/HKT', 5, 30], ['HKT/ICN', 5, 30],
   ['ICN/MNL', 3, 0], ['MNL/ICN', 3, 0],
   ['ICN/CEB', 3, 30], ['CEB/ICN', 3, 30],
   ['ICN/CRK', 3, 0], ['CRK/ICN', 3, 0],
   ['ICN/KUL', 6, 0], ['KUL/ICN', 6, 0],
-  
+
   // 인도 노선
   ['ICN/BOM', 7, 30], ['BOM/ICN', 7, 30],
   ['ICN/DEL', 7, 0], ['DEL/ICN', 7, 0],
-  
-  
+
+
   // 기타 아시아 노선
   ['ICN/PNH', 4, 30], ['PNH/ICN', 4, 30],
   ['ICN/VTE', 4, 30], ['VTE/ICN', 4, 30],
@@ -231,21 +257,21 @@ const COMPRESSED_FLIGHT_TIMES: [string, number, number][] = [
   ['ICN/BKI', 4, 0], ['BKI/ICN', 4, 0],
   ['ICN/CNX', 4, 0], ['CNX/ICN', 4, 0],
   ['ICN/CAI', 10, 0], ['CAI/ICN', 10, 0],
-  
+
   // 오세아니아 노선
   ['ICN/BNE', 9, 30], ['BNE/ICN', 9, 30],
   ['ICN/PER', 8, 30], ['PER/ICN', 8, 30],
-  
+
   // 북미 노선
   ['ICN/YVR', 10, 30], ['YVR/ICN', 11, 30],
   ['ICN/YYZ', 13, 30], ['YYZ/ICN', 14, 30],
-  
+
   // 태평양 노선
   ['ICN/GUM', 4, 30], ['GUM/ICN', 4, 30],
-  
+
   // 중동 노선
   ['ICN/DXB', 9, 0], ['DXB/ICN', 9, 0],
-  
+
   // 기존 아시아 노선
   ['ICN/DAD', 4, 30], ['DAD/ICN', 4, 30],
   ['ICN/WUH', 2, 30], ['WUH/ICN', 2, 30],
@@ -339,13 +365,13 @@ export const getExchangeRateUrl = (fromCurrency: string, toCurrency: string = 'K
 export const getUTCOffset = (airportCode: string): string | null => {
   const cityInfo = CITY_DATA[airportCode];
   if (!cityInfo) return null;
-  
+
   try {
     const now = new Date();
-    const utcTime = new Date(now.toLocaleString("en-US", {timeZone: "UTC"}));
-    const localTime = new Date(now.toLocaleString("en-US", {timeZone: cityInfo.timezone}));
+    const utcTime = new Date(now.toLocaleString("en-US", { timeZone: "UTC" }));
+    const localTime = new Date(now.toLocaleString("en-US", { timeZone: cityInfo.timezone }));
     const offset = (localTime.getTime() - utcTime.getTime()) / (1000 * 60 * 60);
-    
+
     if (offset === 0) return '(UTC)';
     if (offset > 0) return `(UTC+${offset})`;
     return `(UTC${offset})`;

@@ -62,31 +62,27 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                             <div className="space-y-2 text-sm">
                                 <div>
                                     <span className="font-medium text-gray-700 dark:text-gray-300">항공편 정보:</span>
-                                    <p className="text-gray-600 dark:text-gray-400">인천공항 API (실시간 항공편 데이터)</p>
+                                    <p className="text-gray-600 dark:text-gray-400">AeroDataBox, 인천공항 API</p>
                                 </div>
                                 <div>
-                                    <span className="font-medium text-gray-700 dark:text-gray-300">대기질(AQI):</span>
-                                    <p className="text-gray-600 dark:text-gray-400">AQICN (World Air Quality Index)</p>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">지도 정보:</span>
+                                    <p className="text-gray-600 dark:text-gray-400">OpenStreetMap, ESRI 위성</p>
                                 </div>
                                 <div>
-                                    <span className="font-medium text-gray-700 dark:text-gray-300">날씨 정보:</span>
-                                    <p className="text-gray-600 dark:text-gray-400">OpenWeatherMap</p>
-                                </div>
-                                <div>
-                                    <span className="font-medium text-gray-700 dark:text-gray-300">일출/일몰 시간:</span>
-                                    <p className="text-gray-600 dark:text-gray-400">sunrise-sunset.org</p>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">기상 정보:</span>
+                                    <p className="text-gray-600 dark:text-gray-400">CheckWX, OpenWeatherMap</p>
                                 </div>
                                 <div>
                                     <span className="font-medium text-gray-700 dark:text-gray-300">환율 정보:</span>
-                                    <p className="text-gray-600 dark:text-gray-400">ExchangeRate.host (또는 배포 환경의 서버리스 엔드포인트)</p>
+                                    <p className="text-gray-600 dark:text-gray-400">ExchangeRate-API</p>
                                 </div>
                                 <div>
-                                    <span className="font-medium text-gray-700 dark:text-gray-300">DATIS / NOTAM:</span>
-                                    <p className="text-gray-600 dark:text-gray-400">datis.clowd.io (raw) + 자체 디코딩 로직</p>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">대기질(AQI):</span>
+                                    <p className="text-gray-600 dark:text-gray-400">AQICN</p>
                                 </div>
                                 <div>
-                                    <span className="font-medium text-gray-700 dark:text-gray-300">항공사/도시/공항 정보:</span>
-                                    <p className="text-gray-600 dark:text-gray-400">내장 오프라인 DB + 공개 데이터</p>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">기타 정보:</span>
+                                    <p className="text-gray-600 dark:text-gray-400">내장 오프라인 DB</p>
                                 </div>
                             </div>
                         </div>

@@ -2,13 +2,14 @@ import { Flight } from '../types';
 
 export class IndexedDBCache {
   private readonly DB_NAME = 'FlightDashboardDB';
-  private readonly DB_VERSION = 7; // 사용자 설정 저장소 추가
+  private readonly DB_VERSION = 8; // 공유 항공편 스케줄 저장소 추가
   private readonly STORE_NAME = 'flights';
   private readonly METADATA_STORE = 'metadata';
   private readonly CREW_MEMOS_STORE = 'crewMemos';
   private readonly CITY_MEMOS_STORE = 'cityMemos';
   private readonly REST_INFO_STORE = 'restInfo';
   private readonly USER_SETTINGS_STORE = 'userSettings';
+  private readonly FLIGHT_SCHEDULES_STORE = 'flightSchedules';
   private readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7일 - 장시간 비행모드 대응
 
   private db: IDBDatabase | null = null;
@@ -24,8 +25,8 @@ export class IndexedDBCache {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         const oldVersion = event.oldVersion;
-        
-        
+
+
         // 비행 데이터 저장소
         if (!db.objectStoreNames.contains(this.STORE_NAME)) {
           const flightStore = db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
@@ -60,19 +61,47 @@ export class IndexedDBCache {
         if (!db.objectStoreNames.contains(this.USER_SETTINGS_STORE)) {
           const userSettingsStore = db.createObjectStore(this.USER_SETTINGS_STORE, { keyPath: 'userId' });
         }
+
+        // 공유 항공편 스케줄 저장소
+        if (!db.objectStoreNames.contains(this.FLIGHT_SCHEDULES_STORE)) {
+          const flightSchedulesStore = db.createObjectStore(this.FLIGHT_SCHEDULES_STORE, { keyPath: 'flightNumber' });
+          flightSchedulesStore.createIndex('airline', 'airline', { unique: false });
+          flightSchedulesStore.createIndex('departure', 'departure', { unique: false });
+          flightSchedulesStore.createIndex('arrival', 'arrival', { unique: false });
+          flightSchedulesStore.createIndex('cachedAt', 'cachedAt', { unique: false });
+        }
       };
     });
   }
 
-  // 사용자 설정 저장 (회사/베이스)
+  // 사용자 설정 저장 (회사/베이스) - 기존 설정과 병합
   async saveUserSettings(userId: string, settings: { company?: string; base?: string }): Promise<void> {
     try {
       const db = await this.getDB();
       if (!db.objectStoreNames.contains(this.USER_SETTINGS_STORE)) return;
+
       const tx = db.transaction([this.USER_SETTINGS_STORE], 'readwrite');
       const store = tx.objectStore(this.USER_SETTINGS_STORE);
-      const data = { userId, ...settings, timestamp: Date.now() };
-      store.put(data);
+
+      // 기존 데이터 조회
+      const getRequest = store.get(userId);
+
+      getRequest.onsuccess = () => {
+        const existingData = getRequest.result || {};
+
+        // 기존 데이터와 새 설정 병합 (undefined 값은 제외하여 기존 값 보존)
+        const newData = {
+          ...existingData,
+          userId,
+          timestamp: Date.now()
+        };
+
+        if (settings.company !== undefined) newData.company = settings.company;
+        if (settings.base !== undefined) newData.base = settings.base;
+
+        store.put(newData);
+      };
+
       await new Promise((resolve, reject) => {
         tx.oncomplete = resolve;
         tx.onerror = () => reject(tx.error);
@@ -112,23 +141,23 @@ export class IndexedDBCache {
 
   // 비행 데이터 저장 (용량 제한 없음 + 극한 성능 최적화)
   async saveFlights(flights: Flight[], userId: string): Promise<void> {
-    if (!this.db) {
-      console.error("데이터베이스가 초기화되지 않았습니다.");
-      return Promise.reject(new Error("Database not initialized."));
+    if (!flights || flights.length === 0) {
+      return;
     }
+
+    // IndexedDB 커넥션이 준비되지 않은 경우 강제로 초기화
+    await this.getDB();
 
     // 극한 성능 최적화: 배치 크기 대폭 증가
     const BATCH_SIZE = 5000; // 배치 크기 대폭 증가로 성능 극한 향상
     const batches = this.createBatches(flights, BATCH_SIZE);
-    
-    
-    // 병렬 처리로 성능 극한 향상
-    const batchPromises = batches.map((batch, index) => 
-      this.saveBatch(batch, userId, index === 0)
-    );
-    
-    await Promise.all(batchPromises);
-    
+
+
+    // 트랜잭션 충돌을 방지하기 위해 순차적으로 처리
+    for (let i = 0; i < batches.length; i++) {
+      await this.saveBatch(batches[i], userId, i === 0);
+    }
+
   }
 
   // 비행 데이터 로드
@@ -136,7 +165,7 @@ export class IndexedDBCache {
     try {
       const db = await this.getDB();
       const transaction = db.transaction([this.STORE_NAME, this.METADATA_STORE], 'readonly');
-      
+
       const flightStore = transaction.objectStore(this.STORE_NAME);
       const metadataStore = transaction.objectStore(this.METADATA_STORE);
 
@@ -147,22 +176,44 @@ export class IndexedDBCache {
         metadataRequest.onerror = () => reject(metadataRequest.error);
       });
 
-      if (!metadata) {
-        return [];
-      }
-
-      // 캐시 만료 확인 (오프라인에서는 만료된 데이터도 허용)
-      if (Date.now() > metadata.cacheExpiry && navigator.onLine) {
-        await this.clearCache(userId);
-        return [];
-      }
-
-      // 비행 데이터 로드
+      // 비행 데이터 로드 준비
       const flightRequest = flightStore.index('userId').getAll(userId);
       const flights = await new Promise<Flight[]>((resolve, reject) => {
         flightRequest.onsuccess = () => resolve(flightRequest.result);
         flightRequest.onerror = () => reject(flightRequest.error);
       });
+
+      // 데이터가 없으면 빈 배열 반환
+      if (!flights || flights.length === 0) {
+        return [];
+      }
+
+      // 메타데이터가 없지만 데이터는 있는 경우 (복구 모드)
+      if (!metadata) {
+        console.warn('⚠️ IndexedDB 메타데이터 누락, 데이터 복구됨:', flights.length);
+        // 메타데이터 복구 시도
+        try {
+          const newMetadata = {
+            userId,
+            totalFlights: flights.length,
+            lastUpdated: Date.now(),
+            cacheExpiry: Date.now() + this.CACHE_DURATION
+          };
+          const tx = db.transaction([this.METADATA_STORE], 'readwrite');
+          tx.objectStore(this.METADATA_STORE).put(newMetadata);
+        } catch (e) {
+          console.warn('메타데이터 복구 실패:', e);
+        }
+        return flights;
+      }
+
+      // 캐시 만료 확인 (오프라인에서는 만료된 데이터도 허용)
+      // navigator.onLine이 true여도 실제 연결이 안 될 수 있으므로, 
+      // 만료되었다고 바로 삭제하지 않고, 데이터가 있으면 반환하도록 정책 변경
+      if (Date.now() > metadata.cacheExpiry) {
+        console.log('⚠️ IndexedDB 캐시 만료됨, 하지만 데이터 보존:', new Date(metadata.cacheExpiry).toLocaleString());
+        // 온라인 상태에서 확실히 데이터를 새로 가져왔을 때만 덮어쓰므로, 여기서 삭제하지 않음
+      }
 
       return flights;
     } catch (error) {
@@ -176,7 +227,7 @@ export class IndexedDBCache {
     try {
       const db = await this.getDB();
       const transaction = db.transaction([this.STORE_NAME, this.METADATA_STORE], 'readwrite');
-      
+
       const flightStore = transaction.objectStore(this.STORE_NAME);
       const metadataStore = transaction.objectStore(this.METADATA_STORE);
 
@@ -212,7 +263,7 @@ export class IndexedDBCache {
       const db = await this.getDB();
       const transaction = db.transaction([this.STORE_NAME], 'readonly');
       const flightStore = transaction.objectStore(this.STORE_NAME);
-      
+
       const request = flightStore.index('userId').getAll(userId);
       return await new Promise<Flight[]>((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
@@ -230,7 +281,7 @@ export class IndexedDBCache {
       const db = await this.getDB();
       const transaction = db.transaction([this.METADATA_STORE], 'readonly');
       const metadataStore = transaction.objectStore(this.METADATA_STORE);
-      
+
       const request = metadataStore.get(userId);
       const metadata = await new Promise<any>((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
@@ -256,7 +307,7 @@ export class IndexedDBCache {
   private clearExistingDataInTransaction(flightStore: IDBObjectStore, userId: string): void {
     const index = flightStore.index('userId');
     const request = index.openCursor(userId);
-    
+
     request.onsuccess = (event) => {
       const cursor = (event.target as IDBRequest).result;
       if (cursor) {
@@ -272,7 +323,7 @@ export class IndexedDBCache {
     if (flight.id && flight.id > 0) {
       return flight.id;
     }
-    
+
     // 고유 숫자 ID 생성: 타임스탬프 + 인덱스
     const timestamp = Date.now();
     return timestamp + index;
@@ -293,7 +344,7 @@ export class IndexedDBCache {
       const transaction = this.db!.transaction([this.STORE_NAME, this.METADATA_STORE], 'readwrite');
       const flightStore = transaction.objectStore(this.STORE_NAME);
       const metadataStore = transaction.objectStore(this.METADATA_STORE);
-      
+
       let successCount = 0;
 
       // 트랜잭션 완료/실패 이벤트 등록
@@ -308,22 +359,24 @@ export class IndexedDBCache {
 
       // 배치 내 데이터 저장
       try {
-        // 기존 데이터 삭제 (트랜잭션 내에서)
-        this.clearExistingDataInTransaction(flightStore, userId);
+        // 기존 데이터 삭제 (트랜잭션 내에서, 최초 배치에 한해서)
+        if (isFirstBatch) {
+          this.clearExistingDataInTransaction(flightStore, userId);
+        }
 
         // 새 데이터 저장
         batch.forEach((flight, index) => {
           // 고유 ID 생성 로직
           const uniqueId = this.generateUniqueId(flight, index, userId);
-          const flightWithId = { 
-            ...flight, 
+          const flightWithId = {
+            ...flight,
             id: uniqueId,
-            userId, 
-            timestamp: Date.now() 
+            userId,
+            timestamp: Date.now()
           };
-          
+
           const request = flightStore.put(flightWithId);
-          
+
           request.onsuccess = () => {
             successCount++;
           };
@@ -348,15 +401,15 @@ export class IndexedDBCache {
   }
 
   // 승무원 메모 저장
-  async saveCrewMemos(memos: {[key: string]: string}, userId: string): Promise<void> {
+  async saveCrewMemos(memos: { [key: string]: string }, userId: string): Promise<void> {
     try {
       const db = await this.getDB();
-      
+
       // 저장소가 존재하는지 확인
       if (!db.objectStoreNames.contains(this.CREW_MEMOS_STORE)) {
         return;
       }
-      
+
       const transaction = db.transaction([this.CREW_MEMOS_STORE], 'readwrite');
       const store = transaction.objectStore(this.CREW_MEMOS_STORE);
 
@@ -395,15 +448,15 @@ export class IndexedDBCache {
   }
 
   // 승무원 메모 불러오기
-  async loadCrewMemos(userId: string): Promise<{[key: string]: string}> {
+  async loadCrewMemos(userId: string): Promise<{ [key: string]: string }> {
     try {
       const db = await this.getDB();
-      
+
       // 저장소가 존재하는지 확인
       if (!db.objectStoreNames.contains(this.CREW_MEMOS_STORE)) {
         return {};
       }
-      
+
       const transaction = db.transaction([this.CREW_MEMOS_STORE], 'readonly');
       const store = transaction.objectStore(this.CREW_MEMOS_STORE);
 
@@ -413,7 +466,7 @@ export class IndexedDBCache {
         request.onerror = () => reject(request.error);
       });
 
-      const result: {[key: string]: string} = {};
+      const result: { [key: string]: string } = {};
       memos.forEach(memoData => {
         result[memoData.crewName] = memoData.memo;
       });
@@ -426,15 +479,15 @@ export class IndexedDBCache {
   }
 
   // 도시 메모 저장
-  async saveCityMemos(memos: {[key: string]: string}, userId: string): Promise<void> {
+  async saveCityMemos(memos: { [key: string]: string }, userId: string): Promise<void> {
     try {
       const db = await this.getDB();
-      
+
       // 저장소가 존재하는지 확인
       if (!db.objectStoreNames.contains(this.CITY_MEMOS_STORE)) {
         return;
       }
-      
+
       const transaction = db.transaction([this.CITY_MEMOS_STORE], 'readwrite');
       const store = transaction.objectStore(this.CITY_MEMOS_STORE);
 
@@ -473,15 +526,15 @@ export class IndexedDBCache {
   }
 
   // 도시 메모 불러오기
-  async loadCityMemos(userId: string): Promise<{[key: string]: string}> {
+  async loadCityMemos(userId: string): Promise<{ [key: string]: string }> {
     try {
       const db = await this.getDB();
-      
+
       // 저장소가 존재하는지 확인
       if (!db.objectStoreNames.contains(this.CITY_MEMOS_STORE)) {
         return {};
       }
-      
+
       const transaction = db.transaction([this.CITY_MEMOS_STORE], 'readonly');
       const store = transaction.objectStore(this.CITY_MEMOS_STORE);
 
@@ -491,7 +544,7 @@ export class IndexedDBCache {
         request.onerror = () => reject(request.error);
       });
 
-      const result: {[key: string]: string} = {};
+      const result: { [key: string]: string } = {};
       memos.forEach(memoData => {
         result[memoData.cityCode] = memoData.memo;
       });
@@ -509,13 +562,13 @@ export class IndexedDBCache {
       const db = await this.getDB();
       const transaction = db.transaction([this.STORE_NAME], 'readonly');
       const flightStore = transaction.objectStore(this.STORE_NAME);
-      
+
       const flightRequest = flightStore.index('userId').getAll(userId);
       const allFlights = await new Promise<Flight[]>((resolve, reject) => {
         flightRequest.onsuccess = () => resolve(flightRequest.result);
         flightRequest.onerror = () => reject(flightRequest.error);
       });
-      
+
       return {
         flightCount: allFlights.length,
         lastSync: allFlights.length > 0 ? allFlights[0].lastModified : undefined
@@ -532,32 +585,32 @@ export class IndexedDBCache {
       const db = await this.getDB();
       const transaction = db.transaction([this.STORE_NAME], 'readwrite');
       const flightStore = transaction.objectStore(this.STORE_NAME);
-      
+
       // userId로 모든 비행 데이터 조회
       const flightRequest = flightStore.index('userId').getAll(userId);
       const allFlights = await new Promise<Flight[]>((resolve, reject) => {
         flightRequest.onsuccess = () => resolve(flightRequest.result);
         flightRequest.onerror = () => reject(flightRequest.error);
       });
-      
+
       // IndexedDB에 비행 데이터가 없는 경우 조용히 넘어감
       if (allFlights.length === 0) {
         return true;
       }
-      
-      
+
+
       // 해당 ID의 비행 데이터 찾기 (타입 변환 고려)
-      const flightToUpdate = allFlights.find(flight => 
-        flight.id === flightId || 
+      const flightToUpdate = allFlights.find(flight =>
+        flight.id === flightId ||
         String(flight.id) === String(flightId) ||
         Number(flight.id) === flightId
       );
-      
+
       if (!flightToUpdate) {
         // 데이터를 찾지 못해도 오류로 처리하지 않고 성공으로 반환 (Firebase는 저장됨)
         return true;
       }
-      
+
       // 업데이트된 데이터 생성
       const updatedFlight = {
         ...flightToUpdate,
@@ -565,14 +618,14 @@ export class IndexedDBCache {
         lastModified: new Date().toISOString(),
         version: (flightToUpdate.version || 0) + 1
       };
-      
+
       // IndexedDB에 업데이트된 데이터 저장
       await new Promise<void>((resolve, reject) => {
         const updateRequest = flightStore.put(updatedFlight);
         updateRequest.onsuccess = () => resolve();
         updateRequest.onerror = () => reject(updateRequest.error);
       });
-      
+
       return true;
     } catch (error) {
       console.error('❌ IndexedDB 비행 데이터 업데이트 실패:', error);
@@ -587,13 +640,13 @@ export class IndexedDBCache {
       const db = await this.initDB();
       const transaction = db.transaction([this.STORE_NAME], 'readwrite');
       const store = transaction.objectStore(this.STORE_NAME);
-      
+
       await new Promise<void>((resolve, reject) => {
         const request = store.delete(flightId);
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
-      
+
     } catch (error) {
       console.error('Error deleting flight from IndexedDB:', error);
       throw error;
@@ -606,13 +659,13 @@ export class IndexedDBCache {
       const db = await this.initDB();
       const transaction = db.transaction([this.STORE_NAME], 'readwrite');
       const store = transaction.objectStore(this.STORE_NAME);
-      
+
       await new Promise<void>((resolve, reject) => {
         const request = store.put(flight);
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
-      
+
     } catch (error) {
       console.error('Error updating flight in IndexedDB:', error);
       throw error;
@@ -624,7 +677,7 @@ export class IndexedDBCache {
     const db = await this.initDB();
     const transaction = db.transaction([this.REST_INFO_STORE], 'readwrite');
     const store = transaction.objectStore(this.REST_INFO_STORE);
-    
+
     await new Promise<void>((resolve, reject) => {
       const request = store.put({ userId, restInfo, timestamp: Date.now() });
       request.onsuccess = () => resolve();
@@ -637,7 +690,7 @@ export class IndexedDBCache {
     const db = await this.initDB();
     const transaction = db.transaction([this.REST_INFO_STORE], 'readonly');
     const store = transaction.objectStore(this.REST_INFO_STORE);
-    
+
     return new Promise<any>((resolve, reject) => {
       const request = store.get(userId);
       request.onsuccess = () => {
@@ -649,6 +702,217 @@ export class IndexedDBCache {
       };
       request.onerror = () => reject(request.error);
     });
+  }
+
+  // 공유 항공편 스케줄 저장
+  async saveFlightSchedule(schedule: any): Promise<void> {
+    try {
+      const db = await this.getDB();
+      if (!db.objectStoreNames.contains(this.FLIGHT_SCHEDULES_STORE)) {
+        console.warn('⚠️ flightSchedules 스토어가 없습니다.');
+        return;
+      }
+
+      const tx = db.transaction([this.FLIGHT_SCHEDULES_STORE], 'readwrite');
+      const store = tx.objectStore(this.FLIGHT_SCHEDULES_STORE);
+
+      const dataToSave = {
+        ...schedule,
+        cachedAt: Date.now()
+      };
+
+      store.put(dataToSave);
+
+      await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (error) {
+      console.error('❌ IndexedDB 항공편 스케줄 저장 실패:', error);
+    }
+  }
+
+  // 공유 항공편 스케줄 일괄 저장
+  async saveFlightSchedules(schedules: any[]): Promise<void> {
+    try {
+      const db = await this.getDB();
+      if (!db.objectStoreNames.contains(this.FLIGHT_SCHEDULES_STORE)) {
+        console.warn('⚠️ flightSchedules 스토어가 없습니다.');
+        return;
+      }
+
+      const tx = db.transaction([this.FLIGHT_SCHEDULES_STORE], 'readwrite');
+      const store = tx.objectStore(this.FLIGHT_SCHEDULES_STORE);
+
+      const currentTime = Date.now();
+
+      for (const schedule of schedules) {
+        const dataToSave = {
+          ...schedule,
+          cachedAt: currentTime
+        };
+        store.put(dataToSave);
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+
+      console.log(`✅ IndexedDB에 ${schedules.length}개 항공편 스케줄 저장 완료`);
+    } catch (error) {
+      console.error('❌ IndexedDB 항공편 스케줄 일괄 저장 실패:', error);
+    }
+  }
+
+  // 공유 항공편 스케줄 불러오기 (특정 항공편)
+  async loadFlightSchedule(flightNumber: string): Promise<any | null> {
+    try {
+      const db = await this.getDB();
+      if (!db.objectStoreNames.contains(this.FLIGHT_SCHEDULES_STORE)) {
+        return null;
+      }
+
+      const tx = db.transaction([this.FLIGHT_SCHEDULES_STORE], 'readonly');
+      const store = tx.objectStore(this.FLIGHT_SCHEDULES_STORE);
+      const request = store.get(flightNumber.toUpperCase());
+
+      const result = await new Promise<any>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      if (result) {
+        // 캐시 만료 확인 (7일)
+        const cacheAge = Date.now() - (result.cachedAt || 0);
+        if (cacheAge > this.CACHE_DURATION) {
+          return null;
+        }
+        return result;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('❌ IndexedDB 항공편 스케줄 로드 실패:', error);
+      return null;
+    }
+  }
+
+  // 공유 항공편 스케줄 검색 (부분 일치)
+  async searchFlightSchedules(searchQuery: string): Promise<any[]> {
+    try {
+      const db = await this.getDB();
+      if (!db.objectStoreNames.contains(this.FLIGHT_SCHEDULES_STORE)) {
+        return [];
+      }
+
+      const tx = db.transaction([this.FLIGHT_SCHEDULES_STORE], 'readonly');
+      const store = tx.objectStore(this.FLIGHT_SCHEDULES_STORE);
+      const request = store.getAll();
+
+      const allSchedules = await new Promise<any[]>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+
+      const upperQuery = searchQuery.toUpperCase();
+      const currentTime = Date.now();
+
+      // 검색 및 캐시 만료 필터링
+      const results = allSchedules.filter(schedule => {
+        // 캐시 만료 확인
+        const cacheAge = currentTime - (schedule.cachedAt || 0);
+        if (cacheAge > this.CACHE_DURATION) {
+          return false;
+        }
+
+        // 검색어 매칭
+        return (
+          schedule.flightNumber?.includes(upperQuery) ||
+          schedule.airline?.includes(upperQuery) ||
+          schedule.route?.includes(upperQuery) ||
+          schedule.departure?.includes(upperQuery) ||
+          schedule.arrival?.includes(upperQuery)
+        );
+      });
+
+      return results;
+    } catch (error) {
+      console.error('❌ IndexedDB 항공편 검색 실패:', error);
+      return [];
+    }
+  }
+
+  // 항공사별 항공편 스케줄 불러오기
+  async loadAirlineSchedules(airlineCode: string): Promise<any[]> {
+    try {
+      const db = await this.getDB();
+      if (!db.objectStoreNames.contains(this.FLIGHT_SCHEDULES_STORE)) {
+        return [];
+      }
+
+      const tx = db.transaction([this.FLIGHT_SCHEDULES_STORE], 'readonly');
+      const store = tx.objectStore(this.FLIGHT_SCHEDULES_STORE);
+      const index = store.index('airline');
+      const request = index.getAll(airlineCode.toUpperCase());
+
+      const results = await new Promise<any[]>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+
+      const currentTime = Date.now();
+
+      // 캐시 만료 필터링
+      return results.filter(schedule => {
+        const cacheAge = currentTime - (schedule.cachedAt || 0);
+        return cacheAge <= this.CACHE_DURATION;
+      });
+    } catch (error) {
+      console.error('❌ IndexedDB 항공사 스케줄 로드 실패:', error);
+      return [];
+    }
+  }
+
+  // 공유 항공편 스케줄 캐시 정리 (만료된 것만)
+  async cleanupExpiredFlightSchedules(): Promise<void> {
+    try {
+      const db = await this.getDB();
+      if (!db.objectStoreNames.contains(this.FLIGHT_SCHEDULES_STORE)) {
+        return;
+      }
+
+      const tx = db.transaction([this.FLIGHT_SCHEDULES_STORE], 'readwrite');
+      const store = tx.objectStore(this.FLIGHT_SCHEDULES_STORE);
+      const request = store.getAll();
+
+      const allSchedules = await new Promise<any[]>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+
+      const currentTime = Date.now();
+      let deletedCount = 0;
+
+      for (const schedule of allSchedules) {
+        const cacheAge = currentTime - (schedule.cachedAt || 0);
+        if (cacheAge > this.CACHE_DURATION) {
+          store.delete(schedule.flightNumber);
+          deletedCount++;
+        }
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+
+      if (deletedCount > 0) {
+        console.log(`✅ 만료된 항공편 스케줄 ${deletedCount}개 삭제 완료`);
+      }
+    } catch (error) {
+      console.error('❌ 만료된 항공편 스케줄 정리 실패:', error);
+    }
   }
 }
 

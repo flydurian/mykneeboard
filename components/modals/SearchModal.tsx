@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { getCityInfo } from '../../utils/cityData';
+import { searchFlightSchedulesByCity, searchFlightSchedules } from '../../src/firebase/flightSchedules';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -24,72 +25,257 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
 
   const isDarkMode = document.documentElement.classList.contains('dark');
 
-  // 도시 검색 함수
-  const searchCities = (query: string) => {
+  // 도시/항공편 검색 함수 (Firebase DB 포함)
+  const searchCities = async (query: string) => {
     if (!query.trim()) return [];
-    
-    const searchQuery = query.toLowerCase();
+
+    const searchQuery = query.toUpperCase();
     const results: any[] = [];
-    
-    // 모든 비행에서 도시 정보 수집
-    const cityMap = new Map<string, { code: string; name: string; flights: any[] }>();
-    
-    flights.forEach(flight => {
-      // route 필드에서 출발지와 도착지 파싱 (예: "ICN-LAX" 또는 "ICN LAX")
-      let departure, arrival;
-      
-      if (flight.route) {
-        // 다양한 구분자 지원: /, -, 공백
-        const routeParts = flight.route.split(/[/\- ]/);
-        if (routeParts.length >= 2) {
-          departure = routeParts[0];
-          arrival = routeParts[1];
-        } else if (routeParts.length === 1 && routeParts[0] !== 'RESERVE') {
-          // 단일 도시인 경우 (예: "ICN", "GMP")
-          departure = routeParts[0];
-          arrival = null;
+
+    // 입력값이 항공편 번호인지 IATA 코드인지 판단
+    // 항공편 번호: 2-3글자 + 숫자 (예: OZ102, AAR102, KE001)
+    const isFlightNumber = /^[A-Z]{2,3}\d+$/.test(searchQuery);
+
+    // 시간 입력 판단 (HHMM 형식)
+    const isTimeSearch = /^\d{4}$/.test(searchQuery);
+
+    console.log('🔍 검색 쿼리:', searchQuery, '타입:', isFlightNumber ? '항공편 번호' : isTimeSearch ? '시간 검색' : 'IATA 코드');
+
+    if (isTimeSearch) {
+      // 시간으로 검색
+      const searchHour = parseInt(searchQuery.substring(0, 2), 10);
+      const searchMinute = parseInt(searchQuery.substring(2, 4), 10);
+
+      if (searchHour >= 0 && searchHour <= 23 && searchMinute >= 0 && searchMinute <= 59) {
+        try {
+          // 오늘 날짜 생성
+          const today = new Date();
+          const targetDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), searchHour, searchMinute);
+
+          // 인천공항 출발편 검색을 위해 백엔드 API 호출 (시간 범위 필터링은 클라이언트 또는 서버에서 수행)
+          // 여기서는 기존의 항공편 검색 API를 활용할 수 없으므로, 새로운 엔드포인트나 기존 엔드포인트를 확장해야 함
+          // 현재는 임시로 인천공항 출발편 API를 호출하여 클라이언트에서 필터링하는 방식으로 구현
+
+          // TODO: 시간 기반 검색을 위한 전용 API 엔드포인트가 필요함. 
+          // 현재 구조상 클라이언트에서 직접 외부 API를 호출하거나, 서버 함수를 통해야 함.
+          // 여기서는 서버리스 함수를 호출하여 처리
+
+          const response = await fetch('/api/incheon/flights', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              flightNumber: 'ALL', // 전체 검색을 위한 키워드 (서버 수정 필요할 수 있음)
+              searchType: 'departure',
+              searchTime: searchQuery // 시간 정보 전달
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // 시간 범위 필터링 (앞뒤 30분)
+            const filteredResults = data.results.filter((flight: any) => {
+              // 시간 파싱 (HHMM 또는 HH:MM)
+              let timeStr = '';
+
+              // rawScheduleTime(HHMM)이 있으면 우선 사용
+              if (flight.rawScheduleTime && /^\d{4}$/.test(flight.rawScheduleTime)) {
+                timeStr = flight.rawScheduleTime;
+              } else if (flight.scheduledTime) {
+                // 없으면 scheduledTime에서 숫자만 추출하여 뒤에서 4자리 가져옴
+                const nums = flight.scheduledTime.replace(/[^0-9]/g, '');
+                if (nums.length >= 4) {
+                  timeStr = nums.slice(-4);
+                }
+              }
+
+              if (timeStr.length !== 4) return false;
+
+              const flightHour = parseInt(timeStr.substring(0, 2), 10);
+              const flightMinute = parseInt(timeStr.substring(2, 4), 10);
+
+              const flightTimeVal = flightHour * 60 + flightMinute;
+              const searchTimeVal = searchHour * 60 + searchMinute;
+
+              let diff = Math.abs(flightTimeVal - searchTimeVal);
+              // 자정을 넘어가는 경우 처리 (예: 23:50과 00:10)
+              if (diff > 720) { // 12시간 이상 차이나면 반대편으로 계산
+                diff = 1440 - diff;
+              }
+
+              return diff <= 30; // 30분 이내
+            });
+
+            // 결과를 도시 검색 결과 형식으로 변환하여 반환
+            const resultMap = new Map<string, { code: string; name: string; flights: any[] }>();
+
+            filteredResults.forEach((flight: any) => {
+              // 시간 검색 결과는 항공편명이 중복될 수 있으므로 키에 시간을 포함하거나
+              // 별도 항목으로 처리해야 함. 하지만 여기서는 항공편명 기준으로 묶어서 보여줌.
+              // 단, 시간 검색의 경우 리스트에 바로 보여주기 위해 가상의 키를 사용할 수도 있음.
+              // 여기서는 그냥 flightNumber를 키로 사용하되, 정보가 덮어씌워지지 않도록 처리할 필요가 있음?
+              // -> resultMap은 항공편명 기준 그룹핑이므로, 같은 항공편명이면 묶이는 게 맞음 (예: 공동운항)
+              // -> 하지만 서로 다른 시간대의 같은 편명이 있을 수 있나? (하루에 여러 번) -> 그럴 수 있음.
+              // -> 키에 날짜/시간을 포함시켜 구분
+
+              const key = `${flight.flightNumber}_${flight.rawScheduleTime || flight.scheduledTime}`;
+
+              if (!resultMap.has(key)) {
+                // 시간 표시 포맷팅 (HH:MM)
+                let displayTime = '';
+                if (flight.rawScheduleTime && /^\d{4}$/.test(flight.rawScheduleTime)) {
+                  displayTime = `${flight.rawScheduleTime.substring(0, 2)}:${flight.rawScheduleTime.substring(2, 4)}`;
+                } else {
+                  displayTime = flight.scheduledTime;
+                }
+
+                resultMap.set(key, {
+                  code: flight.flightNumber,
+                  name: `${displayTime} | ${flight.arrival}행 (${flight.airline}) - ${displayTime}`,
+                  flights: []
+                });
+              }
+              resultMap.get(key)!.flights.push(flight);
+            });
+
+            // 시간순 정렬 (이미 API에서 정렬되어 오지만, 그룹핑 후 다시 정렬)
+            return Array.from(resultMap.values()).sort((a, b) => {
+              const timeA = a.flights[0]?.rawScheduleTime || '0000';
+              const timeB = b.flights[0]?.rawScheduleTime || '0000';
+              return timeA.localeCompare(timeB);
+            });
+          }
+        } catch (e) {
+          console.error("Time search failed", e);
         }
       }
-      
-      // 기존 필드들도 확인
-      departure = departure || flight.departure || flight.origin;
-      arrival = arrival || flight.arrival || flight.destination;
-      
-      [departure, arrival].forEach(cityCode => {
-        if (cityCode && cityCode.trim()) {
-          const cityInfo = getCityInfo(cityCode.trim());
-          if (cityInfo) {
-            const key = cityCode.trim().toUpperCase();
-            if (!cityMap.has(key)) {
-              cityMap.set(key, {
-                code: cityCode.trim().toUpperCase(),
-                name: cityInfo.name,
-                flights: []
-              });
-            }
-            cityMap.get(key)!.flights.push(flight);
+      return [];
+    } else if (isFlightNumber) {
+      // 항공편 번호로 검색
+      try {
+        const dbFlights = await searchFlightSchedules(searchQuery);
+        console.log('🔍 Firebase DB 항공편 검색 결과:', dbFlights.length, '개');
+
+        // 항공편별로 결과 구성
+        const flightMap = new Map<string, { code: string; name: string; flights: any[] }>();
+
+        dbFlights.forEach(flight => {
+          const key = flight.flightNumber;
+          const routeName = `${flight.departure} → ${flight.arrival}`;
+
+          if (!flightMap.has(key)) {
+            flightMap.set(key, {
+              code: flight.flightNumber,
+              name: routeName,
+              flights: []
+            });
+          }
+          flightMap.get(key)!.flights.push({
+            ...flight,
+            fromDB: true
+          });
+        });
+
+        return Array.from(flightMap.values());
+
+      } catch (error) {
+        console.error('❌ Firebase DB 항공편 검색 실패:', error);
+        return [];
+      }
+    } else {
+      // IATA 코드로 도시 검색
+      const cityMap = new Map<string, { code: string; name: string; flights: any[]; isFromDB: boolean }>();
+
+      // 1. 로컬 flights에서 도시 정보 수집
+      flights.forEach(flight => {
+        let departure, arrival;
+
+        if (flight.route) {
+          const routeParts = flight.route.split(/[/\- ]/);
+          if (routeParts.length >= 2) {
+            departure = routeParts[0];
+            arrival = routeParts[1];
+          } else if (routeParts.length === 1 && routeParts[0] !== 'RESERVE') {
+            departure = routeParts[0];
+            arrival = null;
           }
         }
+
+        departure = departure || flight.departure || flight.origin;
+        arrival = arrival || flight.arrival || flight.destination;
+
+        [departure, arrival].forEach(cityCode => {
+          if (cityCode && cityCode.trim()) {
+            const cityInfo = getCityInfo(cityCode.trim());
+            if (cityInfo) {
+              const key = cityCode.trim().toUpperCase();
+              if (!cityMap.has(key)) {
+                cityMap.set(key, {
+                  code: cityCode.trim().toUpperCase(),
+                  name: cityInfo.name,
+                  flights: [],
+                  isFromDB: false
+                });
+              }
+              cityMap.get(key)!.flights.push(flight);
+            }
+          }
+        });
       });
-    });
-    
-    // 검색어와 매칭되는 도시 필터링
-    Array.from(cityMap.values()).forEach(city => {
-      if (city.code.toLowerCase().includes(searchQuery) || 
-          city.name.toLowerCase().includes(searchQuery)) {
-        results.push(city);
+
+      // 2. Firebase DB에서 항공편 스케줄 검색 (IATA 코드로 검색)
+      try {
+        const dbFlights = await searchFlightSchedulesByCity(searchQuery);
+        console.log('🔍 Firebase DB 도시 검색 결과:', dbFlights.length, '개 항공편');
+
+        dbFlights.forEach(flight => {
+          const departure = flight.departure;
+          const arrival = flight.arrival;
+
+          [departure, arrival].forEach(cityCode => {
+            if (cityCode && cityCode.trim()) {
+              const cityInfo = getCityInfo(cityCode.trim());
+              if (cityInfo) {
+                const key = cityCode.trim().toUpperCase();
+                if (!cityMap.has(key)) {
+                  cityMap.set(key, {
+                    code: cityCode.trim().toUpperCase(),
+                    name: cityInfo.name,
+                    flights: [],
+                    isFromDB: true
+                  });
+                }
+                cityMap.get(key)!.flights.push({
+                  ...flight,
+                  fromDB: true
+                });
+                cityMap.get(key)!.isFromDB = true;
+              }
+            }
+          });
+        });
+      } catch (error) {
+        console.error('❌ Firebase DB 도시 검색 실패:', error);
       }
-    });
-    return results.sort((a, b) => b.flights.length - a.flights.length);
+
+      // 검색어와 매칭되는 도시 필터링
+      Array.from(cityMap.values()).forEach(city => {
+        if (city.code.includes(searchQuery) ||
+          city.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+          results.push(city);
+        }
+      });
+
+      return results.sort((a, b) => b.flights.length - a.flights.length);
+    }
   };
 
   // CREW 검색 함수
   const searchCrew = (query: string) => {
     if (!query.trim()) return [];
-    
+
     const searchQuery = query.toLowerCase();
     const crewMap = new Map<string, CrewMember>();
-    
+
     flights.forEach(flight => {
       if (flight.crew && Array.isArray(flight.crew)) {
         flight.crew.forEach((member: any) => {
@@ -108,25 +294,26 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
         });
       }
     });
-    
+
     // 검색어와 매칭되는 CREW 필터링
     const results: CrewMember[] = [];
     Array.from(crewMap.values()).forEach(member => {
       // 이름과 사번 모두에서 검색 (대소문자 구분 없음)
       const nameMatch = member.name.toLowerCase().includes(searchQuery);
       const emplMatch = member.empl.toLowerCase().includes(searchQuery);
-      
+
       if (nameMatch || emplMatch) {
         results.push(member);
       }
     });
-    
+
     return results.sort((a, b) => b.flights - a.flights);
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (searchType === 'city') {
-      setSearchResults(searchCities(searchQuery));
+      const results = await searchCities(searchQuery);
+      setSearchResults(results);
     } else {
       setSearchResults(searchCrew(searchQuery));
     }
@@ -168,11 +355,10 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                   setSearchResults([]);
                   setShowResults(false);
                 }}
-                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative ${
-                  searchType === 'city'
+                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative ${searchType === 'city'
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
+                  }`}
               >
                 도시 검색
                 {searchType === 'city' && (
@@ -185,11 +371,10 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                   setSearchResults([]);
                   setShowResults(false);
                 }}
-                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative ${
-                  searchType === 'crew'
+                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative ${searchType === 'crew'
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
+                  }`}
               >
                 CREW 검색
                 {searchType === 'crew' && (
@@ -205,7 +390,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
           <div>
             <input
               type="text"
-              placeholder={searchType === 'city' ? 'IATA code로 입력해주세요. 예) ICN, LAX..' : '사번 또는 이름 입력'}
+              placeholder={searchType === 'city' ? 'IATA 코드 입력 (예: ICN)' : '사번 또는 이름 입력'}
               value={searchQuery}
               onChange={(e) => {
                 const value = e.target.value;
@@ -234,13 +419,12 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
             {searchResults.length > 0 ? (
               <div className="space-y-3 pt-4">
                 {searchResults.map((result, index) => (
-                  <div 
-                    key={index} 
-                    className={`p-3 rounded-lg border border-gray-200 dark:border-gray-600 ${
-                      searchType === 'city' 
-                        ? 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer transition-colors' 
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border border-gray-200 dark:border-gray-600 ${searchType === 'city'
+                        ? 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer transition-colors'
                         : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer transition-colors'
-                    }`}
+                      }`}
                     onClick={searchType === 'city' && onCityClick ? () => {
                       onCityClick(result.code);
                       // 검색 모달은 그대로 유지

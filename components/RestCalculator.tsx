@@ -15,6 +15,7 @@ interface TimePoint {
     zulu: string;
     local: string;
     korea: string;
+    hidden?: boolean;
 }
 
 // --- Custom CSS for Scrollbar ---
@@ -45,8 +46,16 @@ const scrollbarStyles = `
 `;
 
 // --- Constants ---
-const TABS = [
+type TabKey = '2set' | '5p' | '3pilot';
+
+const VIEW_TABS: { id: TabKey; label: string }[] = [
     { id: '2set', label: '2SET' },
+    { id: '5p', label: '5P' },
+    { id: '3pilot', label: '3PILOT' },
+];
+const INPUT_TABS: { id: TabKey; label: string }[] = [
+    { id: '2set', label: '2SET' },
+    { id: '5p', label: '5P' },
     { id: '3pilot', label: '3PILOT' },
 ];
 const TWO_SET_MODES = [
@@ -54,9 +63,17 @@ const TWO_SET_MODES = [
     { id: '1교대', label: '2SET 1교대' },
 ];
 
-const THREE_PILOT_CASES = [
-    { id: 'CASE1' },
-    { id: 'CASE2' },
+const THREE_PILOT_MODES = [
+    { id: 'CASE1', label: '3PILOT CASE 1' },
+    { id: 'CASE2', label: '3PILOT CASE 2' },
+];
+
+const FIVE_P_COLORS = [
+    'bg-blue-500',
+    'bg-emerald-500',
+    'bg-orange-500',
+    'bg-cyan-500',
+    'bg-indigo-500',
 ];
 
 // --- Utility Functions ---
@@ -118,56 +135,54 @@ const minutesToHhMm = (totalMinutes: number) => {
 
 // --- Icon Components ---
 const CalculatorIcon = memo((props: any) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
-    <rect width="16" height="20" x="4" y="2" rx="2"/>
-    <line x1="8" x2="16" y1="6" y2="6"/>
-    <line x1="16" x2="16" y1="14" y2="18"/>
-    <line x1="16" x2="16" y1="10" y2="10"/>
-    <line x1="10" x2="10" y1="10" y2="18"/>
-  </svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+        <rect width="16" height="20" x="4" y="2" rx="2" />
+        <line x1="8" x2="16" y1="6" y2="6" />
+        <line x1="16" x2="16" y1="14" y2="18" />
+        <line x1="16" x2="16" y1="10" y2="10" />
+        <line x1="10" x2="10" y1="10" y2="18" />
+    </svg>
 ));
 
 const ClockIcon = memo((props: any) => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
-    <circle cx="12" cy="12" r="10"></circle>
-    <polyline points="12 6 12 12 16 14"></polyline>
-  </svg>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
 ));
 
 const PlaneIcon = memo((props: any) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
-    <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1.5-1.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
-  </svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+        <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1.5-1.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+    </svg>
 ));
 
 // --- UI Components ---
 const DisplayInput = memo(({ label, value, onClick, warning, isDark }: { label: string; value: string; onClick: () => void; warning?: string; isDark: boolean }) => (
-  <div>
-    <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{label}</label>
-    <div
-                    className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] ${
-        isDark 
-          ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-100' 
-          : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-900'
-      } ${warning ? 'border-red-500' : ''}`}
-      onClick={onClick}
-      role="button"
-    >
-      {value}
+    <div>
+        <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{label}</label>
+        <div
+            className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] ${isDark
+                ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-100'
+                : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-900'
+                } ${warning ? 'border-red-500' : ''}`}
+            onClick={onClick}
+            role="button"
+        >
+            {value}
+        </div>
+        {warning && <p className="text-xs text-red-500 mt-1 text-center">{warning}</p>}
     </div>
-    {warning && <p className="text-xs text-red-500 mt-1 text-center">{warning}</p>}
-  </div>
 ));
 
 const ReadOnlyDisplay = memo(({ label, value, isDark }: { label: string; value: string; isDark: boolean }) => (
     <div>
         <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{label}</label>
         <div
-            className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed ${
-                isDark 
-                    ? 'bg-gray-900/50 border-gray-700 text-gray-400' 
-                    : 'bg-gray-100 border-gray-300 text-gray-500'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed ${isDark
+                ? 'bg-gray-900/50 border-gray-700 text-gray-400'
+                : 'bg-gray-100 border-gray-300 text-gray-500'
+                }`}
         >
             {value}
         </div>
@@ -190,16 +205,16 @@ const minutesToDisplayFormat = (totalMinutes: number): string => {
 };
 
 // --- FlightTimeline Component ---
-const FlightTimeline = memo(({ 
-    segments, 
-    timePoints, 
-    progress = 0, 
-    isDark 
-}: { 
-    segments: TimelineSegment[]; 
-    timePoints: TimePoint[]; 
-    progress?: number; 
-    isDark: boolean; 
+const FlightTimeline = memo(({
+    segments,
+    timePoints,
+    progress = 0,
+    isDark
+}: {
+    segments: TimelineSegment[];
+    timePoints: TimePoint[];
+    progress?: number;
+    isDark: boolean;
 }) => {
     const totalDuration = segments.reduce((acc, s) => acc + s.duration, 0);
 
@@ -221,10 +236,10 @@ const FlightTimeline = memo(({
                     {segments.map((segment, index) => {
                         const cumulativeDurationBefore = segments.slice(0, index).reduce((acc, s) => acc + s.duration, 0);
                         const elapsedTotalMinutes = progress * totalDuration;
-                        
+
                         let minutesToShow;
                         const isFlightCompleted = progress >= 1; // 비행이 완전히 종료되었는지 확인
-                        
+
                         if (isFlightCompleted) {
                             // 비행이 완전히 종료되면 각 구간의 전체 시간을 다시 표시
                             minutesToShow = segment.duration;
@@ -244,7 +259,7 @@ const FlightTimeline = memo(({
                                 className={`${segment.color} h-full relative flex items-center justify-center shrink-0 transition-opacity duration-500 ${isCompleted && !isFlightCompleted ? 'opacity-30' : 'opacity-100'}`}
                                 style={{ width: `${(segment.duration / totalDuration) * 100}%` }}
                             >
-                                <span 
+                                <span
                                     className={`text-white font-bold z-10 ${(segment.duration / totalDuration) * 100 < 15 ? 'text-xs' : (segment.duration / totalDuration) * 100 < 25 ? 'text-sm' : 'text-base'} sm:text-sm md:text-base`}
                                     style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
                                 >
@@ -261,6 +276,7 @@ const FlightTimeline = memo(({
             {/* 시간 표시 지점 */}
             <div className={`relative mt-2 h-20 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 {timePoints.map((point, index) => {
+                    if (point.hidden) return null;
                     // 시간 포인트 위치 계산 - 각 세그먼트의 종료 부분과 연동
                     let position = 0;
                     if (index === 0) {
@@ -279,7 +295,7 @@ const FlightTimeline = memo(({
                         const cumulativeDuration = segments.slice(0, 4).reduce((acc, segment) => acc + segment.duration, 0);
                         position = (cumulativeDuration / totalDuration) * 100;
                     }
-                    
+
                     // ✨ [핵심 수정] 하이라이트 로직 변경
                     const isHighlighted = (() => {
                         if (segments.length === 0 || totalDuration === 0) return false;
@@ -307,10 +323,10 @@ const FlightTimeline = memo(({
                         >
                             {/* 모든 타임표에 동일한 세로선 표시 */}
                             <div className={`w-px h-2 mx-auto ${isHighlighted ? 'bg-blue-400 animate-pulse' : 'bg-gray-600'}`}></div>
-                            <div 
+                            <div
                                 className={`mt-2 p-2 rounded-md text-center whitespace-nowrap border-2 ${isHighlighted ? (isDark ? 'border-white' : 'border-black') + ' shadow-lg' : 'border-transparent'}`}
                                 style={isHighlighted ? {
-                                    boxShadow: isDark 
+                                    boxShadow: isDark
                                         ? '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4), 0 0 30px rgba(255, 255, 255, 0.2)'
                                         : '0 0 10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 0, 0, 0.2)'
                                 } : {}}
@@ -332,16 +348,20 @@ const defaultState = {
     activeTab: '2set',
     twoSetMode: '2교대',
     flightTime: '1420',
+    flightTime5P: '1420',
     flightTime3Pilot: '1420',
     departureTime: '0200',
     crz1Time: '0330',
+    crz1Time5P: '0200',
     afterTakeoff: '0200',
     afterTakeoff1교대: '0200',
+    afterTakeoff5P: '0200',
     afterTakeoff3Pilot: '0100',
     beforeLanding: '0100',
     beforeLanding1교대: '0100',
     timeZone: -4,
-    threePilotCase: 'CASE1',
+    threePilotMode: 'CASE1',
+    afterTakeoff3PilotCase2: '0100',
 };
 
 const loadInitialState = (initialState: any) => {
@@ -382,8 +402,20 @@ const reducer = (state: any, action: any) => {
 
 const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const [state, dispatch] = useReducer(reducer, defaultState, loadInitialState);
-    const { activeTab, twoSetMode, flightTime, flightTime3Pilot, departureTime, crz1Time, afterTakeoff, afterTakeoff1교대, afterTakeoff3Pilot, beforeLanding, beforeLanding1교대, timeZone, threePilotCase } = state;
-    
+
+    // 테마 변경 감지를 위한 ref
+    const prevIsDarkRef = useRef(isDark);
+
+    // 테마가 변경되면 컴포넌트 강제 리렌더링
+    useEffect(() => {
+        if (prevIsDarkRef.current !== isDark) {
+            prevIsDarkRef.current = isDark;
+            // 테마 변경 시 강제 리렌더링을 위한 상태 업데이트
+            dispatch({ type: 'UPDATE_STATE', payload: { themeChanged: Date.now() } });
+        }
+    }, [isDark]);
+    const { activeTab, twoSetMode, flightTime, flightTime5P, flightTime3Pilot, departureTime, crz1Time, crz1Time5P, afterTakeoff, afterTakeoff1교대, afterTakeoff5P, afterTakeoff3Pilot, afterTakeoff3PilotCase2, beforeLanding, beforeLanding1교대, timeZone, threePilotMode } = state;
+
     // Firebase 동기화를 위한 상태
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -395,7 +427,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const [showCrz1Picker, setShowCrz1Picker] = useState(false);
     const [showAfterTakeoffPicker, setShowAfterTakeoffPicker] = useState(false);
     const [showBeforeLandingPicker, setShowBeforeLandingPicker] = useState(false);
-    
+
     const timeZonePickerRef = useRef<HTMLDivElement>(null);
     const crz1PickerRef = useRef<HTMLDivElement>(null);
     const afterTakeoffPickerRef = useRef<HTMLDivElement>(null);
@@ -405,12 +437,23 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const isAfterTakeoffScrolling = useRef<NodeJS.Timeout | null>(null);
     const isBeforeLandingScrolling = useRef<NodeJS.Timeout | null>(null);
     const [currentScrollValue, setCurrentScrollValue] = useState(timeZone);
-    const [currentCrz1ScrollValue, setCurrentCrz1ScrollValue] = useState(crz1Time);
+    const preEditStateRef = useRef<any | null>(null);
+    const lastStandardTwoSetModeRef = useRef(twoSetMode === '5P' ? '2교대' : twoSetMode);
+    const [inputTab, setInputTab] = useState<TabKey>(() => {
+        if (activeTab === '3pilot') return '3pilot';
+        if (twoSetMode === '5P') return '5p';
+        return '2set';
+    });
+    const [currentCrz1ScrollValue, setCurrentCrz1ScrollValue] = useState(() => (
+        inputTab === '5p' ? crz1Time5P : crz1Time
+    ));
     const [currentAfterTakeoffScrollValue, setCurrentAfterTakeoffScrollValue] = useState(() => {
         if (activeTab === '2set' && twoSetMode === '1교대') {
             return afterTakeoff1교대;
+        } else if (activeTab === '2set' && twoSetMode === '5P') {
+            return afterTakeoff5P;
         } else if (activeTab === '3pilot') {
-            return afterTakeoff3Pilot;
+            return threePilotMode === 'CASE2' ? afterTakeoff3PilotCase2 : afterTakeoff3Pilot;
         } else {
             return afterTakeoff;
         }
@@ -420,16 +463,102 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const [isCrz1ScrollingState, setIsCrz1ScrollingState] = useState(false);
     const [isAfterTakeoffScrollingState, setIsAfterTakeoffScrollingState] = useState(false);
     const [isBeforeLandingScrollingState, setIsBeforeLandingScrollingState] = useState(false);
-    // 편집 취소 시 복원용 상태 스냅샷
-    const preEditStateRef = useRef<any | null>(null);
+    const [isFlightTimeInputFocused, setIsFlightTimeInputFocused] = useState(false);
+    const [isAfterTakeoff5PInputFocused, setIsAfterTakeoff5PInputFocused] = useState(false);
+
+    useEffect(() => {
+        if (twoSetMode !== '5P') {
+            lastStandardTwoSetModeRef.current = twoSetMode;
+        }
+    }, [twoSetMode]);
+
+    useEffect(() => {
+        if (activeTab === '3pilot') {
+            setInputTab('3pilot');
+        } else if (twoSetMode === '5P') {
+            setInputTab('5p');
+        } else {
+            setInputTab('2set');
+        }
+    }, [activeTab, twoSetMode]);
 
     const handleCancelEdit = useCallback(() => {
         if (preEditStateRef.current) {
             dispatch({ type: 'UPDATE_STATE', payload: preEditStateRef.current });
         }
         setShowTimeline(true);
+    }, [activeTab, twoSetMode, dispatch]);
+
+    const handleInputTabChange = useCallback((tabId: TabKey) => {
+        if (tabId === '3pilot') {
+            setInputTab('3pilot');
+            dispatch({ type: 'UPDATE_STATE', payload: { activeTab: '3pilot' } });
+            return;
+        }
+
+        if (tabId === '5p') {
+            setInputTab('5p');
+            dispatch({ type: 'UPDATE_STATE', payload: { activeTab: '2set', twoSetMode: '5P' } });
+            return;
+        }
+
+        // tabId === '2set'
+        setInputTab('2set');
+        const payload: any = { activeTab: '2set' };
+        if (twoSetMode === '5P') {
+            payload.twoSetMode = lastStandardTwoSetModeRef.current || '2교대';
+        }
+        dispatch({ type: 'UPDATE_STATE', payload });
+    }, [dispatch, twoSetMode]);
+
+    const handleViewTabChange = useCallback((tabId: TabKey) => {
+        if (tabId === '3pilot') {
+            if (activeTab !== '3pilot') {
+                dispatch({ type: 'UPDATE_STATE', payload: { activeTab: '3pilot' } });
+            }
+            return;
+        }
+
+        if (tabId === '5p') {
+            const payload: any = {};
+            if (activeTab !== '2set') payload.activeTab = '2set';
+            if (twoSetMode !== '5P') payload.twoSetMode = '5P';
+            if (Object.keys(payload).length > 0) {
+                dispatch({ type: 'UPDATE_STATE', payload });
+            }
+            return;
+        }
+
+        // tabId === '2set'
+        const payload: any = {};
+        if (activeTab !== '2set') payload.activeTab = '2set';
+        if (twoSetMode === '5P') payload.twoSetMode = lastStandardTwoSetModeRef.current || '2교대';
+        if (Object.keys(payload).length > 0) {
+            dispatch({ type: 'UPDATE_STATE', payload });
+        }
+    }, [activeTab, twoSetMode, dispatch]);
+
+    const isViewTabActive = useCallback((tabId: TabKey) => {
+        if (tabId === '5p') {
+            return activeTab === '2set' && twoSetMode === '5P';
+        }
+        if (tabId === '2set') {
+            return activeTab === '2set' && twoSetMode !== '5P';
+        }
+        return activeTab === '3pilot';
+    }, [activeTab, twoSetMode]);
+
+    const formatDisplayTime = useCallback((value: string) => {
+        if (!value) return '';
+        const numericValue = value.replace(/\D/g, '');
+        if (numericValue.length === 0) return '';
+        const padded = numericValue.padStart(4, '0').slice(-4);
+        const hours = parseInt(padded.slice(0, 2), 10) || 0;
+        const minutes = parseInt(padded.slice(2, 4), 10) || 0;
+        if (!hours && !minutes) return '';
+        return minutes === 0 ? `${hours}시간` : `${hours}시간 ${minutes}분`;
     }, []);
-    
+
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
@@ -451,7 +580,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         const styleElement = document.createElement('style');
         styleElement.textContent = scrollbarStyles;
         document.head.appendChild(styleElement);
-        
+
         return () => {
             document.head.removeChild(styleElement);
         };
@@ -478,7 +607,8 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             try {
                 const savedRestInfo = await getRestInfo(currentUser.uid);
                 if (savedRestInfo) {
-                    dispatch({ type: 'LOAD_FROM_FIREBASE', payload: savedRestInfo });
+                    const payload = { ...savedRestInfo, threePilotMode: savedRestInfo.threePilotCase };
+                    dispatch({ type: 'LOAD_FROM_FIREBASE', payload });
                 }
             } catch (error) {
                 console.error('REST 정보 불러오기 실패:', error);
@@ -494,7 +624,8 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
         const unsubscribe = subscribeToRestInfo(currentUser.uid, (restInfo) => {
             if (restInfo) {
-                dispatch({ type: 'LOAD_FROM_FIREBASE', payload: restInfo });
+                const payload = { ...restInfo, threePilotMode: restInfo.threePilotCase };
+                dispatch({ type: 'LOAD_FROM_FIREBASE', payload });
             }
         });
 
@@ -511,20 +642,27 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 activeTab: restState.activeTab,
                 twoSetMode: restState.twoSetMode,
                 flightTime: restState.flightTime,
+                flightTime5P: restState.flightTime5P,
                 flightTime3Pilot: restState.flightTime3Pilot,
                 departureTime: restState.departureTime,
                 crz1Time: restState.crz1Time,
+                crz1Time5P: restState.crz1Time5P,
                 afterTakeoff: restState.afterTakeoff,
                 afterTakeoff1교대: restState.afterTakeoff1교대,
+                afterTakeoff5P: restState.afterTakeoff5P,
                 afterTakeoff3Pilot: restState.afterTakeoff3Pilot,
                 beforeLanding: restState.beforeLanding,
                 beforeLanding1교대: restState.beforeLanding1교대,
                 timeZone: restState.timeZone,
-                threePilotCase: restState.threePilotCase,
+                threePilotCase: restState.threePilotMode || 'CASE1',
+                afterTakeoff3PilotCase2: restState.afterTakeoff3PilotCase2 || '0100',
                 lastUpdated: new Date().toISOString()
             };
 
-            await saveRestInfo(currentUser.uid, restInfo);
+            await saveRestInfo(currentUser.uid, {
+                ...restInfo,
+                threePilotCase: restInfo.threePilotCase as 'CASE1' | 'CASE2'
+            });
         } catch (error) {
             console.error('REST 정보 저장 실패:', error);
         } finally {
@@ -545,16 +683,20 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 activeTab: state.activeTab,
                 twoSetMode: state.twoSetMode,
                 flightTime: state.flightTime,
+                flightTime5P: state.flightTime5P,
                 flightTime3Pilot: state.flightTime3Pilot,
                 departureTime: state.departureTime,
                 crz1Time: state.crz1Time,
+                crz1Time5P: state.crz1Time5P,
                 afterTakeoff: state.afterTakeoff,
                 afterTakeoff1교대: state.afterTakeoff1교대,
+                afterTakeoff5P: state.afterTakeoff5P,
                 afterTakeoff3Pilot: state.afterTakeoff3Pilot,
                 beforeLanding: state.beforeLanding,
                 beforeLanding1교대: state.beforeLanding1교대,
                 timeZone: state.timeZone,
-                threePilotCase: state.threePilotCase,
+                threePilotCase: state.threePilotMode,
+                afterTakeoff3PilotCase2: state.afterTakeoff3PilotCase2,
                 lastUpdated: new Date().toISOString()
             };
 
@@ -567,18 +709,72 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         }
     }, [currentUser, state]);
 
+    const handleCompleteEditing = useCallback(async () => {
+        setShowTimeline(true);
+        await handleSaveToFirebase();
+    }, [handleSaveToFirebase]);
+
+    const flightTimeMinutes2Set = useMemo(() => timeToMinutes(flightTime), [flightTime]);
+    const flightTimeMinutes5P = useMemo(() => timeToMinutes(flightTime5P), [flightTime5P]);
+    const flightTimeMinutes3Pilot = useMemo(() => timeToMinutes(flightTime3Pilot), [flightTime3Pilot]);
+
     const flightTimeMinutes = useMemo(() => {
-        return timeToMinutes(activeTab === '3pilot' ? flightTime3Pilot : flightTime);
-    }, [flightTime, flightTime3Pilot, activeTab]);
+        if (activeTab === '3pilot') return flightTimeMinutes3Pilot;
+        if (twoSetMode === '5P') return flightTimeMinutes5P;
+        return flightTimeMinutes2Set;
+    }, [activeTab, twoSetMode, flightTimeMinutes2Set, flightTimeMinutes3Pilot, flightTimeMinutes5P]);
 
-    // 2SET과 3PILOT의 비행시간을 완전히 분리
-    const flightTimeMinutes2Set = useMemo(() => {
-        return timeToMinutes(flightTime);
-    }, [flightTime]);
+    const currentFlightTimeValue = useMemo(() => {
+        return inputTab === '3pilot' ? flightTime3Pilot : inputTab === '5p' ? flightTime5P : flightTime;
+    }, [inputTab, flightTime, flightTime5P, flightTime3Pilot]);
 
-    const flightTimeMinutes3Pilot = useMemo(() => {
-        return timeToMinutes(flightTime3Pilot);
-    }, [flightTime3Pilot]);
+    const flightTimeInputDisplayValue = useMemo(() => {
+        if (isFlightTimeInputFocused) return currentFlightTimeValue;
+        return formatDisplayTime(currentFlightTimeValue) || '';
+    }, [isFlightTimeInputFocused, currentFlightTimeValue, formatDisplayTime]);
+
+    const afterTakeoff5PDisplayValue = useMemo(() => {
+        if (isAfterTakeoff5PInputFocused) return afterTakeoff5P;
+        return formatDisplayTime(afterTakeoff5P) || '';
+    }, [isAfterTakeoff5PInputFocused, afterTakeoff5P, formatDisplayTime]);
+
+    const fivePTwoFifthsMinutes = useMemo(() => {
+        if (flightTimeMinutes5P <= 0) return 0;
+        return Math.floor((flightTimeMinutes5P * 2) / 5);
+    }, [flightTimeMinutes5P]);
+
+    const afterTakeoffMinutes5P = useMemo(() => {
+        if (flightTimeMinutes5P <= 0) return 0;
+        const minutes = timeToMinutes(afterTakeoff5P);
+        return Math.min(Math.max(minutes, 0), flightTimeMinutes5P);
+    }, [afterTakeoff5P, flightTimeMinutes5P]);
+
+    const crz1Minutes5P = useMemo(() => {
+        if (flightTimeMinutes5P <= 0) return 0;
+        const minutes = Math.max(0, timeToMinutes(crz1Time5P));
+        const available = Math.max(0, flightTimeMinutes5P - afterTakeoffMinutes5P);
+        return Math.min(minutes, available);
+    }, [crz1Time5P, flightTimeMinutes5P, afterTakeoffMinutes5P]);
+
+    const crz2Minutes5P = useMemo(() => {
+        if (flightTimeMinutes5P <= 0) return 0;
+        const crz1InputMinutes = Math.max(0, timeToMinutes(crz1Time5P));
+        const desiredCrz2 = Math.max(0, fivePTwoFifthsMinutes - crz1InputMinutes);
+        const available = Math.max(0, flightTimeMinutes5P - afterTakeoffMinutes5P - crz1Minutes5P);
+        return Math.min(desiredCrz2, available);
+    }, [crz1Time5P, fivePTwoFifthsMinutes, flightTimeMinutes5P, afterTakeoffMinutes5P, crz1Minutes5P]);
+
+    const beforeLandingMinutes5P = useMemo(() => {
+        if (flightTimeMinutes5P <= 0) return 0;
+        const desiredBeforeLanding = Math.max(0, fivePTwoFifthsMinutes - afterTakeoffMinutes5P);
+        const available = Math.max(0, flightTimeMinutes5P - afterTakeoffMinutes5P - crz1Minutes5P - crz2Minutes5P);
+        return Math.min(desiredBeforeLanding, available);
+    }, [fivePTwoFifthsMinutes, afterTakeoffMinutes5P, flightTimeMinutes5P, crz1Minutes5P, crz2Minutes5P]);
+
+    const midMinutes5P = useMemo(() => {
+        if (flightTimeMinutes5P <= 0) return 0;
+        return Math.max(0, flightTimeMinutes5P - afterTakeoffMinutes5P - crz1Minutes5P - crz2Minutes5P - beforeLandingMinutes5P);
+    }, [flightTimeMinutes5P, afterTakeoffMinutes5P, crz1Minutes5P, crz2Minutes5P, beforeLandingMinutes5P]);
 
     // ✨ [핵심 수정] 비행시간 변경 시 CRZ1 기본값을 편조별 시간의 반으로 설정 (무한 루프 방지)
     const prevFlightTimeMinutes = useRef(flightTimeMinutes2Set);
@@ -590,7 +786,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 const halfRestMinutes = crewRestMinutes / 2;
                 const defaultCrz1Minutes = Math.ceil(halfRestMinutes / 5) * 5; // 5분 단위로 올림
                 const currentCrz1Minutes = timeToMinutes(crz1Time);
-                
+
                 // 현재 CRZ1 값이 기본값과 다를 때만 업데이트
                 if (currentCrz1Minutes !== defaultCrz1Minutes) {
                     dispatch({ type: 'UPDATE_STATE', payload: { crz1Time: minutesToHHMM(defaultCrz1Minutes) } });
@@ -599,6 +795,24 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             }
         }
     }, [flightTimeMinutes2Set, activeTab, twoSetMode, crz1Time]);
+
+    useEffect(() => {
+        if (flightTimeMinutes5P <= 0) {
+            if (crz1Time5P !== '0000') {
+                dispatch({ type: 'UPDATE_STATE', payload: { crz1Time5P: '0000' } });
+            }
+            return;
+        }
+
+        const targetMinutes = Math.max(0, Math.floor(flightTimeMinutes5P / 5));
+        const available = Math.max(0, flightTimeMinutes5P - afterTakeoffMinutes5P);
+        const defaultCrz1Minutes = Math.min(targetMinutes, available);
+        const defaultCrz1HHMM = minutesToHHMM(defaultCrz1Minutes);
+
+        if (crz1Time5P !== defaultCrz1HHMM) {
+            dispatch({ type: 'UPDATE_STATE', payload: { crz1Time5P: defaultCrz1HHMM } });
+        }
+    }, [flightTimeMinutes5P, afterTakeoffMinutes5P, crz1Time5P, dispatch]);
 
     // ✨ [핵심 수정] CRZ1, CRZ2 값을 계산 (CRZ1은 사용자 입력, CRZ2는 자동 계산)
     const { crz1Minutes, crz2Minutes } = useMemo(() => {
@@ -625,17 +839,17 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const generateTimelineData = useMemo(() => {
         // 이 함수는 이제 순수하게 입력값에 따라 기본 세그먼트와 타임포인트만 생성합니다.
         // 남은 시간을 계산하는 로직은 여기서 완전히 제거합니다.
-        
+
         if (activeTab === '2set' && twoSetMode === '2교대') {
             const afterTakeoffMinutes = timeToMinutes(afterTakeoff);
             const beforeLandingMinutes = timeToMinutes(beforeLanding);
-            
+
             // 입력값 검증 및 수정
             const validAfterTakeoffMinutes = afterTakeoffMinutes > 0 ? afterTakeoffMinutes : 0;
             const validBeforeLandingMinutes = beforeLandingMinutes > 0 ? beforeLandingMinutes : 0;
             const validCrz1Minutes = crz1Minutes > 0 ? crz1Minutes : 0;
             const validCrz2Minutes = crz2Minutes > 0 ? crz2Minutes : 0;
-            
+
             const midCrzMinutes = Math.max(0, flightTimeMinutes2Set - validAfterTakeoffMinutes - validCrz1Minutes - validCrz2Minutes - validBeforeLandingMinutes);
 
             const segments: TimelineSegment[] = [
@@ -649,7 +863,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             // 시간 포인트 계산 (출발, 종료 시간 제외)
             const timePoints: TimePoint[] = [];
             let currentTime = departureMinutesUTC;
-            
+
             // 이륙 후
             currentTime += validAfterTakeoffMinutes;
             timePoints.push({
@@ -687,12 +901,62 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             });
 
             return { segments, timePoints };
+        } else if (activeTab === '2set' && twoSetMode === '5P') {
+            if (flightTimeMinutes5P <= 0) {
+                return { segments: [], timePoints: [] };
+            }
+
+            const segments: TimelineSegment[] = [
+                { label: '이륙 후', duration: afterTakeoffMinutes5P, color: 'bg-blue-500' },
+                { label: 'CRZ 1', duration: crz1Minutes5P, color: 'bg-teal-700' },
+                { label: '남은 시간', duration: midMinutes5P, color: 'bg-orange-500' },
+                { label: 'CRZ 2', duration: crz2Minutes5P, color: 'bg-cyan-500' },
+                { label: '착륙 전', duration: beforeLandingMinutes5P, color: 'bg-lime-500' },
+            ];
+
+            const timePoints: TimePoint[] = [];
+            let currentTime = departureMinutesUTC;
+
+            currentTime += afterTakeoffMinutes5P;
+            timePoints.push({
+                label: '이륙 후',
+                zulu: formatTimeDisplay(convertZuluTime(currentTime)) + 'Z',
+                local: formatTimeDisplay(convertTime(currentTime, timeZone)) + 'L',
+                korea: formatTimeDisplay(convertTime(currentTime, 9)) + 'K'
+            });
+
+            currentTime += crz1Minutes5P;
+            timePoints.push({
+                label: 'CRZ 1',
+                zulu: formatTimeDisplay(convertZuluTime(currentTime)) + 'Z',
+                local: formatTimeDisplay(convertTime(currentTime, timeZone)) + 'L',
+                korea: formatTimeDisplay(convertTime(currentTime, 9)) + 'K'
+            });
+
+            currentTime += midMinutes5P;
+            currentTime += crz2Minutes5P;
+            timePoints.push({
+                label: 'CRZ 2',
+                zulu: formatTimeDisplay(convertZuluTime(currentTime)) + 'Z',
+                local: formatTimeDisplay(convertTime(currentTime, timeZone)) + 'L',
+                korea: formatTimeDisplay(convertTime(currentTime, 9)) + 'K'
+            });
+
+            currentTime += beforeLandingMinutes5P;
+            timePoints.push({
+                label: '착륙 전',
+                zulu: formatTimeDisplay(convertZuluTime(currentTime)) + 'Z',
+                local: formatTimeDisplay(convertTime(currentTime, timeZone)) + 'L',
+                korea: formatTimeDisplay(convertTime(currentTime, 9)) + 'K'
+            });
+
+            return { segments, timePoints };
         } else if (activeTab === '2set' && twoSetMode === '1교대') {
             const afterTakeoffMinutes = timeToMinutes(afterTakeoff1교대);
             const restPerCrew = Math.floor(flightTimeMinutes2Set / 2);
             const beforeLandingMinutes = Math.max(0, restPerCrew - afterTakeoffMinutes);
             const crzDuration = flightTimeMinutes2Set - afterTakeoffMinutes - beforeLandingMinutes;
-            
+
             // 입력값 검증 및 수정
             const validAfterTakeoffMinutes = afterTakeoffMinutes > 0 ? afterTakeoffMinutes : 0;
             const validBeforeLandingMinutes = beforeLandingMinutes > 0 ? beforeLandingMinutes : 0;
@@ -707,7 +971,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             // 시간 포인트 계산 (출발, 종료 시간 제외)
             const timePoints: TimePoint[] = [];
             let currentTime = departureMinutesUTC;
-            
+
             // 이륙 후
             currentTime += validAfterTakeoffMinutes;
             timePoints.push({
@@ -731,16 +995,40 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
         return { segments: [], timePoints: [] };
 
-    }, [activeTab, twoSetMode, flightTimeMinutes, afterTakeoff, afterTakeoff1교대, afterTakeoff3Pilot, beforeLanding, beforeLanding1교대, crz1Time, departureTime, timeZone, crz1Minutes, crz2Minutes]);
+    }, [
+        activeTab,
+        twoSetMode,
+        flightTimeMinutes,
+        flightTimeMinutes5P,
+        afterTakeoff,
+        afterTakeoff1교대,
+        afterTakeoff3Pilot,
+        afterTakeoff5P,
+        afterTakeoffMinutes5P,
+        beforeLanding,
+        beforeLanding1교대,
+        beforeLandingMinutes5P,
+        crz1Time,
+        crz1Time5P,
+        crz1Minutes,
+        crz2Minutes,
+        crz1Minutes5P,
+        crz2Minutes5P,
+        midMinutes5P,
+        departureTime,
+        timeZone
+    ]);
+
+    const activeAfterTakeoff3Pilot = threePilotMode === 'CASE2' ? afterTakeoff3PilotCase2 : afterTakeoff3Pilot;
 
     // 3PILOT 모드에서 각 타임라인을 다르게 생성하는 함수들
     const generatePICTimelineData = useMemo(() => {
         if (activeTab !== '3pilot') return { segments: [], timePoints: [] };
-        
-        const afterTakeoffMinutes = timeToMinutes(afterTakeoff3Pilot);
+
+        const afterTakeoffMinutes = timeToMinutes(activeAfterTakeoff3Pilot);
         const picRestMinutes = Math.floor(flightTimeMinutes3Pilot / 3); // 총 비행시간을 3으로 나눈 값
         const remainingMinutes = Math.max(0, flightTimeMinutes3Pilot - afterTakeoffMinutes - picRestMinutes);
-        
+
         const segments: TimelineSegment[] = [
             { label: '이륙 후 + 휴식', duration: afterTakeoffMinutes + picRestMinutes, color: 'bg-blue-500' },
             { label: '휴식', duration: picRestMinutes, color: 'bg-orange-500' },
@@ -749,7 +1037,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
         const timePoints: TimePoint[] = [];
         let currentTime = departureMinutesUTC;
-        
+
         // 첫 번째 세그먼트 끝 (이륙 후 + 휴식)
         currentTime += afterTakeoffMinutes + picRestMinutes;
         timePoints.push({
@@ -769,15 +1057,15 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         });
 
         return { segments, timePoints };
-    }, [activeTab, flightTimeMinutes, afterTakeoff3Pilot, departureTime, timeZone]);
+    }, [activeTab, flightTimeMinutes, activeAfterTakeoff3Pilot, departureTime, timeZone]);
 
     const generateFOTimelineData = useMemo(() => {
         if (activeTab !== '3pilot') return { segments: [], timePoints: [] };
-        
-        const afterTakeoffMinutes = timeToMinutes(afterTakeoff3Pilot);
+
+        const afterTakeoffMinutes = timeToMinutes(activeAfterTakeoff3Pilot);
         const foRestMinutes = Math.floor(flightTimeMinutes3Pilot / 3); // 총 비행시간을 3으로 나눈 값
         const remainingMinutes = Math.max(0, flightTimeMinutes3Pilot - afterTakeoffMinutes - foRestMinutes);
-        
+
         const segments: TimelineSegment[] = [
             { label: '이륙 후', duration: afterTakeoffMinutes, color: 'bg-blue-500' },
             { label: '휴식', duration: foRestMinutes, color: 'bg-orange-500' },
@@ -786,7 +1074,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
         const timePoints: TimePoint[] = [];
         let currentTime = departureMinutesUTC;
-        
+
         // 첫 번째 세그먼트 끝 (이륙 후)
         currentTime += afterTakeoffMinutes;
         timePoints.push({
@@ -806,15 +1094,15 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         });
 
         return { segments, timePoints };
-    }, [activeTab, flightTimeMinutes, afterTakeoff3Pilot, departureTime, timeZone]);
+    }, [activeTab, flightTimeMinutes, activeAfterTakeoff3Pilot, departureTime, timeZone]);
 
     const generateCRZTimelineData = useMemo(() => {
         if (activeTab !== '3pilot') return { segments: [], timePoints: [] };
-        
-        const afterTakeoffMinutes = timeToMinutes(afterTakeoff3Pilot);
+
+        const afterTakeoffMinutes = timeToMinutes(activeAfterTakeoff3Pilot);
         const crewDutyMinutes = flightTimeMinutes3Pilot - Math.floor(flightTimeMinutes3Pilot / 3); // 편조별 근무 시간
         const remainingMinutes = Math.max(0, flightTimeMinutes3Pilot - afterTakeoffMinutes - crewDutyMinutes);
-        
+
         const segments: TimelineSegment[] = [
             { label: '이륙 후', duration: afterTakeoffMinutes, color: 'bg-orange-500' },
             { label: '편조별 근무', duration: crewDutyMinutes, color: 'bg-green-500' },
@@ -823,7 +1111,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
         const timePoints: TimePoint[] = [];
         let currentTime = departureMinutesUTC;
-        
+
         // 첫 번째 세그먼트 끝 (이륙 후)
         currentTime += afterTakeoffMinutes;
         timePoints.push({
@@ -843,24 +1131,24 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         });
 
         return { segments, timePoints };
-    }, [activeTab, flightTimeMinutes, afterTakeoff3Pilot, departureTime, timeZone]);
+    }, [activeTab, flightTimeMinutes, activeAfterTakeoff3Pilot, departureTime, timeZone]);
 
     // 현재 진행률 계산 - 실제 시간 기반 (자정을 넘어가는 경우 고려)
     const timelineProgress = useMemo(() => {
         if (flightTimeMinutes <= 0 || flightTimeMinutes === undefined || flightTimeMinutes === null) return 0;
-        
+
         // 현재 시간을 UTC로 변환
         const now = new Date();
         const currentUTCHours = now.getUTCHours();
         const currentUTCMinutes = now.getUTCMinutes();
         let currentUTCMinutesTotal = currentUTCHours * 60 + currentUTCMinutes;
-        
+
         // 비행 시작 시간 (UTC)
         const flightStartMinutes = departureMinutesUTC || 0;
-        
+
         // 비행 종료 시간 (UTC)
         const flightEndMinutes = flightStartMinutes + flightTimeMinutes;
-        
+
         // 자정을 넘어가는 경우 처리
         if (flightEndMinutes > 1440) { // 24시간(1440분)을 넘어가는 경우
             // 현재 시간이 자정 이전인지 이후인지 확인
@@ -869,7 +1157,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 currentUTCMinutesTotal += 1440;
             }
         }
-        
+
         // 현재 시간이 비행 시간 범위 내에 있는지 확인
         if (currentUTCMinutesTotal < flightStartMinutes) {
             return 0; // 비행 시작 전
@@ -883,8 +1171,29 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     }, [flightTimeMinutes, departureMinutesUTC, currentTime]);
 
     const handleTimeInputChange = useCallback((field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-        dispatch({ type: 'SET_TIME', payload: { field, value: e.target.value } });
-    }, [dispatch]); // ✨ dispatch 함수는 항상 동일하므로 이렇게만 해도 충분합니다.
+        const rawValue = e.target.value.replace(/\D/g, '').slice(0, 4);
+        if (['flightTime', 'flightTime5P', 'flightTime3Pilot'].includes(field)) {
+            const payload: any = {
+                flightTime: rawValue,
+                flightTime5P: rawValue,
+                flightTime3Pilot: rawValue
+            };
+
+            // 5P 모드일 때 이륙 후 시간을 총 비행시간의 1/5로 자동 설정
+            const flightMinutes = timeToMinutes(rawValue);
+            if (flightMinutes > 0) {
+                const oneFifthMinutes = Math.floor(flightMinutes / 5);
+                payload.afterTakeoff5P = minutesToHHMM(oneFifthMinutes);
+            }
+
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload
+            });
+        } else {
+            dispatch({ type: 'SET_TIME', payload: { field, value: rawValue } });
+        }
+    }, [dispatch]);
 
     const handleScroll = useCallback(() => {
         if (timeZonePickerRef.current) {
@@ -896,25 +1205,25 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             // 중앙을 기준으로 선택된 인덱스 계산
             const adjustedScrollTop = scrollTop + centerOffset;
             const selectedIndex = Math.round(adjustedScrollTop / itemHeight);
-            
+
             const UTC_OFFSETS = Array.from({ length: 26 }, (_, i) => i - 11);
             const padding = 2; // 위아래 여백
             const actualIndex = selectedIndex - padding;
             const newValue = UTC_OFFSETS[Math.max(0, Math.min(UTC_OFFSETS.length - 1, actualIndex))];
-            
+
             setCurrentScrollValue(newValue);
-            
+
             // 스크롤 중 상태 설정
             setIsScrollingState(true);
-            
+
             clearTimeout(isScrolling.current);
             isScrolling.current = setTimeout(() => {
                 // 정확한 중앙 위치로 스냅
                 const targetScrollTop = (selectedIndex * itemHeight) - centerOffset;
                 timeZonePickerRef.current?.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                
+
                 dispatch({ type: 'UPDATE_STATE', payload: { timeZone: newValue } });
-                
+
                 // 스크롤 완료 후 상태 해제
                 setTimeout(() => {
                     setIsScrollingState(false);
@@ -934,7 +1243,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             // 중앙을 기준으로 선택된 인덱스 계산
             const adjustedScrollTop = scrollTop + centerOffset;
             const selectedIndex = Math.round(adjustedScrollTop / itemHeight);
-            
+
             // CRZ1 시간 배열 생성 (1시간 00분부터 6시간 00분까지 5분 단위)
             const CRZ1_TIMES = [];
             for (let hour = 1; hour <= 6; hour++) {
@@ -943,77 +1252,88 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                     CRZ1_TIMES.push(timeString);
                 }
             }
-            
+
             const padding = 2; // 위아래 여백
             const actualIndex = selectedIndex - padding;
             const newValue = CRZ1_TIMES[Math.max(0, Math.min(CRZ1_TIMES.length - 1, actualIndex))];
-            
+
             setCurrentCrz1ScrollValue(newValue);
-            
+
             // 스크롤 중 상태 설정
             setIsCrz1ScrollingState(true);
-            
+
             clearTimeout(isCrz1Scrolling.current);
             isCrz1Scrolling.current = setTimeout(() => {
                 // 정확한 중앙 위치로 스냅
                 const targetScrollTop = (selectedIndex * itemHeight) - centerOffset;
                 crz1PickerRef.current?.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                
-                dispatch({ type: 'UPDATE_STATE', payload: { crz1Time: newValue } });
-                
+
+                if (inputTab === '5p') {
+                    dispatch({ type: 'UPDATE_STATE', payload: { crz1Time5P: newValue } });
+                } else {
+                    dispatch({ type: 'UPDATE_STATE', payload: { crz1Time: newValue } });
+                }
+
                 // 스크롤 완료 후 상태 해제
                 setTimeout(() => {
                     setIsCrz1ScrollingState(false);
                 }, 300); // 스크롤 애니메이션 완료 후 숨김
             }, 150);
         }
-    }, []);
+    }, [inputTab, dispatch]);
 
     // 초기 스크롤 위치 설정
     useEffect(() => {
         if (showTimeZonePicker && timeZonePickerRef.current) { // 모달이 보일 때만 실행
-            const UTC_OFFSETS = Array.from({ length: 26 }, (_, i) => i - 11);
-            const initialIndex = UTC_OFFSETS.indexOf(timeZone);
-            const itemHeight = 48;
-            const containerHeight = 128; // h-32
-            const centerOffset = (containerHeight - itemHeight) / 2; // 중앙 오프셋
-            const padding = 2;
-            
-            if (initialIndex !== -1) {
-                const targetIndex = initialIndex + padding;
-                const targetScrollTop = (targetIndex * itemHeight) - centerOffset;
-                timeZonePickerRef.current.scrollTop = targetScrollTop;
-                setCurrentScrollValue(timeZone);
-            }
+            setTimeout(() => {
+                if (!timeZonePickerRef.current) return;
+                const UTC_OFFSETS = Array.from({ length: 26 }, (_, i) => i - 11);
+                const initialIndex = UTC_OFFSETS.indexOf(timeZone);
+                const itemHeight = 48;
+                const containerHeight = 128; // h-32
+                const centerOffset = (containerHeight - itemHeight) / 2; // 중앙 오프셋
+                const padding = 2;
+
+                if (initialIndex !== -1) {
+                    const targetIndex = initialIndex + padding;
+                    const targetScrollTop = (targetIndex * itemHeight) - centerOffset;
+                    timeZonePickerRef.current.scrollTop = targetScrollTop;
+                    setCurrentScrollValue(timeZone);
+                }
+            }, 0);
         }
     }, [showTimeZonePicker, timeZone]); // showTimeZonePicker를 의존성에 추가
 
     // CRZ1 드럼 픽커 초기 스크롤 위치 설정
     useEffect(() => {
         if (showCrz1Picker && crz1PickerRef.current) {
-            // CRZ1 시간 배열 생성 (1시간 00분부터 6시간 00분까지 5분 단위)
-            const CRZ1_TIMES = [];
-            for (let hour = 1; hour <= 6; hour++) {
-                for (let minute = 0; minute < 60; minute += 5) {
-                    const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
-                    CRZ1_TIMES.push(timeString);
+            setTimeout(() => {
+                if (!crz1PickerRef.current) return;
+                // CRZ1 시간 배열 생성 (1시간 00분부터 6시간 00분까지 5분 단위)
+                const CRZ1_TIMES = [];
+                for (let hour = 1; hour <= 6; hour++) {
+                    for (let minute = 0; minute < 60; minute += 5) {
+                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
+                        CRZ1_TIMES.push(timeString);
+                    }
                 }
-            }
-            
-            const initialIndex = CRZ1_TIMES.indexOf(crz1Time);
-            const itemHeight = 48;
-            const containerHeight = 128; // h-32
-            const centerOffset = (containerHeight - itemHeight) / 2; // 중앙 오프셋
-            const padding = 2;
-            
-            if (initialIndex !== -1) {
-                const targetIndex = initialIndex + padding;
-                const targetScrollTop = (targetIndex * itemHeight) - centerOffset;
-                crz1PickerRef.current.scrollTop = targetScrollTop;
-                setCurrentCrz1ScrollValue(crz1Time);
-            }
+
+                const currentCrz1Value = inputTab === '5p' ? crz1Time5P : crz1Time;
+                const initialIndex = CRZ1_TIMES.indexOf(currentCrz1Value);
+                const itemHeight = 48;
+                const containerHeight = 128; // h-32
+                const centerOffset = (containerHeight - itemHeight) / 2; // 중앙 오프셋
+                const padding = 2;
+
+                if (initialIndex !== -1) {
+                    const targetIndex = initialIndex + padding;
+                    const targetScrollTop = (targetIndex * itemHeight) - centerOffset;
+                    crz1PickerRef.current.scrollTop = targetScrollTop;
+                    setCurrentCrz1ScrollValue(currentCrz1Value);
+                }
+            }, 0);
         }
-    }, [showCrz1Picker, crz1Time]);
+    }, [showCrz1Picker, crz1Time, crz1Time5P, inputTab]);
 
     // 이륙 후 드럼 픽커 스크롤 핸들러
     const handleAfterTakeoffScroll = useCallback(() => {
@@ -1026,48 +1346,56 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             // 중앙을 기준으로 선택된 인덱스 계산
             const adjustedScrollTop = scrollTop + centerOffset;
             const selectedIndex = Math.round(adjustedScrollTop / itemHeight);
-            
+
             // 이륙 후 시간 배열 생성 (30분부터 6시간 00분까지 5분 단위)
             const AFTER_TAKEOFF_TIMES = [];
+            const step = (activeTab === '2set' && twoSetMode === '5P') ? 1 : 5;
+
             for (let hour = 0; hour <= 6; hour++) {
-                for (let minute = 0; minute < 60; minute += 5) {
+                for (let minute = 0; minute < 60; minute += step) {
                     if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
                     const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
                     AFTER_TAKEOFF_TIMES.push(timeString);
                 }
             }
-            
+
             const padding = 2; // 위아래 여백
             const actualIndex = selectedIndex - padding;
             const newValue = AFTER_TAKEOFF_TIMES[Math.max(0, Math.min(AFTER_TAKEOFF_TIMES.length - 1, actualIndex))];
-            
+
             setCurrentAfterTakeoffScrollValue(newValue);
-            
+
             // 스크롤 중 상태 설정
             setIsAfterTakeoffScrollingState(true);
-            
+
             clearTimeout(isAfterTakeoffScrolling.current);
             isAfterTakeoffScrolling.current = setTimeout(() => {
                 // 정확한 중앙 위치로 스냅
                 const targetScrollTop = (selectedIndex * itemHeight) - centerOffset;
                 afterTakeoffPickerRef.current?.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                
+
                 // 각 모드별로 적절한 필드 업데이트
                 if (activeTab === '2set' && twoSetMode === '1교대') {
                     dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff1교대: newValue } });
+                } else if (activeTab === '2set' && twoSetMode === '5P') {
+                    dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff5P: newValue } });
                 } else if (activeTab === '3pilot') {
-                    dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff3Pilot: newValue } });
+                    if (threePilotMode === 'CASE2') {
+                        dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff3PilotCase2: newValue } });
+                    } else {
+                        dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff3Pilot: newValue } });
+                    }
                 } else {
                     dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff: newValue } });
                 }
-                
+
                 // 스크롤 완료 후 상태 해제
                 setTimeout(() => {
                     setIsAfterTakeoffScrollingState(false);
                 }, 300); // 스크롤 애니메이션 완료 후 숨김
             }, 150);
         }
-    }, []);
+    }, [activeTab, dispatch, twoSetMode, threePilotMode]);
 
 
 
@@ -1084,7 +1412,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             // 중앙을 기준으로 선택된 인덱스 계산
             const adjustedScrollTop = scrollTop + centerOffset;
             const selectedIndex = Math.round(adjustedScrollTop / itemHeight);
-            
+
             // 착륙 전 시간 배열 생성 (30분부터 3시간 00분까지 5분 단위)
             const BEFORE_LANDING_TIMES = [];
             for (let hour = 0; hour <= 3; hour++) {
@@ -1094,68 +1422,75 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                     BEFORE_LANDING_TIMES.push(timeString);
                 }
             }
-            
+
             const padding = 2; // 위아래 여백
             const actualIndex = selectedIndex - padding;
             const newValue = BEFORE_LANDING_TIMES[Math.max(0, Math.min(BEFORE_LANDING_TIMES.length - 1, actualIndex))];
-            
+
             setCurrentBeforeLandingScrollValue(newValue);
-            
+
             // 스크롤 중 상태 설정
             setIsBeforeLandingScrollingState(true);
-            
+
             clearTimeout(isBeforeLandingScrolling.current);
             isBeforeLandingScrolling.current = setTimeout(() => {
                 // 정확한 중앙 위치로 스냅
                 const targetScrollTop = (selectedIndex * itemHeight) - centerOffset;
                 beforeLandingPickerRef.current?.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                
+
                 dispatch({ type: 'UPDATE_STATE', payload: { beforeLanding: newValue } });
-                
+
                 // 스크롤 완료 후 상태 해제
                 setTimeout(() => {
                     setIsBeforeLandingScrollingState(false);
                 }, 300); // 스크롤 애니메이션 완료 후 숨김
             }, 150);
         }
-    }, []);
+    }, [dispatch]);
 
     // 이륙 후 드럼 픽커 초기 스크롤 위치 설정
     useEffect(() => {
         if (showAfterTakeoffPicker && afterTakeoffPickerRef.current) {
-            // 이륙 후 시간 배열 생성 (30분부터 6시간 00분까지 5분 단위)
-            const AFTER_TAKEOFF_TIMES = [];
-            for (let hour = 0; hour <= 6; hour++) {
-                for (let minute = 0; minute < 60; minute += 5) {
-                    if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
-                    const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
-                    AFTER_TAKEOFF_TIMES.push(timeString);
+            setTimeout(() => {
+                if (!afterTakeoffPickerRef.current) return;
+                // 이륙 후 시간 배열 생성
+                const AFTER_TAKEOFF_TIMES: string[] = [];
+                const step = (activeTab === '2set' && twoSetMode === '5P') ? 1 : 5;
+
+                for (let hour = 0; hour <= 6; hour++) {
+                    for (let minute = 0; minute < 60; minute += step) {
+                        if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
+                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
+                        AFTER_TAKEOFF_TIMES.push(timeString);
+                    }
                 }
-            }
-            
-            // 각 모드별로 적절한 값 사용
-            let currentAfterTakeoffValue;
-            if (activeTab === '2set' && twoSetMode === '1교대') {
-                currentAfterTakeoffValue = afterTakeoff1교대;
-            } else if (activeTab === '3pilot') {
-                currentAfterTakeoffValue = afterTakeoff3Pilot;
-            } else {
-                currentAfterTakeoffValue = afterTakeoff;
-            }
-            const initialIndex = AFTER_TAKEOFF_TIMES.indexOf(currentAfterTakeoffValue);
-            const itemHeight = 48;
-            const containerHeight = 128; // h-32
-            const centerOffset = (containerHeight - itemHeight) / 2; // 중앙 오프셋
-            const padding = 2;
-            
-            if (initialIndex !== -1) {
-                const targetIndex = initialIndex + padding;
-                const targetScrollTop = (targetIndex * itemHeight) - centerOffset;
-                afterTakeoffPickerRef.current.scrollTop = targetScrollTop;
-                setCurrentAfterTakeoffScrollValue(currentAfterTakeoffValue);
-            }
+
+                // 각 모드별로 적절한 값 사용
+                let currentAfterTakeoffValue;
+                if (activeTab === '2set' && twoSetMode === '1교대') {
+                    currentAfterTakeoffValue = afterTakeoff1교대;
+                } else if (activeTab === '2set' && twoSetMode === '5P') {
+                    currentAfterTakeoffValue = afterTakeoff5P;
+                } else if (activeTab === '3pilot') {
+                    currentAfterTakeoffValue = threePilotMode === 'CASE2' ? afterTakeoff3PilotCase2 : afterTakeoff3Pilot;
+                } else {
+                    currentAfterTakeoffValue = afterTakeoff;
+                }
+                const initialIndex = AFTER_TAKEOFF_TIMES.indexOf(currentAfterTakeoffValue);
+                const itemHeight = 48;
+                const containerHeight = 128; // h-32
+                const centerOffset = (containerHeight - itemHeight) / 2; // 중앙 오프셋
+                const padding = 2;
+
+                if (initialIndex !== -1) {
+                    const targetIndex = initialIndex + padding;
+                    const targetScrollTop = (targetIndex * itemHeight) - centerOffset;
+                    afterTakeoffPickerRef.current.scrollTop = targetScrollTop;
+                    setCurrentAfterTakeoffScrollValue(currentAfterTakeoffValue);
+                }
+            }, 0);
         }
-    }, [showAfterTakeoffPicker, afterTakeoff, afterTakeoff1교대, afterTakeoff3Pilot, activeTab, twoSetMode]);
+    }, [showAfterTakeoffPicker, afterTakeoff, afterTakeoff1교대, afterTakeoff5P, afterTakeoff3Pilot, afterTakeoff3PilotCase2, activeTab, twoSetMode, threePilotMode]);
 
 
 
@@ -1164,28 +1499,31 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     // 착륙 전 드럼 픽커 초기 스크롤 위치 설정
     useEffect(() => {
         if (showBeforeLandingPicker && beforeLandingPickerRef.current) {
-            // 착륙 전 시간 배열 생성 (30분부터 3시간 00분까지 5분 단위)
-            const BEFORE_LANDING_TIMES = [];
-            for (let hour = 0; hour <= 3; hour++) {
-                for (let minute = 0; minute < 60; minute += 5) {
-                    if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
-                    const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
-                    BEFORE_LANDING_TIMES.push(timeString);
+            setTimeout(() => {
+                if (!beforeLandingPickerRef.current) return;
+                // 착륙 전 시간 배열 생성 (30분부터 3시간 00분까지 5분 단위)
+                const BEFORE_LANDING_TIMES = [];
+                for (let hour = 0; hour <= 3; hour++) {
+                    for (let minute = 0; minute < 60; minute += 5) {
+                        if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
+                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
+                        BEFORE_LANDING_TIMES.push(timeString);
+                    }
                 }
-            }
-            
-            const initialIndex = BEFORE_LANDING_TIMES.indexOf(beforeLanding);
-            const itemHeight = 48;
-            const containerHeight = 128; // h-32
-            const centerOffset = (containerHeight - itemHeight) / 2; // 중앙 오프셋
-            const padding = 2;
-            
-            if (initialIndex !== -1) {
-                const targetIndex = initialIndex + padding;
-                const targetScrollTop = (targetIndex * itemHeight) - centerOffset;
-                beforeLandingPickerRef.current.scrollTop = targetScrollTop;
-                setCurrentBeforeLandingScrollValue(beforeLanding);
-            }
+
+                const initialIndex = BEFORE_LANDING_TIMES.indexOf(beforeLanding);
+                const itemHeight = 48;
+                const containerHeight = 128; // h-32
+                const centerOffset = (containerHeight - itemHeight) / 2; // 중앙 오프셋
+                const padding = 2;
+
+                if (initialIndex !== -1) {
+                    const targetIndex = initialIndex + padding;
+                    const targetScrollTop = (targetIndex * itemHeight) - centerOffset;
+                    beforeLandingPickerRef.current.scrollTop = targetScrollTop;
+                    setCurrentBeforeLandingScrollValue(beforeLanding);
+                }
+            }, 0);
         }
     }, [showBeforeLandingPicker, beforeLanding]);
 
@@ -1206,12 +1544,28 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                         )}
                     </div>
 
-                    <div 
-                        className={`flex justify-between items-center p-4 rounded-lg mb-4 cursor-pointer transition-colors ${
-                            isDark 
-                                ? 'bg-gray-700/60 hover:bg-gray-700/80' 
-                                : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
+                    <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                        {VIEW_TABS.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleViewTabChange(tab.id)}
+                                className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${isViewTabActive(tab.id)
+                                    ? 'border-blue-500 text-blue-400'
+                                    : isDark
+                                        ? 'border-transparent text-gray-500 hover:text-gray-300'
+                                        : 'border-transparent text-gray-600 hover:text-gray-800'
+                                    }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div
+                        className={`flex justify-between items-center p-4 rounded-lg mb-4 cursor-pointer transition-colors ${isDark
+                            ? 'bg-gray-700/60 hover:bg-gray-700/80'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
                         onClick={() => { preEditStateRef.current = { ...state }; setShowTimeline(false); }}
                     >
                         <div className="text-left text-sm font-mono">
@@ -1233,21 +1587,22 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
                     {activeTab === '2set' && (
                         <>
-                            <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                                {TWO_SET_MODES.map(mode => (
-                                    <button key={mode.id} onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { twoSetMode: mode.id } })}
-                                        className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${
-                                            twoSetMode === mode.id 
-                                                ? 'border-blue-500 text-blue-400' 
-                                                : isDark 
-                                                    ? 'border-transparent text-gray-500 hover:text-gray-300' 
+                            {twoSetMode !== '5P' && (
+                                <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                                    {TWO_SET_MODES.map(mode => (
+                                        <button key={mode.id} onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { twoSetMode: mode.id } })}
+                                            className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${twoSetMode === mode.id
+                                                ? 'border-fuchsia-500 text-fuchsia-500'
+                                                : isDark
+                                                    ? 'border-transparent text-gray-500 hover:text-gray-300'
                                                     : 'border-transparent text-gray-600 hover:text-gray-800'
-                                        }`}>
-                                        {mode.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <FlightTimeline 
+                                                }`}>
+                                            {mode.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <FlightTimeline
                                 segments={generateTimelineData.segments}
                                 timePoints={generateTimelineData.timePoints}
                                 progress={timelineProgress}
@@ -1259,38 +1614,37 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                     {activeTab === '3pilot' && (
                         <>
                             <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                                {THREE_PILOT_CASES.map(c => (
-                                    <button key={c.id} onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { threePilotCase: c.id }})} className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${
-                                        threePilotCase === c.id 
-                                            ? 'border-blue-500 text-blue-400' 
-                                            : isDark 
-                                                ? 'border-transparent text-gray-500 hover:text-gray-300' 
-                                                : 'border-transparent text-gray-600 hover:text-gray-800'
-                                    }`}>{c.id}</button>
+                                {THREE_PILOT_MODES.map(c => (
+                                    <button key={c.id} onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { threePilotMode: c.id } })} className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${threePilotMode === c.id
+                                        ? 'border-fuchsia-500 text-fuchsia-500'
+                                        : isDark
+                                            ? 'border-transparent text-gray-500 hover:text-gray-300'
+                                            : 'border-transparent text-gray-600 hover:text-gray-800'
+                                        }`}>{c.id}</button>
                                 ))}
                             </div>
                             <div className="space-y-3">
                                 <div>
                                     <h4 className={`text-lg font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>PIC</h4>
-                                    <FlightTimeline 
-                                        segments={threePilotCase === 'CASE2' ? generateFOTimelineData.segments : generatePICTimelineData.segments}
-                                        timePoints={threePilotCase === 'CASE2' ? generateFOTimelineData.timePoints : generatePICTimelineData.timePoints}
+                                    <FlightTimeline
+                                        segments={threePilotMode === 'CASE2' ? generateFOTimelineData.segments : generatePICTimelineData.segments}
+                                        timePoints={threePilotMode === 'CASE2' ? generateFOTimelineData.timePoints : generatePICTimelineData.timePoints}
                                         progress={timelineProgress}
                                         isDark={isDark}
                                     />
                                 </div>
                                 <div>
                                     <h4 className={`text-lg font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>FO</h4>
-                                    <FlightTimeline 
-                                        segments={threePilotCase === 'CASE2' ? generatePICTimelineData.segments : generateFOTimelineData.segments}
-                                        timePoints={threePilotCase === 'CASE2' ? generatePICTimelineData.timePoints : generateFOTimelineData.timePoints}
+                                    <FlightTimeline
+                                        segments={threePilotMode === 'CASE2' ? generatePICTimelineData.segments : generateFOTimelineData.segments}
+                                        timePoints={threePilotMode === 'CASE2' ? generatePICTimelineData.timePoints : generateFOTimelineData.timePoints}
                                         progress={timelineProgress}
                                         isDark={isDark}
                                     />
                                 </div>
                                 <div>
                                     <h4 className={`text-lg font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>CRZ</h4>
-                                    <FlightTimeline 
+                                    <FlightTimeline
                                         segments={generateCRZTimelineData.segments}
                                         timePoints={generateCRZTimelineData.timePoints}
                                         progress={timelineProgress}
@@ -1307,449 +1661,482 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe" onClick={handleCancelEdit}>
                         <div className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-4 max-h-[90vh] overflow-y-auto ${isDark ? 'bg-gray-800' : 'bg-white'}`} onClick={(e) => e.stopPropagation()}>
                             <div className="p-6 sm:p-8 relative">
-                                <button 
-                                    onClick={handleCancelEdit} 
-                                    className={`absolute top-4 right-4 transition-colors z-10 ${
-                                        isDark 
-                                            ? 'text-gray-500 hover:text-white' 
-                                            : 'text-gray-600 hover:text-gray-900'
-                                    }`}
+                                <button
+                                    onClick={handleCancelEdit}
+                                    className={`absolute top-4 right-4 transition-colors z-10 ${isDark
+                                        ? 'text-gray-500 hover:text-white'
+                                        : 'text-gray-600 hover:text-gray-900'
+                                        }`}
                                 >
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
                                 </button>
 
-                {/* 타임존 피커 모달 */}
-                {showTimeZonePicker && (
-                    <div 
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
-                        onClick={() => setShowTimeZonePicker(false)}
-                    >
-                        <div 
-                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="text-center mb-4">
-                                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Time Zone 선택</h3>
-                            </div>
-                            
-                            <div className="flex justify-center mb-4">
-                                <div className="flex items-center justify-center gap-1 w-full">
-                                    {/* "UTC" 라벨이 공간을 차지하되, 필요시 줄어들도록 설정 */}
-                                    <div className="text-center flex-shrink-0"> 
-                                        <span className={`text-s font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>UTC</span>
-                                    </div>
-                                    
-                                    {/* 드럼이 남은 공간을 모두 차지하도록 설정 */}
-                                    <div className={`p-1 rounded-lg shadow-lg flex-grow min-w-0 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`} style={{ minWidth: '60px' }}>
-                                        <div className="relative h-32 overflow-hidden">
-                                            {/* 중앙 선택 영역 하이라이트 */}
-                                            <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
-                                            
-                                            {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
-                                            <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
-                                            <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
-                                            
-                                            <div
-                                                ref={timeZonePickerRef}
-                                                onScroll={handleScroll}
-                                                className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isScrollingState ? 'scrolling' : ''}`}
-                                                style={{
-                                                    scrollbarWidth: 'thin',
-                                                    scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
-                                                    msOverflowStyle: 'none'
-                                                }}
-                                            >
-                                                {(() => {
-                                                    const UTC_OFFSETS = Array.from({ length: 26 }, (_, i) => i - 11); // -11 to +14
-                                                    const padding = Array(2).fill(null); // 위아래 2개씩 여백
-                                                    const displayItems = [...padding, ...UTC_OFFSETS, ...padding];
-                                                    
-                                                    return displayItems.map((offset, index) => {
-                                                        const isSelected = offset === currentScrollValue;
-                                                        
-                                                        return (
+                                {/* 타임존 피커 모달 */}
+                                {showTimeZonePicker && (
+                                    <div
+                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
+                                        onClick={() => setShowTimeZonePicker(false)}
+                                    >
+                                        <div
+                                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <div className="text-center mb-4">
+                                                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Time Zone 선택</h3>
+                                            </div>
+
+                                            <div className="flex justify-center mb-4">
+                                                <div className="flex items-center justify-center gap-1 w-full">
+                                                    {/* "UTC" 라벨이 공간을 차지하되, 필요시 줄어들도록 설정 */}
+                                                    <div className="text-center flex-shrink-0">
+                                                        <span className={`text-s font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>UTC</span>
+                                                    </div>
+
+                                                    {/* 드럼이 남은 공간을 모두 차지하도록 설정 */}
+                                                    <div className={`p-1 rounded-lg shadow-lg flex-grow min-w-0 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`} style={{ minWidth: '60px' }}>
+                                                        <div className="relative h-32 overflow-hidden">
+                                                            {/* 중앙 선택 영역 하이라이트 */}
+                                                            <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
+
+                                                            {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
+                                                            <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
+                                                            <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
+
                                                             <div
-                                                                key={index}
-                                                                                                                            className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${
-                                                                isSelected 
-                                                                    ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
-                                                                    : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
-                                                            }`}
+                                                                ref={timeZonePickerRef}
+                                                                onScroll={handleScroll}
+                                                                className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isScrollingState ? 'scrolling' : ''}`}
+                                                                style={{
+                                                                    scrollbarWidth: 'thin',
+                                                                    scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
+                                                                    msOverflowStyle: 'none'
+                                                                }}
                                                             >
-                                                                {offset !== null ? (offset > 0 ? `+${offset}` : offset) : ''}
+                                                                {(() => {
+                                                                    const UTC_OFFSETS = Array.from({ length: 26 }, (_, i) => i - 11); // -11 to +14
+                                                                    const padding = Array(2).fill(null); // 위아래 2개씩 여백
+                                                                    const displayItems = [...padding, ...UTC_OFFSETS, ...padding];
+
+                                                                    return displayItems.map((offset, index) => {
+                                                                        const isSelected = offset === currentScrollValue;
+
+                                                                        return (
+                                                                            <div
+                                                                                key={index}
+                                                                                className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${isSelected
+                                                                                    ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
+                                                                                    : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
+                                                                                    }`}
+                                                                            >
+                                                                                {offset !== null ? (offset > 0 ? `+${offset}` : offset) : ''}
+                                                                            </div>
+                                                                        );
+                                                                    });
+                                                                })()}
                                                             </div>
-                                                        );
-                                                    });
-                                                })()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-center gap-2">
+                                                <button
+                                                    onClick={() => setShowTimeZonePicker(false)}
+                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isDark
+                                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
+                                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                                                        }`}
+                                                >
+                                                    취소
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        await handleSaveToFirebase();
+                                                        setShowTimeZonePicker(false);
+                                                    }}
+                                                    disabled={isSyncing}
+                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isSyncing
+                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                                                        }`}
+                                                >
+                                                    {isSyncing ? '저장 중...' : '완료'}
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <div className="flex justify-center gap-2">
-                                <button
-                                    onClick={() => setShowTimeZonePicker(false)}
-                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
-                                        isDark 
-                                            ? 'bg-gray-600 text-white hover:bg-gray-700' 
-                                            : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                                    }`}
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        await handleSaveToFirebase();
-                                        setShowTimeZonePicker(false);
-                                    }}
-                                    disabled={isSyncing}
-                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
-                                        isSyncing 
-                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                                            : 'bg-blue-500 text-white hover:bg-blue-600'
-                                    }`}
-                                >
-                                    {isSyncing ? '저장 중...' : '완료'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                                )}
 
-                {/* CRZ1 피커 모달 */}
-                {showCrz1Picker && (
-                    <div 
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
-                        onClick={() => setShowCrz1Picker(false)}
-                    >
-                        <div 
-                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="text-center mb-4">
-                                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>CRZ 1 시간 선택</h3>
-                            </div>
-                            
-                            <div className="flex justify-center mb-4">
-                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                                    <div className="relative h-32 overflow-hidden">
-                                        {/* 중앙 선택 영역 하이라이트 */}
-                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
-                                        
-                                        {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
-                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
-                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
-                                        
+                                {/* CRZ1 피커 모달 */}
+                                {showCrz1Picker && (
+                                    <div
+                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
+                                        onClick={() => setShowCrz1Picker(false)}
+                                    >
                                         <div
-                                            ref={crz1PickerRef}
-                                            onScroll={handleCrz1Scroll}
-                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isCrz1ScrollingState ? 'scrolling' : ''}`}
-                                            style={{
-                                                scrollbarWidth: 'thin',
-                                                scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
-                                                msOverflowStyle: 'none'
-                                            }}
+                                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                                            onClick={(e) => e.stopPropagation()}
                                         >
-                                            {(() => {
-                                                // CRZ1 시간 배열 생성 (1시간 00분부터 6시간 00분까지 5분 단위)
-                                                const CRZ1_TIMES = [];
-                                                for (let hour = 1; hour <= 6; hour++) {
-                                                    for (let minute = 0; minute < 60; minute += 5) {
-                                                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
-                                                        CRZ1_TIMES.push(timeString);
-                                                    }
-                                                }
-                                                
-                                                const padding = Array(2).fill(null); // 위아래 2개씩 여백
-                                                const displayItems = [...padding, ...CRZ1_TIMES, ...padding];
-                                                
-                                                return displayItems.map((time, index) => {
-                                                    const isSelected = time === currentCrz1ScrollValue;
-                                                    
-                                                    return (
+                                            <div className="text-center mb-4">
+                                                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>CRZ 1 시간 선택</h3>
+                                            </div>
+
+                                            <div className="flex justify-center mb-4">
+                                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                                                    <div className="relative h-32 overflow-hidden">
+                                                        {/* 중앙 선택 영역 하이라이트 */}
+                                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
+
+                                                        {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
+                                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
+                                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
+
                                                         <div
-                                                            key={index}
-                                                            className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${
-                                                                isSelected 
-                                                                    ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
-                                                                    : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
-                                                            }`}
+                                                            ref={crz1PickerRef}
+                                                            onScroll={handleCrz1Scroll}
+                                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isCrz1ScrollingState ? 'scrolling' : ''}`}
+                                                            style={{
+                                                                scrollbarWidth: 'thin',
+                                                                scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
+                                                                msOverflowStyle: 'none'
+                                                            }}
                                                         >
-                                                            {time !== null ? minutesToKoreanDisplay(timeToMinutes(time)) : ''}
+                                                            {(() => {
+                                                                // CRZ1 시간 배열 생성 (1시간 00분부터 6시간 00분까지 5분 단위)
+                                                                const CRZ1_TIMES = [];
+                                                                for (let hour = 1; hour <= 6; hour++) {
+                                                                    for (let minute = 0; minute < 60; minute += 5) {
+                                                                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
+                                                                        CRZ1_TIMES.push(timeString);
+                                                                    }
+                                                                }
+
+                                                                const padding = Array(2).fill(null); // 위아래 2개씩 여백
+                                                                const displayItems = [...padding, ...CRZ1_TIMES, ...padding];
+
+                                                                return displayItems.map((time, index) => {
+                                                                    const isSelected = time === currentCrz1ScrollValue;
+
+                                                                    return (
+                                                                        <div
+                                                                            key={index}
+                                                                            className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${isSelected
+                                                                                ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
+                                                                                : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
+                                                                                }`}
+                                                                        >
+                                                                            {time !== null ? minutesToKoreanDisplay(timeToMinutes(time)) : ''}
+                                                                        </div>
+                                                                    );
+                                                                });
+                                                            })()}
                                                         </div>
-                                                    );
-                                                });
-                                            })()}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-center gap-2">
+                                                <button
+                                                    onClick={() => setShowCrz1Picker(false)}
+                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isDark
+                                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
+                                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                                                        }`}
+                                                >
+                                                    취소
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        await handleSaveToFirebase();
+                                                        setShowCrz1Picker(false);
+                                                    }}
+                                                    disabled={isSyncing}
+                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isSyncing
+                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                                                        }`}
+                                                >
+                                                    {isSyncing ? '저장 중...' : '완료'}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <div className="flex justify-center gap-2">
-                                <button
-                                    onClick={() => setShowCrz1Picker(false)}
-                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
-                                        isDark 
-                                            ? 'bg-gray-600 text-white hover:bg-gray-700' 
-                                            : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                                    }`}
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        await handleSaveToFirebase();
-                                        setShowCrz1Picker(false);
-                                    }}
-                                    disabled={isSyncing}
-                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
-                                        isSyncing 
-                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                                            : 'bg-blue-500 text-white hover:bg-blue-600'
-                                    }`}
-                                >
-                                    {isSyncing ? '저장 중...' : '완료'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                                )}
 
-                {/* 이륙 후 드럼 픽커 모달 */}
-                {showAfterTakeoffPicker && (
-                    <div 
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
-                        onClick={() => setShowAfterTakeoffPicker(false)}
-                    >
-                        <div 
-                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="text-center mb-4">
-                                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>이륙 후 시간 선택</h3>
-                            </div>
-                            
-                            <div className="flex justify-center mb-4">
-                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                                    <div className="relative h-32 overflow-hidden">
-                                        {/* 중앙 선택 영역 하이라이트 */}
-                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
-                                        
-                                        {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
-                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
-                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
-                                        
+                                {/* 이륙 후 드럼 픽커 모달 */}
+                                {showAfterTakeoffPicker && (
+                                    <div
+                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
+                                        onClick={() => setShowAfterTakeoffPicker(false)}
+                                    >
                                         <div
-                                            ref={afterTakeoffPickerRef}
-                                            onScroll={handleAfterTakeoffScroll}
-                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isAfterTakeoffScrollingState ? 'scrolling' : ''}`}
-                                            style={{
-                                                scrollbarWidth: 'thin',
-                                                scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
-                                                msOverflowStyle: 'none'
-                                            }}
+                                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                                            onClick={(e) => e.stopPropagation()}
                                         >
-                                            {(() => {
-                                                // 이륙 후 시간 배열 생성 (30분부터 6시간 00분까지 5분 단위)
-                                                const AFTER_TAKEOFF_TIMES = [];
-                                                for (let hour = 0; hour <= 6; hour++) {
-                                                    for (let minute = 0; minute < 60; minute += 5) {
-                                                        if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
-                                                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
-                                                        AFTER_TAKEOFF_TIMES.push(timeString);
-                                                    }
-                                                }
-                                                
-                                                const padding = Array(2).fill(null); // 위아래 2개씩 여백
-                                                const displayItems = [...padding, ...AFTER_TAKEOFF_TIMES, ...padding];
-                                                
-                                                return displayItems.map((time, index) => {
-                                                    // 각 모드별로 적절한 값 사용
-                                                    let currentValue;
-                                                    if (activeTab === '2set' && twoSetMode === '1교대') {
-                                                        currentValue = afterTakeoff1교대;
-                                                    } else if (activeTab === '3pilot') {
-                                                        currentValue = afterTakeoff3Pilot;
-                                                    } else {
-                                                        currentValue = afterTakeoff;
-                                                    }
-                                                    const isSelected = time === currentAfterTakeoffScrollValue;
-                                                    
-                                                    return (
+                                            <div className="text-center mb-4">
+                                                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>이륙 후 시간 선택</h3>
+                                            </div>
+
+                                            <div className="flex justify-center mb-4">
+                                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                                                    <div className="relative h-32 overflow-hidden">
+                                                        {/* 중앙 선택 영역 하이라이트 */}
+                                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
+
+                                                        {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
+                                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
+                                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
+
                                                         <div
-                                                            key={index}
-                                                            className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${
-                                                                isSelected 
-                                                                    ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
-                                                                    : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
-                                                            }`}
+                                                            ref={afterTakeoffPickerRef}
+                                                            onScroll={handleAfterTakeoffScroll}
+                                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isAfterTakeoffScrollingState ? 'scrolling' : ''}`}
+                                                            style={{
+                                                                scrollbarWidth: 'thin',
+                                                                scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
+                                                                msOverflowStyle: 'none'
+                                                            }}
                                                         >
-                                                            {time !== null ? minutesToKoreanDisplay(timeToMinutes(time)) : ''}
+                                                            {(() => {
+                                                                // 이륙 후 시간 배열 생성
+                                                                const AFTER_TAKEOFF_TIMES = [];
+
+                                                                // 5P 모드 여부 확인
+                                                                // render loop scope access to activeTab/twoSetMode
+                                                                // activeTab and twoSetMode are available in scope
+                                                                const step = (activeTab === '2set' && twoSetMode === '5P') ? 1 : 5;
+
+                                                                for (let hour = 0; hour <= 6; hour++) {
+                                                                    for (let minute = 0; minute < 60; minute += step) {
+                                                                        if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
+                                                                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
+                                                                        AFTER_TAKEOFF_TIMES.push(timeString);
+                                                                    }
+                                                                }
+
+                                                                const padding = Array(2).fill(null); // 위아래 2개씩 여백
+                                                                const displayItems = [...padding, ...AFTER_TAKEOFF_TIMES, ...padding];
+
+                                                                return displayItems.map((time, index) => {
+                                                                    // 각 모드별로 적절한 값 사용
+                                                                    let currentValue;
+                                                                    if (activeTab === '2set' && twoSetMode === '1교대') {
+                                                                        currentValue = afterTakeoff1교대;
+                                                                    } else if (activeTab === '3pilot') {
+                                                                        currentValue = threePilotMode === 'CASE2' ? afterTakeoff3PilotCase2 : afterTakeoff3Pilot;
+                                                                    } else {
+                                                                        currentValue = afterTakeoff;
+                                                                    }
+                                                                    const isSelected = time === currentAfterTakeoffScrollValue;
+
+                                                                    return (
+                                                                        <div
+                                                                            key={index}
+                                                                            className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${isSelected
+                                                                                ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
+                                                                                : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
+                                                                                }`}
+                                                                        >
+                                                                            {time !== null ? minutesToKoreanDisplay(timeToMinutes(time)) : ''}
+                                                                        </div>
+                                                                    );
+                                                                });
+                                                            })()}
                                                         </div>
-                                                    );
-                                                });
-                                            })()}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-center gap-2">
+                                                <button
+                                                    onClick={() => setShowAfterTakeoffPicker(false)}
+                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isDark
+                                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
+                                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                                                        }`}
+                                                >
+                                                    취소
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        await handleSaveToFirebase();
+                                                        setShowAfterTakeoffPicker(false);
+                                                    }}
+                                                    disabled={isSyncing}
+                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isSyncing
+                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                                                        }`}
+                                                >
+                                                    {isSyncing ? '저장 중...' : '완료'}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <div className="flex justify-center gap-2">
-                                <button
-                                    onClick={() => setShowAfterTakeoffPicker(false)}
-                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
-                                        isDark 
-                                            ? 'bg-gray-600 text-white hover:bg-gray-700' 
-                                            : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                                    }`}
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        await handleSaveToFirebase();
-                                        setShowAfterTakeoffPicker(false);
-                                    }}
-                                    disabled={isSyncing}
-                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
-                                        isSyncing 
-                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                                            : 'bg-blue-500 text-white hover:bg-blue-600'
-                                    }`}
-                                >
-                                    {isSyncing ? '저장 중...' : '완료'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                                )}
 
 
 
 
 
-                {/* 착륙 전 드럼 픽커 모달 */}
-                {showBeforeLandingPicker && (
-                    <div 
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
-                        onClick={() => setShowBeforeLandingPicker(false)}
-                    >
-                        <div 
-                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="text-center mb-4">
-                                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>착륙 전 시간 선택</h3>
-                            </div>
-                            
-                            <div className="flex justify-center mb-4">
-                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                                    <div className="relative h-32 overflow-hidden">
-                                        {/* 중앙 선택 영역 하이라이트 */}
-                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
-                                        
-                                        {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
-                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
-                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
-                                        
+                                {/* 착륙 전 드럼 픽커 모달 */}
+                                {showBeforeLandingPicker && (
+                                    <div
+                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
+                                        onClick={() => setShowBeforeLandingPicker(false)}
+                                    >
                                         <div
-                                            ref={beforeLandingPickerRef}
-                                            onScroll={handleBeforeLandingScroll}
-                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isBeforeLandingScrollingState ? 'scrolling' : ''}`}
-                                            style={{
-                                                scrollbarWidth: 'thin',
-                                                scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
-                                                msOverflowStyle: 'none'
-                                            }}
+                                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                                            onClick={(e) => e.stopPropagation()}
                                         >
-                                            {(() => {
-                                                // 착륙 전 시간 배열 생성 (30분부터 3시간 00분까지 5분 단위)
-                                                const BEFORE_LANDING_TIMES = [];
-                                                for (let hour = 0; hour <= 3; hour++) {
-                                                    for (let minute = 0; minute < 60; minute += 5) {
-                                                        if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
-                                                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
-                                                        BEFORE_LANDING_TIMES.push(timeString);
-                                                    }
-                                                }
-                                                
-                                                const padding = Array(2).fill(null); // 위아래 2개씩 여백
-                                                const displayItems = [...padding, ...BEFORE_LANDING_TIMES, ...padding];
-                                                
-                                                return displayItems.map((time, index) => {
-                                                    const isSelected = time === currentBeforeLandingScrollValue;
-                                                    
-                                                    return (
+                                            <div className="text-center mb-4">
+                                                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>착륙 전 시간 선택</h3>
+                                            </div>
+
+                                            <div className="flex justify-center mb-4">
+                                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                                                    <div className="relative h-32 overflow-hidden">
+                                                        {/* 중앙 선택 영역 하이라이트 */}
+                                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
+
+                                                        {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
+                                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
+                                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
+
                                                         <div
-                                                            key={index}
-                                                            className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${
-                                                                isSelected 
-                                                                    ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
-                                                                    : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
-                                                            }`}
+                                                            ref={beforeLandingPickerRef}
+                                                            onScroll={handleBeforeLandingScroll}
+                                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isBeforeLandingScrollingState ? 'scrolling' : ''}`}
+                                                            style={{
+                                                                scrollbarWidth: 'thin',
+                                                                scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
+                                                                msOverflowStyle: 'none'
+                                                            }}
                                                         >
-                                                            {time !== null ? minutesToKoreanDisplay(timeToMinutes(time)) : ''}
+                                                            {(() => {
+                                                                // 착륙 전 시간 배열 생성 (30분부터 3시간 00분까지 5분 단위)
+                                                                const BEFORE_LANDING_TIMES = [];
+                                                                for (let hour = 0; hour <= 3; hour++) {
+                                                                    for (let minute = 0; minute < 60; minute += 5) {
+                                                                        if (hour === 0 && minute < 30) continue; // 30분 미만은 제외
+                                                                        const timeString = `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`;
+                                                                        BEFORE_LANDING_TIMES.push(timeString);
+                                                                    }
+                                                                }
+
+                                                                const padding = Array(2).fill(null); // 위아래 2개씩 여백
+                                                                const displayItems = [...padding, ...BEFORE_LANDING_TIMES, ...padding];
+
+                                                                return displayItems.map((time, index) => {
+                                                                    const isSelected = time === currentBeforeLandingScrollValue;
+
+                                                                    return (
+                                                                        <div
+                                                                            key={index}
+                                                                            className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${isSelected
+                                                                                ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
+                                                                                : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
+                                                                                }`}
+                                                                        >
+                                                                            {time !== null ? minutesToKoreanDisplay(timeToMinutes(time)) : ''}
+                                                                        </div>
+                                                                    );
+                                                                });
+                                                            })()}
                                                         </div>
-                                                    );
-                                                });
-                                            })()}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-center gap-2">
+                                                <button
+                                                    onClick={() => setShowBeforeLandingPicker(false)}
+                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isDark
+                                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
+                                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                                                        }`}
+                                                >
+                                                    취소
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        await handleSaveToFirebase();
+                                                        setShowBeforeLandingPicker(false);
+                                                    }}
+                                                    disabled={isSyncing}
+                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isSyncing
+                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                                                        }`}
+                                                >
+                                                    {isSyncing ? '저장 중...' : '완료'}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <div className="flex justify-center gap-2">
-                                <button
-                                    onClick={() => setShowBeforeLandingPicker(false)}
-                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
-                                        isDark 
-                                            ? 'bg-gray-600 text-white hover:bg-gray-700' 
-                                            : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                                    }`}
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        await handleSaveToFirebase();
-                                        setShowBeforeLandingPicker(false);
-                                    }}
-                                    disabled={isSyncing}
-                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${
-                                        isSyncing 
-                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                                            : 'bg-blue-500 text-white hover:bg-blue-600'
-                                    }`}
-                                >
-                                    {isSyncing ? '저장 중...' : '완료'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                                
+                                )}
+
                                 <div>
                                     <h2 className="text-xl font-semibold mb-6 flex items-center">
-                                        <CalculatorIcon className="mr-2 text-blue-500"/> 비행 정보 입력
+                                        <CalculatorIcon className="mr-2 text-blue-500" /> 비행 정보 입력
                                     </h2>
 
-                                    <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                                        {TABS.map(tab => (
-                                            <button key={tab.id} onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { activeTab: tab.id }})}
-                                                className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${
-                                                    activeTab === tab.id 
-                                                        ? 'border-blue-500 text-blue-400' 
-                                                        : isDark 
-                                                            ? 'border-transparent text-gray-500 hover:text-gray-300' 
-                                                            : 'border-transparent text-gray-600 hover:text-gray-800'
-                                                }`}>
+                                    <div className={`flex border-b ${inputTab === '5p' ? 'mb-6' : 'mb-2'} ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                                        {INPUT_TABS.map(tab => (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => handleInputTabChange(tab.id)}
+                                                className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${inputTab === tab.id
+                                                    ? 'border-blue-500 text-blue-400'
+                                                    : isDark
+                                                        ? 'border-transparent text-gray-500 hover:text-gray-300'
+                                                        : 'border-transparent text-gray-600 hover:text-gray-800'
+                                                    }`}
+                                            >
                                                 {tab.label}
                                             </button>
                                         ))}
                                     </div>
+
+                                    {inputTab === '2set' && (
+                                        <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                                            {TWO_SET_MODES.map(mode => (
+                                                <button
+                                                    key={mode.id}
+                                                    onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { twoSetMode: mode.id } })}
+                                                    className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${twoSetMode === mode.id
+                                                        ? 'border-fuchsia-500 text-fuchsia-500'
+                                                        : isDark
+                                                            ? 'border-transparent text-gray-500 hover:text-gray-300'
+                                                            : 'border-transparent text-gray-600 hover:text-gray-800'
+                                                        }`}
+                                                >
+                                                    {mode.id}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {inputTab === '3pilot' && (
+                                        <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                                            {THREE_PILOT_MODES.map(mode => (
+                                                <button
+                                                    key={mode.id}
+                                                    onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { threePilotMode: mode.id } })}
+                                                    className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${threePilotMode === mode.id
+                                                        ? 'border-fuchsia-500 text-fuchsia-500'
+                                                        : isDark
+                                                            ? 'border-transparent text-gray-500 hover:text-gray-300'
+                                                            : 'border-transparent text-gray-600 hover:text-gray-800'
+                                                        }`}
+                                                >
+                                                    {mode.id}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     <div className="space-y-6">
                                         {/* 총 비행시간 - 전체 너비 */}
@@ -1759,26 +2146,29 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 id="flightTime"
                                                 type="text"
                                                 inputMode="numeric"
-                                                value={activeTab === '3pilot' ? flightTime3Pilot : flightTime}
-                                                onChange={handleTimeInputChange(activeTab === '3pilot' ? 'flightTime3Pilot' : 'flightTime')}
-                                                className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none ${
-                                                    isDark 
-                                                        ? 'bg-gray-700 border-gray-600 text-gray-100' 
-                                                        : 'bg-white border-gray-300 text-gray-900'
-                                                }`}
-                                                maxLength={4}
+                                                value={flightTimeInputDisplayValue}
+                                                onFocus={() => setIsFlightTimeInputFocused(true)}
+                                                onBlur={() => setIsFlightTimeInputFocused(false)}
+                                                onChange={handleTimeInputChange(
+                                                    inputTab === '3pilot' ? 'flightTime3Pilot' : inputTab === '5p' ? 'flightTime5P' : 'flightTime'
+                                                )}
+                                                className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none ${isDark
+                                                    ? 'bg-gray-700 border-gray-600 text-gray-100'
+                                                    : 'bg-white border-gray-300 text-gray-900'
+                                                    }`}
+                                                maxLength={isFlightTimeInputFocused ? 4 : 7}
                                             />
                                             <div className={`text-center text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                                                 {(() => {
-                                                    if (activeTab === '3pilot') {
+                                                    if (inputTab === '3pilot') {
                                                         if (flightTimeMinutes3Pilot <= 0) return null;
                                                         const workTime = flightTimeMinutes3Pilot - Math.floor(flightTimeMinutes3Pilot / 3);
                                                         return `편조별 근무: ${minutesToKoreanDisplay(workTime)} / 휴식: ${minutesToKoreanDisplay(Math.floor(flightTimeMinutes3Pilot / 3))}`;
+                                                    } else if (inputTab === '5p') {
+                                                        if (flightTimeMinutes5P <= 0) return '총 비행시간을 입력해주세요.';
+                                                        return `개인별: ${minutesToKoreanDisplay(fivePTwoFifthsMinutes)}`;
                                                     } else {
                                                         if (flightTimeMinutes2Set <= 0) return null;
-                                                        if (activeTab === '2set' && twoSetMode === '2교대') {
-                                                            return `편조별: ${minutesToKoreanDisplay(Math.floor(flightTimeMinutes2Set / 2))}`;
-                                                        }
                                                         return `편조별: ${minutesToKoreanDisplay(Math.floor(flightTimeMinutes2Set / 2))}`;
                                                     }
                                                 })()}
@@ -1790,28 +2180,26 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="grid grid-cols-2 gap-x-4">
                                                 <div>
                                                     <label htmlFor="departureTime" className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>이륙시간 (UTC)</label>
-                                                    <input 
-                                                        id="departureTime" 
-                                                        type="text" 
-                                                        inputMode="numeric" 
-                                                        value={departureTime} 
-                                                        onChange={handleTimeInputChange('departureTime')} 
-                                                        className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none ${
-                                                            isDark 
-                                                                ? 'bg-gray-700 border-gray-600 text-gray-100' 
-                                                                : 'bg-white border-gray-300 text-gray-900'
-                                                        }`} 
-                                                        maxLength={4} 
+                                                    <input
+                                                        id="departureTime"
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        value={departureTime}
+                                                        onChange={handleTimeInputChange('departureTime')}
+                                                        className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none ${isDark
+                                                            ? 'bg-gray-700 border-gray-600 text-gray-100'
+                                                            : 'bg-white border-gray-300 text-gray-900'
+                                                            }`}
+                                                        maxLength={4}
                                                     />
                                                 </div>
                                                 <div>
                                                     <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>Time Zone</label>
-                                                    <div 
-                                                        className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer transition-colors ${
-                                                            isDark 
-                                                                ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-100' 
-                                                                : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-900'
-                                                        }`}
+                                                    <div
+                                                        className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer transition-colors ${isDark
+                                                            ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-100'
+                                                            : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-900'
+                                                            }`}
                                                         onClick={() => setShowTimeZonePicker(true)}
                                                     >
                                                         UTC {timeZone >= 0 ? '+' : ''}{timeZone}
@@ -1823,7 +2211,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </div>
                                         </div>
 
-                                        {activeTab === '2set' && twoSetMode === '2교대' && (
+                                        {inputTab === '2set' && twoSetMode === '2교대' && (
                                             <>
                                                 <div className="sm:col-span-2 lg:col-span-2">
                                                     <div className="grid grid-cols-2 gap-x-4">
@@ -1840,16 +2228,16 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         })()}
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div className="grid grid-cols-2 gap-x-4 col-span-2">
-                                                    <DisplayInput 
-                                                        label="CRZ 1" 
-                                                        value={minutesToKoreanDisplay(timeToMinutes(crz1Time))} 
-                                                        onClick={() => setShowCrz1Picker(true)} 
+                                                    <DisplayInput
+                                                        label="CRZ 1"
+                                                        value={minutesToKoreanDisplay(timeToMinutes(crz1Time))}
+                                                        onClick={() => setShowCrz1Picker(true)}
                                                         isDark={isDark}
                                                     />
-                                                    <ReadOnlyDisplay 
-                                                        label="CRZ 2" 
+                                                    <ReadOnlyDisplay
+                                                        label="CRZ 2"
                                                         value={minutesToKoreanDisplay(crz2Minutes)}
                                                         isDark={isDark}
                                                     />
@@ -1857,13 +2245,56 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </>
                                         )}
 
-                                        {activeTab === '2set' && twoSetMode === '1교대' && (
+                                        {inputTab === '5p' && (
+                                            <>
+                                                <div className="grid grid-cols-2 gap-x-4">
+                                                    <div>
+                                                        <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>이륙 후</label>
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            value={afterTakeoff5PDisplayValue}
+                                                            onFocus={() => setIsAfterTakeoff5PInputFocused(true)}
+                                                            onBlur={() => setIsAfterTakeoff5PInputFocused(false)}
+                                                            onChange={(e) => {
+                                                                const rawValue = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                                                dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff5P: rawValue } });
+                                                            }}
+                                                            className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none min-h-[44px] ${isDark
+                                                                ? 'bg-gray-700 border-gray-600 text-gray-100'
+                                                                : 'bg-white border-gray-300 text-gray-900'
+                                                                }`}
+                                                            maxLength={isAfterTakeoff5PInputFocused ? 4 : 7}
+                                                        />
+                                                    </div>
+                                                    <ReadOnlyDisplay
+                                                        label="착륙 전"
+                                                        value={minutesToKoreanDisplay(beforeLandingMinutes5P)}
+                                                        isDark={isDark}
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-x-4">
+                                                    <ReadOnlyDisplay
+                                                        label="CRZ 1"
+                                                        value={minutesToKoreanDisplay(crz1Minutes5P)}
+                                                        isDark={isDark}
+                                                    />
+                                                    <ReadOnlyDisplay
+                                                        label="CRZ 2"
+                                                        value={minutesToKoreanDisplay(crz2Minutes5P)}
+                                                        isDark={isDark}
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {inputTab === '2set' && twoSetMode === '1교대' && (
                                             <>
                                                 <div className="sm:col-span-2 lg:col-span-2">
                                                     <div className="grid grid-cols-2 gap-x-4">
                                                         <DisplayInput label="이륙 후" value={minutesToKoreanDisplay(timeToMinutes(afterTakeoff1교대))} onClick={() => setShowAfterTakeoffPicker(true)} isDark={isDark} />
-                                                        <ReadOnlyDisplay 
-                                                            label="착륙 전" 
+                                                        <ReadOnlyDisplay
+                                                            label="착륙 전"
                                                             value={(() => {
                                                                 if (flightTimeMinutes2Set <= 0) return '0분';
                                                                 const afterTakeoffMinutes = timeToMinutes(afterTakeoff1교대);
@@ -1888,8 +2319,13 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </>
                                         )}
 
-                                        {activeTab === '3pilot' && (
-                                            <DisplayInput label="이륙 후" value={minutesToKoreanDisplay(timeToMinutes(afterTakeoff3Pilot))} onClick={() => setShowAfterTakeoffPicker(true)} isDark={isDark} />
+                                        {inputTab === '3pilot' && (
+                                            <DisplayInput
+                                                label="이륙 후"
+                                                value={minutesToKoreanDisplay(timeToMinutes(threePilotMode === 'CASE2' ? afterTakeoff3PilotCase2 : afterTakeoff3Pilot))}
+                                                onClick={() => setShowAfterTakeoffPicker(true)}
+                                                isDark={isDark}
+                                            />
                                         )}
                                     </div>
 
@@ -1898,17 +2334,13 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
 
                                     <div className="flex justify-end mt-8">
-                                        <button 
-                                            onClick={async () => {
-                                                await handleSaveToFirebase();
-                                                setShowTimeline(true);
-                                            }}
+                                        <button
+                                            onClick={handleCompleteEditing}
                                             disabled={isSyncing}
-                                            className={`py-2 px-6 rounded-lg font-semibold transition-colors ${
-                                                isSyncing 
-                                                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                                                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                                            }`}
+                                            className={`py-2 px-6 rounded-lg font-semibold transition-colors ${isSyncing
+                                                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                                : 'bg-blue-500 text-white hover:bg-blue-600'
+                                                }`}
                                         >
                                             {isSyncing ? '저장 중...' : '완료'}
                                         </button>

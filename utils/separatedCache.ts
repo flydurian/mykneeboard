@@ -144,9 +144,9 @@ export class SeparatedCache {
         return null;
       }
 
-      // 캐시 만료 확인 (24시간)
+      // 캐시 만료 확인 (7일 - IndexedDB와 동일하게 설정)
       const cacheAge = Date.now() - result.timestamp;
-      if (cacheAge > 24 * 60 * 60 * 1000) {
+      if (cacheAge > 7 * 24 * 60 * 60 * 1000) {
         // 트랜잭션이 활성 상태가 아니므로 즉시 정리하지 않음
         return null;
       }

@@ -12,8 +12,8 @@ export interface CacheInfo {
 }
 
 export class CacheManager {
-  private readonly CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24시간
-  private readonly CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24시간마다 정리
+  private readonly CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7일 - IndexedDB와 동일하게 설정
+  private readonly CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7일마다 정리
 
   constructor() {
     this.startAutoCleanup();

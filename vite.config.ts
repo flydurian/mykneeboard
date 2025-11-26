@@ -48,7 +48,7 @@ export default defineConfig({
     cors: true,
     // Add headers for PDF.js Worker support
     headers: {
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://esm.sh https://www.googletagmanager.com https://cdnjs.cloudflare.com http://cdnjs.cloudflare.com https://*.firebasedatabase.app; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https://*.googleusercontent.com https://*.google-analytics.com https://*.googletagmanager.com https://www.google-analytics.com https://www.googletagmanager.com; font-src 'self'; connect-src 'self' https://*.firebaseapp.com https://*.googleapis.com https://*.firebasedatabase.app https://api.openweathermap.org https://api.sunrise-sunset.org https://api.checkwx.com https://www.google-analytics.com https://www.google.com https://www.googleapis.com https://www.googletagmanager.com http://cdnjs.cloudflare.com https://cdn.tailwindcss.com wss://*.firebasedatabase.app ws://localhost:*; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app;"
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://esm.sh https://www.googletagmanager.com https://cdnjs.cloudflare.com http://cdnjs.cloudflare.com https://*.firebasedatabase.app; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https://*.googleusercontent.com https://*.google-analytics.com https://*.googletagmanager.com https://www.google-analytics.com https://www.googletagmanager.com; font-src 'self'; connect-src 'self' https://*.firebaseapp.com https://*.googleapis.com https://*.firebasedatabase.app https://api.openweathermap.org https://api.sunrise-sunset.org https://api.checkwx.com https://www.google-analytics.com https://www.google.com https://www.googleapis.com https://www.googletagmanager.com http://cdnjs.cloudflare.com https://cdn.tailwindcss.com wss://*.firebasedatabase.app ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app;"
     }
   },
   // CSS optimizations
@@ -61,8 +61,9 @@ export default defineConfig({
   define: {
     __VITE_HMR_DISABLE__: false,
   },
-  // esbuild 설정 (프로덕션에서 console.log 제거)
+  // esbuild 설정 (개발 시 console.log 유지)
+  // 임시로 console.log 제거 비활성화 (디버깅용)
   esbuild: {
-    drop: ['console', 'debugger'],
+    drop: [], // process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
   },
 });

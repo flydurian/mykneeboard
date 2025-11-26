@@ -164,8 +164,17 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
 
     return (
         <>
-            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl p-6 relative animate-fade-in-up flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            <div 
+                className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50" 
+                style={{
+                    paddingTop: 'max(1rem, env(safe-area-inset-top))',
+                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+                    paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+                    paddingRight: 'max(1rem, env(safe-area-inset-right))'
+                }}
+                onClick={onClose}
+            >
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl p-4 md:p-6 relative animate-fade-in-up flex flex-col max-h-full" onClick={(e) => e.stopPropagation()}>
                     {/* 헤더 영역 */}
                     <div className="flex items-center justify-between mb-4">
                         {/* 제목 */}

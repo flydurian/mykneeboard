@@ -35,6 +35,24 @@
         ".read": "auth != null && auth.uid == $uid",
         ".write": "auth != null && auth.uid == $uid"
       }
+    },
+    "fs": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admin').child(auth.uid).val() === true",
+      "a": {
+        "$airlineCode": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('admin').child(auth.uid).val() === true"
+        }
+      },
+      "m": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('admin').child(auth.uid).val() === true"
+      }
+    },
+    "admin": {
+      ".read": "auth != null",
+      ".write": false
     }
   }
 }

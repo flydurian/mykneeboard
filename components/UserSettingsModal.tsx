@@ -7,15 +7,13 @@ interface UserSettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     currentUser: any;
-    theme: string;
-    setTheme: (theme: string) => void;
     selectedAirline?: string;
     setSelectedAirline?: (airline: string) => void;
     userInfo?: { displayName: string | null; empl?: string; userName?: string; company?: string } | null;
     onSettingsUpdate?: (userId: string, settings: any) => Promise<void>;
 }
 
-const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, currentUser, theme, setTheme, selectedAirline = 'OZ', setSelectedAirline, userInfo, onSettingsUpdate }) => {
+const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, currentUser, selectedAirline = 'OZ', setSelectedAirline, userInfo, onSettingsUpdate }) => {
     const [activeTab, setActiveTab] = useState<'name' | 'password' | 'theme' | 'airline' | 'base'>('airline');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -32,7 +30,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
 
     // 항공사 선택 관련 상태
     const [tempSelectedAirline, setTempSelectedAirline] = useState(selectedAirline);
-    
+
     // 한글 입력을 위한 ref
     const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,20 +42,20 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                 try {
                     // Firebase에서 직접 사용자 정보 가져오기 (항상 최신 데이터)
                     const userInfoData = await getUserInfo(currentUser.uid);
-                    
+
                     if (userInfoData) {
                         // EMPL ID가 있으면 자동으로 채우기
                         if (userInfoData.empl) {
                             setNewEmplId(userInfoData.empl);
                         }
-                        
+
                         // 이름이 있으면 자동으로 채우기 (settings의 userName 우선, 없으면 displayName 사용)
                         if (userInfoData.userName) {
                             setNewDisplayName(userInfoData.userName);
                         } else if (userInfoData.displayName) {
                             setNewDisplayName(userInfoData.displayName);
                         }
-                        
+
                         // 회사 정보가 있으면 자동으로 설정
                         if (userInfoData.company) {
                             setTempSelectedAirline(userInfoData.company);
@@ -77,10 +75,10 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
             // 강제로 DOM 값 설정
             const input = nameInputRef.current;
             const currentValue = input.value;
-            
+
             if (currentValue !== newDisplayName) {
                 input.value = newDisplayName;
-                
+
                 // 모든 이벤트 발생시켜서 React와 브라우저 동기화
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -110,24 +108,24 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
         try {
             // 이름과 EMPL ID를 함께 업데이트
             const result = await updateUserName(newDisplayName.trim());
-            
+
             if (result.success) {
                 // EMPL ID와 사용자 이름을 Firebase에 즉시 저장
                 if (currentUser?.uid) {
-                    await saveUserSettings(currentUser.uid, { 
+                    await saveUserSettings(currentUser.uid, {
                         empl: newEmplId.trim(),
                         userName: newDisplayName.trim()
                     });
-                    
+
                     // 콜백을 통해 App.tsx의 상태도 즉시 업데이트
                     if (onSettingsUpdate) {
-                        await onSettingsUpdate(currentUser.uid, { 
+                        await onSettingsUpdate(currentUser.uid, {
                             empl: newEmplId.trim(),
                             userName: newDisplayName.trim()
                         });
                     }
                 }
-                
+
                 setSuccess('이름과 EMPL ID가 성공적으로 변경되었습니다.');
                 setTimeout(() => {
                     onClose();
@@ -164,7 +162,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
         setSuccess('');
 
         const result = await updateUserPassword(currentPassword, newPassword);
-        
+
         if (result.success) {
             setSuccess('비밀번호가 성공적으로 변경되었습니다.');
             setCurrentPassword('');
@@ -192,14 +190,14 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
         try {
             // Firebase에 항공사 설정 즉시 저장
             const success = await saveUserSettings(currentUser.uid, { airline: tempSelectedAirline });
-            
+
             if (success) {
-                
+
                 // 콜백을 통해 App.tsx의 상태도 즉시 업데이트
                 if (onSettingsUpdate) {
                     await onSettingsUpdate(currentUser.uid, { airline: tempSelectedAirline });
                 }
-                
+
                 // 로컬 상태 업데이트
                 if (setSelectedAirline) {
                     setSelectedAirline(tempSelectedAirline);
@@ -225,61 +223,47 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                     <XIcon className="w-6 h-6" />
                 </button>
-                
+
                 <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">사용자 설정</h2>
 
                 {/* 탭 버튼 */}
                 <div className="flex mb-6 border-b border-gray-200 dark:border-gray-700">
                     <button
                         onClick={() => setActiveTab('airline')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${
-                            activeTab === 'airline' 
-                                ? 'text-blue-600 border-b-2 border-blue-600' 
-                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                        }`}
+                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${activeTab === 'airline'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                            }`}
                     >
                         회사
                     </button>
                     <button
                         onClick={() => setActiveTab('base')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${
-                            activeTab === 'base' 
-                                ? 'text-blue-600 border-b-2 border-blue-600' 
-                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                        }`}
+                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${activeTab === 'base'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                            }`}
                     >
                         BASE
                     </button>
                     <button
                         onClick={() => setActiveTab('name')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${
-                            activeTab === 'name' 
-                                ? 'text-blue-600 border-b-2 border-blue-600' 
-                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                        }`}
+                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${activeTab === 'name'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                            }`}
                     >
                         이름
                     </button>
                     <button
                         onClick={() => setActiveTab('password')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${
-                            activeTab === 'password' 
-                                ? 'text-blue-600 border-b-2 border-blue-600' 
-                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                        }`}
+                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${activeTab === 'password'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                            }`}
                     >
                         <span className="hidden sm:inline">비밀번호</span>
                         <span className="sm:hidden">비밀번호</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('theme')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${
-                            activeTab === 'theme' 
-                                ? 'text-blue-600 border-b-2 border-blue-600' 
-                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                        }`}
-                    >
-                        화면 테마
                     </button>
                 </div>
 
@@ -398,45 +382,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                     </div>
                 )}
 
-                {/* 화면 테마 탭 */}
-                {activeTab === 'theme' && (
-                    <div>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                테마 선택
-                            </label>
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={() => {
-                                        setTheme('light');
-                                        localStorage.setItem('theme', 'light');
-                                    }}
-                                    className={`flex-1 py-2 px-4 rounded-lg ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 dark:text-gray-200'}`}
-                                >
-                                    라이트
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setTheme('dark');
-                                        localStorage.setItem('theme', 'dark');
-                                    }}
-                                    className={`flex-1 py-2 px-4 rounded-lg ${theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 dark:text-gray-200'}`}
-                                >
-                                    다크
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setTheme('system');
-                                        localStorage.setItem('theme', 'system');
-                                    }}
-                                    className={`flex-1 py-2 px-4 rounded-lg ${theme === 'system' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 dark:text-gray-200'}`}
-                                >
-                                    시스템
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* 회사 탭 */}
                 {activeTab === 'airline' && (
@@ -448,11 +394,10 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                                         <div
                                             key={airline}
                                             onClick={() => setTempSelectedAirline(airline)}
-                                            className={`h-16 flex items-center justify-center cursor-pointer transition-all duration-200 ${
-                                                tempSelectedAirline === airline
-                                                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold shadow-lg transform scale-105'
-                                                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
-                                            }`}
+                                            className={`h-16 flex items-center justify-center cursor-pointer transition-all duration-200 ${tempSelectedAirline === airline
+                                                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold shadow-lg transform scale-105'
+                                                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
+                                                }`}
                                         >
                                             <span className="text-lg font-bold tracking-wider">
                                                 {airline}
@@ -485,82 +430,82 @@ export default UserSettingsModal;
 
 // BASE 설정 서브컴포넌트
 const BaseSettings: React.FC<{ currentUser: any; onSettingsUpdate?: (userId: string, settings: any) => Promise<void> }>
-  = ({ currentUser, onSettingsUpdate }) => {
-    const [base, setBase] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState('');
+    = ({ currentUser, onSettingsUpdate }) => {
+        const [base, setBase] = useState('');
+        const [isLoading, setIsLoading] = useState(false);
+        const [message, setMessage] = useState('');
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                if (!currentUser?.uid) return;
-                const { getUserSettings } = await import('../src/firebase/database');
-                const settings = await getUserSettings(currentUser.uid);
-                if (settings?.base) {
-                    setBase(String(settings.base).toUpperCase());
-                }
+        useEffect(() => {
+            const load = async () => {
                 try {
-                    const { indexedDBCache } = await import('../utils/indexedDBCache');
-                    const local = await indexedDBCache.loadUserSettings(currentUser.uid);
-                    if (!settings?.base && local?.base) {
-                        setBase(String(local.base).toUpperCase());
+                    if (!currentUser?.uid) return;
+                    const { getUserSettings } = await import('../src/firebase/database');
+                    const settings = await getUserSettings(currentUser.uid);
+                    if (settings?.base) {
+                        setBase(String(settings.base).toUpperCase());
                     }
-                } catch {}
-            } catch {}
-        };
-        load();
-    }, [currentUser?.uid]);
+                    try {
+                        const { indexedDBCache } = await import('../utils/indexedDBCache');
+                        const local = await indexedDBCache.loadUserSettings(currentUser.uid);
+                        if (!settings?.base && local?.base) {
+                            setBase(String(local.base).toUpperCase());
+                        }
+                    } catch { }
+                } catch { }
+            };
+            load();
+        }, [currentUser?.uid]);
 
-    const handleSave = async () => {
-        const code = base.trim().toUpperCase();
-        if (code && !/^[A-Z]{3}$/.test(code)) {
-            setMessage('BASE는 IATA 코드(세 글자)로 입력해주세요.');
-            return;
-        }
-        setIsLoading(true);
-        setMessage('');
-        try {
-            if (currentUser?.uid) {
-                await saveUserSettings(currentUser.uid, { base: code });
-                try {
-                    const { indexedDBCache } = await import('../utils/indexedDBCache');
-                    await indexedDBCache.saveUserSettings(currentUser.uid, { base: code });
-                } catch {}
-                if (onSettingsUpdate) {
-                    await onSettingsUpdate(currentUser.uid, { base: code });
-                }
-                setMessage('저장되었습니다.');
+        const handleSave = async () => {
+            const code = base.trim().toUpperCase();
+            if (code && !/^[A-Z]{3}$/.test(code)) {
+                setMessage('BASE는 IATA 코드(세 글자)로 입력해주세요.');
+                return;
             }
-        } catch (e) {
-            setMessage('저장에 실패했습니다.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            setIsLoading(true);
+            setMessage('');
+            try {
+                if (currentUser?.uid) {
+                    await saveUserSettings(currentUser.uid, { base: code });
+                    try {
+                        const { indexedDBCache } = await import('../utils/indexedDBCache');
+                        await indexedDBCache.saveUserSettings(currentUser.uid, { base: code });
+                    } catch { }
+                    if (onSettingsUpdate) {
+                        await onSettingsUpdate(currentUser.uid, { base: code });
+                    }
+                    setMessage('저장되었습니다.');
+                }
+            } catch (e) {
+                setMessage('저장에 실패했습니다.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
 
-    return (
-        <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                BASE (IATA 코드)
-            </label>
-            <input
-                type="text"
-                value={base}
-                onChange={(e) => setBase(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0,3))}
-                maxLength={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-                placeholder="IATA code로 입력해주세요 (예: ICN)"
-            />
-            {message && (
-                <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">{message}</div>
-            )}
-            <button
-                onClick={handleSave}
-                disabled={isLoading}
-                className="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-                {isLoading ? '저장 중...' : '저장'}
-            </button>
-        </div>
-    );
-};
+        return (
+            <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    BASE (IATA 코드)
+                </label>
+                <input
+                    type="text"
+                    value={base}
+                    onChange={(e) => setBase(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))}
+                    maxLength={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                    placeholder="IATA code로 입력해주세요 (예: ICN)"
+                />
+                {message && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">{message}</div>
+                )}
+                <button
+                    onClick={handleSave}
+                    disabled={isLoading}
+                    className="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                    {isLoading ? '저장 중...' : '저장'}
+                </button>
+            </div>
+        );
+    };

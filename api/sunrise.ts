@@ -21,58 +21,62 @@ export default async function handler(
 
   try {
     // 2. 프런트엔드에서 보낸 위도, 경도, 날짜를 가져옵니다.
-    const { lat, lng, date } = req.query;
+    const { lat, lng, date, timezone: queryTimezone } = req.query;
     
-    // 3. 위도/경도를 기반으로 시간대 식별 (간단한 경도 기반 추정)
     const longitude = parseFloat(lng as string);
     const latitude = parseFloat(lat as string);
-    
-    // 경도를 기반으로 대략적인 시간대 추정
-    let timezone = 'UTC'; // 기본값
-    
-    // 경도 기반 시간대 추정 (15도당 1시간)
-    const timezoneOffset = Math.round(longitude / 15);
-    
-    if (timezoneOffset >= 8 && timezoneOffset <= 9) {
-      // 동아시아 (한국, 일본, 중국 동부)
-      if (latitude > 30) {
-        timezone = 'Asia/Seoul'; // 한국
-      } else if (latitude > 20) {
-        timezone = 'Asia/Tokyo'; // 일본
-      } else {
-        timezone = 'Asia/Shanghai'; // 중국
+
+    // 쿼리에서 타임존을 우선 사용
+    let timezone: string | undefined;
+    if (Array.isArray(queryTimezone)) {
+      timezone = queryTimezone[0];
+    } else if (typeof queryTimezone === 'string' && queryTimezone.trim().length > 0) {
+      timezone = queryTimezone.trim();
+    }
+
+    // 쿼리에 타임존이 없고 위도/경도가 유효한 경우에만 간단 추정
+    if (!timezone) {
+      timezone = 'UTC';
+
+      if (!Number.isNaN(longitude) && !Number.isNaN(latitude)) {
+        const timezoneOffset = Math.round(longitude / 15);
+        
+        if (timezoneOffset >= 8 && timezoneOffset <= 9) {
+          if (latitude > 30) {
+            timezone = 'Asia/Seoul';
+          } else if (latitude > 20) {
+            timezone = 'Asia/Tokyo';
+          } else {
+            timezone = 'Asia/Shanghai';
+          }
+        } else if (timezoneOffset >= 7 && timezoneOffset < 8) {
+          if (latitude > 10) {
+            timezone = 'Asia/Bangkok';
+          } else if (latitude > 0) {
+            timezone = 'Asia/Singapore';
+          } else {
+            timezone = 'Asia/Jakarta';
+          }
+        } else if (timezoneOffset >= 5 && timezoneOffset < 7) {
+          if (latitude > 20) {
+            timezone = 'Asia/Dubai';
+          } else {
+            timezone = 'Asia/Kolkata';
+          }
+        } else if (timezoneOffset >= 0 && timezoneOffset < 2) {
+          if (latitude > 50) {
+            timezone = 'Europe/London';
+          } else if (latitude > 45) {
+            timezone = 'Europe/Paris';
+          } else {
+            timezone = 'Europe/Rome';
+          }
+        } else if (timezoneOffset >= -5 && timezoneOffset < 0) {
+          timezone = 'America/New_York';
+        } else if (timezoneOffset >= -8 && timezoneOffset < -5) {
+          timezone = 'America/Los_Angeles';
+        }
       }
-    } else if (timezoneOffset >= 7 && timezoneOffset < 8) {
-      // 동남아시아
-      if (latitude > 10) {
-        timezone = 'Asia/Bangkok';
-      } else if (latitude > 0) {
-        timezone = 'Asia/Singapore';
-      } else {
-        timezone = 'Asia/Jakarta';
-      }
-    } else if (timezoneOffset >= 5 && timezoneOffset < 7) {
-      // 남아시아, 중동
-      if (latitude > 20) {
-        timezone = 'Asia/Dubai';
-      } else {
-        timezone = 'Asia/Kolkata';
-      }
-    } else if (timezoneOffset >= 0 && timezoneOffset < 2) {
-      // 유럽
-      if (latitude > 50) {
-        timezone = 'Europe/London';
-      } else if (latitude > 45) {
-        timezone = 'Europe/Paris';
-      } else {
-        timezone = 'Europe/Rome';
-      }
-    } else if (timezoneOffset >= -5 && timezoneOffset < 0) {
-      // 대서양, 아메리카 동부
-      timezone = 'America/New_York';
-    } else if (timezoneOffset >= -8 && timezoneOffset < -5) {
-      // 아메리카 중부/서부
-      timezone = 'America/Los_Angeles';
     }
 
     // 4. tzid 파라미터를 포함하여 API 호출

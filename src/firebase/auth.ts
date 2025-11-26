@@ -450,6 +450,44 @@ export const isNetworkOnline = (): boolean => {
   return isOnline;
 };
 
+// 관리자 권한 확인
+export const isAdmin = async (userId: string): Promise<boolean> => {
+  try {
+    // 캐시 무시하고 항상 Firebase에서 직접 확인
+    console.log('🔍 관리자 권한 확인 중... UID:', userId);
+    console.log('🔍 Firebase 경로: admin/' + userId);
+    console.log('🔍 Database 객체:', database);
+    console.log('🔍 Database URL:', database?.app?.options?.databaseURL);
+    
+    const adminRef = ref(database, `admin/${userId}`);
+    console.log('🔍 AdminRef 생성됨:', adminRef);
+    
+    const snapshot = await get(adminRef);
+    console.log('🔍 Snapshot 받음:', snapshot);
+    
+    console.log('🔍 Firebase 응답 - exists:', snapshot.exists());
+    console.log('🔍 Firebase 응답 - value:', snapshot.val());
+    console.log('🔍 Firebase 응답 - type:', typeof snapshot.val());
+    console.log('🔍 Firebase 응답 - key:', snapshot.key);
+    
+    const adminStatus = snapshot.exists() && snapshot.val() === true;
+    
+    console.log('🔍 최종 관리자 상태:', adminStatus);
+    
+    // 관리자 정보를 localStorage에 캐싱
+    localStorage.setItem(`admin_status_${userId}`, JSON.stringify({
+      isAdmin: adminStatus,
+      cachedAt: Date.now()
+    }));
+    
+    return adminStatus;
+  } catch (error) {
+    console.error('❌ 관리자 권한 확인 실패:', error);
+    console.error('❌ 오류 상세:', error instanceof Error ? error.stack : error);
+    return false;
+  }
+};
+
 // Firebase 인증 리스너 상태 확인
 export const isAuthListenerActive = (): boolean => {
   return authUnsubscribe !== null;

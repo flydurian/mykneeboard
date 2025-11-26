@@ -8,7 +8,7 @@ interface CacheData {
 
 class SimpleCache {
   private readonly CACHE_KEY = 'flight_dashboard_cache';
-  private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24시간
+  private readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7일 - IndexedDB와 동일하게 설정
 
   // 데이터 캐시 저장 (용량 초과 방지)
   saveFlights(flights: Flight[], userId: string): void {
