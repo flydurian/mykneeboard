@@ -19,7 +19,7 @@ export default defineConfig({
           // Vendor chunks for better caching
           'react-vendor': ['react', 'react-dom'],
           'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/database'],
-          'utils-vendor': ['date-fns', 'date-fns-tz', 'xlsx'],
+          'utils-vendor': ['date-fns', 'date-fns-tz', 'exceljs'],
         },
       },
     },
@@ -48,7 +48,7 @@ export default defineConfig({
     cors: true,
     // Add headers for PDF.js Worker support
     headers: {
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://esm.sh https://www.googletagmanager.com https://cdnjs.cloudflare.com http://cdnjs.cloudflare.com https://*.firebasedatabase.app; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https://*.googleusercontent.com https://*.google-analytics.com https://*.googletagmanager.com https://www.google-analytics.com https://www.googletagmanager.com; font-src 'self'; connect-src 'self' https://*.firebaseapp.com https://*.googleapis.com https://*.firebasedatabase.app https://api.openweathermap.org https://api.sunrise-sunset.org https://api.checkwx.com https://www.google-analytics.com https://www.google.com https://www.googleapis.com https://www.googletagmanager.com http://cdnjs.cloudflare.com https://cdn.tailwindcss.com wss://*.firebasedatabase.app ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app;"
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://esm.sh https://www.googletagmanager.com https://cdnjs.cloudflare.com http://cdnjs.cloudflare.com https://*.firebasedatabase.app https://*.firebaseio.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https://*.googleusercontent.com https://*.google-analytics.com https://*.googletagmanager.com https://www.google-analytics.com https://www.googletagmanager.com; font-src 'self'; connect-src 'self' https://*.firebaseapp.com https://*.googleapis.com https://*.firebasedatabase.app https://*.firebaseio.com https://api.openweathermap.org https://api.sunrise-sunset.org https://api.checkwx.com https://www.google-analytics.com https://www.google.com https://www.googleapis.com https://www.googletagmanager.com http://cdnjs.cloudflare.com https://cdn.tailwindcss.com wss://*.firebasedatabase.app wss://*.firebaseio.com ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; frame-src 'self' https://*.firebaseapp.com https://*.firebasedatabase.app;"
     }
   },
   // CSS optimizations

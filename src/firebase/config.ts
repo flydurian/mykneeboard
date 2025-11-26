@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics, isSupported } from "firebase/analytics";
+// import { getAnalytics, isSupported } from "firebase/analytics";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
 
@@ -55,25 +55,38 @@ try {
     appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789:web:abcdef123456',
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-XXXXXXXXXX'
   };
-  
+
   console.log('🔍 Firebase 설정:', {
     apiKey: configWithDefaults.apiKey ? '설정됨' : '없음',
     authDomain: configWithDefaults.authDomain,
     databaseURL: configWithDefaults.databaseURL,
     projectId: configWithDefaults.projectId
   });
-  
+
   app = initializeApp(configWithDefaults);
   console.log('✅ Firebase App 초기화 완료');
-  
-  // Analytics 초기화 (지원되는 환경에서만)
-  isSupported().then(yes => yes ? analytics = getAnalytics(app) : null);
-  
+
+  // Analytics 초기화 (프로덕션 환경에서만 로드)
+  if (import.meta.env.PROD) {
+    import("firebase/analytics").then(({ getAnalytics, isSupported }) => {
+      isSupported().then(yes => {
+        if (yes) {
+          analytics = getAnalytics(app);
+          console.log('✅ Firebase Analytics 초기화 완료');
+        }
+      });
+    }).catch((e) => {
+      console.warn('Firebase Analytics 로드 실패:', e);
+    });
+  } else {
+    console.log('ℹ️ 개발 환경이므로 Analytics를 로드하지 않습니다.');
+  }
+
   // Database 및 Auth 초기화
   database = getDatabase(app);
   auth = getAuth(app);
   console.log('✅ Firebase Database 및 Auth 초기화 완료');
-  
+
   if (missingVars.length > 0) {
     console.warn('⚠️ 기본값으로 Firebase 초기화됨 (실제 연결 불가)');
   } else {
