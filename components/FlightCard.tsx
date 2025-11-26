@@ -123,11 +123,11 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
         return (
             <motion.div
                 onClick={handleClick}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 text-center flex flex-col justify-center items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer"
+                className="glass-card rounded-2xl p-4 sm:p-6 text-center flex flex-col justify-center items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer group"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
             >
-                <p className="text-xl font-bold text-gray-400 dark:text-gray-500">
+                <p className="text-xl font-bold text-slate-400 group-hover:text-slate-200 transition-colors">
                     {type === 'next' ? '다음 비행 기록 없음' : type === 'nextNext' ? '그 다음 비행 기록 없음' : '과거 비행 기록 없음'}
                 </p>
             </motion.div>
@@ -173,18 +173,18 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
     };
 
     const getStatusColor = () => {
-        if (!ddayInfo) return 'text-gray-500';
+        if (!ddayInfo) return 'text-slate-500';
 
-        if (ddayInfo.days === 0) return 'text-green-500';
-        if (ddayInfo.days > 0) return 'text-blue-500';
-        if (ddayInfo.days === -1) return 'text-yellow-500';
-        return 'text-gray-500';
+        if (ddayInfo.days === 0) return 'text-emerald-400';
+        if (ddayInfo.days > 0) return 'text-blue-400';
+        if (ddayInfo.days === -1) return 'text-amber-400';
+        return 'text-slate-500';
     };
 
     return (
         <motion.div
             onClick={handleClick}
-            className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 text-center flex flex-col justify-between items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer hover:shadow-xl transition-shadow duration-200"
+            className="relative glass-card rounded-2xl p-4 sm:p-6 text-center flex flex-col justify-between items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
@@ -205,19 +205,19 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
             )}
 
             <div className="flex flex-col items-center">
-                <p className={`text-sm font-medium mb-1 ${type === 'next' ? 'text-blue-600 dark:text-blue-400' : type === 'nextNext' ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'}`}>
+                <p className={`text-sm font-medium mb-1 ${type === 'next' ? 'text-blue-400' : type === 'nextNext' ? 'text-purple-400' : 'text-emerald-400'}`}>
                     {type === 'next' ? '다음 비행' : type === 'nextNext' ? '그 다음 비행' : '최근 비행'}
                 </p>
 
                 {ddayInfo && (
-                    <p className={`text-4xl sm:text-4xl md:text-5xl font-bold mb-3 whitespace-nowrap ${type === 'next' ? 'text-blue-600 dark:text-blue-400' : type === 'nextNext' ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'}`}>
+                    <p className={`text-4xl sm:text-4xl md:text-5xl font-bold mb-3 whitespace-nowrap ${type === 'next' ? 'text-blue-400' : type === 'nextNext' ? 'text-purple-400' : 'text-emerald-400'}`}>
                         {ddayInfo.text}
                     </p>
                 )}
             </div>
 
             <div className="flex flex-col items-center">
-                <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-1 whitespace-nowrap">
+                <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-1 whitespace-nowrap drop-shadow-md">
                     {getAirportCode()}
                 </p>
             </div>
