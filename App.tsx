@@ -3478,7 +3478,7 @@ const App: React.FC = () => {
                     </div>
                   </section>
 
-                  <section className="mb-8">
+                  <section className="mb-1">
                     <div
                       className="relative overflow-hidden"
                       ref={sliderContainerRef}
