@@ -571,7 +571,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
 
     return (
         <>
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center overflow-y-auto z-[70] p-2 sm:p-4 pt-safe" onClick={onClose}>
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center overflow-y-auto z-[70] p-2 sm:p-4 pt-safe" onClick={onClose}>
                 <div className={containerClasses} style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)' }} onClick={(e) => e.stopPropagation()}>
                     {/* 헤더 영역 - 고정 */}
                     <div className="flex-shrink-0 p-4 sm:p-6 pb-2 sm:pb-4 border-b border-white/10">
@@ -1375,7 +1375,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
 
             {/* 삭제 확인 모달 */}
             {showDeleteConfirm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center overflow-y-auto z-[80] p-4 pt-safe">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center overflow-y-auto z-[80] p-4 pt-safe">
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full" style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)' }}>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                             ⚠️ 스케줄 삭제 확인

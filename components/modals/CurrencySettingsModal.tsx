@@ -61,7 +61,7 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
             <div className="glass-panel rounded-2xl shadow-xl w-full max-w-md p-6 relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
                     <XIcon className="w-6 h-6" />
@@ -94,10 +94,10 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
                                         onDrop={(e) => handleDrop(e, index)}
                                         onDragEnd={handleDragEnd}
                                         className={`p-3 rounded-lg border-2 cursor-move transition-all ${draggedIndex === index
-                                                ? 'border-blue-500 bg-blue-500/20 opacity-50'
-                                                : dragOverIndex === index
-                                                    ? 'border-green-500 bg-green-500/20'
-                                                    : 'border-blue-500 bg-blue-500/10'
+                                            ? 'border-blue-500 bg-blue-500/20 opacity-50'
+                                            : dragOverIndex === index
+                                                ? 'border-green-500 bg-green-500/20'
+                                                : 'border-blue-500 bg-blue-500/10'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">

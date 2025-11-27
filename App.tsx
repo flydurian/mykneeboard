@@ -3285,27 +3285,36 @@ const App: React.FC = () => {
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleUserSettingsClick}
-                  className="bg-gray-500 text-white text-xs px-1.5 py-0.5 rounded hover:bg-gray-600 transition-colors"
+                  className="relative text-xs px-1.5 py-0.5 rounded hover:bg-gray-600 transition-colors group"
                   title="설정"
                 >
-                  설정
+                  <div className="absolute inset-0 bg-gray-500 rounded group-hover:bg-gray-600 transition-colors" />
+                  <span className="relative z-10 text-white">설정</span>
                 </button>
                 {isUserAdmin && (
                   <button
                     onClick={handleJsonUploadClick}
                     disabled={isUploading || isOffline}
-                    className="bg-purple-500 hover:bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="relative text-xs px-1.5 py-0.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-auto group"
                     title="관리자: 항공편 DB 업로드"
                   >
-                    DB관리
+                    <div className="absolute inset-0 bg-purple-500 rounded group-hover:bg-purple-600 transition-colors" />
+                    <span className="relative z-10 text-white text-center leading-none block">
+                      <span className="sm:hidden">DB<br />관리</span>
+                      <span className="hidden sm:inline">DB관리</span>
+                    </span>
                   </button>
                 )}
                 <button
                   onClick={handleLogout}
-                  className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded hover:bg-red-600 transition-colors"
+                  className="relative text-xs px-1.5 py-0.5 rounded hover:bg-red-600 transition-colors h-auto group"
                   title="로그아웃"
                 >
-                  로그아웃
+                  <div className="absolute inset-0 bg-red-500 rounded group-hover:bg-red-600 transition-colors" />
+                  <span className="relative z-10 text-white text-center leading-none block">
+                    <span className="sm:hidden">로그<br />아웃</span>
+                    <span className="hidden sm:inline">로그아웃</span>
+                  </span>
                 </button>
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
@@ -3402,30 +3411,25 @@ const App: React.FC = () => {
           <div className="w-full max-w-screen-xl mx-auto">
             <div className="glass-panel rounded-2xl p-1 mb-6 flex justify-between items-center sticky top-4 z-30">
               <div className="flex space-x-1 w-full">
-                <button
-                  onClick={() => handleTabChange('dashboard')}
-                  className={'flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-all duration-200 ' + (activeTab === 'dashboard'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5')}
-                >
-                  대시보드
-                </button>
-                <button
-                  onClick={() => handleTabChange('rest')}
-                  className={'flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-all duration-200 ' + (activeTab === 'rest'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5')}
-                >
-                  휴식 계산
-                </button>
-                <button
-                  onClick={() => handleTabChange('flightData')}
-                  className={'flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-all duration-200 ' + (activeTab === 'flightData'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5')}
-                >
-                  비행 데이터
-                </button>
+                {['dashboard', 'rest', 'flightData'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => handleTabChange(tab as any)}
+                    className={`relative flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-colors duration-200 z-10 ${activeTab === tab
+                      ? 'text-white'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                  >
+                    {activeTab === tab && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute inset-0 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-500/30 -z-10"
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                    {tab === 'dashboard' ? '대시보드' : tab === 'rest' ? '휴식 계산' : '비행 데이터'}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -3633,73 +3637,83 @@ const App: React.FC = () => {
                     {/* 검색 카드 그리드 */}
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       {/* 항공편 검색 카드 */}
-                      <div className={(isDarkMode ? 'bg-gray-800' : 'bg-white') + ' p-4 rounded-lg shadow-sm border ' + (isDarkMode ? 'border-gray-700' : 'border-gray-200') + ' hover:shadow-md transition-shadow'}>
-                        <div className="mb-3">
-                          <div className="font-semibold text-gray-700 dark:text-gray-300">항공편 검색</div>
+                      <div className="relative p-4 group">
+                        <div className={'absolute inset-0 rounded-xl border shadow-sm transition-shadow ' + (isDarkMode
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200 group-hover:shadow-md')}
+                        />
+                        <div className="relative z-10">
+                          <div className="mb-3">
+                            <div className="font-semibold text-gray-700 dark:text-gray-300">항공편 검색</div>
+                          </div>
+                          <div className="mb-3">
+                            <input
+                              type="text"
+                              placeholder="예: OZ521"
+                              value={flightSearchQuery}
+                              onChange={(e) => setFlightSearchQuery(e.target.value.toUpperCase())}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !isLoadingFlightData) {
+                                  handleFlightHistorySearch();
+                                }
+                              }}
+                              className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all uppercase"
+                            />
+                          </div>
+                          <button
+                            onClick={handleFlightHistorySearch}
+                            disabled={isLoadingFlightData}
+                            className={`w-full py-2 px-4 rounded-xl font-semibold transition-colors ${isLoadingFlightData
+                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                              : 'bg-blue-500 text-white hover:bg-blue-600'
+                              }`}
+                          >
+                            {isLoadingFlightData ? '검색 중...' : '검색'}
+                          </button>
                         </div>
-                        <div className="mb-3">
-                          <input
-                            type="text"
-                            placeholder="항공편명 입력 (예: OZ521)"
-                            value={flightSearchQuery}
-                            onChange={(e) => setFlightSearchQuery(e.target.value.toUpperCase())}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !isLoadingFlightData) {
-                                handleFlightHistorySearch();
-                              }
-                            }}
-                            className={'w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ' + (isDarkMode
-                              ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
-                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500')}
-                          />
-                        </div>
-                        <button
-                          onClick={handleFlightHistorySearch}
-                          disabled={isLoadingFlightData}
-                          className={'w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ' + (isLoadingFlightData
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-blue-500 hover:bg-blue-600')}
-                        >
-                          {isLoadingFlightData ? '검색 중...' : '검색'}
-                        </button>
                       </div>
 
                       {/* 항공사 정보 카드 */}
-                      <div className={(isDarkMode ? 'bg-gray-800' : 'bg-white') + ' p-4 rounded-lg shadow-sm border ' + (isDarkMode ? 'border-gray-700' : 'border-gray-200') + ' hover:shadow-md transition-shadow'}>
-                        <div className="mb-3">
-                          <div className="font-semibold text-gray-700 dark:text-gray-300">항공사 정보</div>
+                      <div className="relative p-4 group">
+                        <div className={'absolute inset-0 rounded-xl border shadow-sm transition-shadow ' + (isDarkMode
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200 group-hover:shadow-md')}
+                        />
+                        <div className="relative z-10">
+                          <div className="mb-3">
+                            <div className="font-semibold text-gray-700 dark:text-gray-300">항공사 정보</div>
+                          </div>
+                          <div className="mb-3">
+                            <input
+                              type="text"
+                              placeholder="예: OZ"
+                              value={airlineSearchQuery}
+                              onChange={(e) => setAirlineSearchQuery(e.target.value.toUpperCase())}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !isLoadingAirlineData) {
+                                  handleAirlineSearch();
+                                }
+                              }}
+                              className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all uppercase"
+                            />
+                          </div>
+                          <button
+                            onClick={handleAirlineSearch}
+                            disabled={isLoadingAirlineData}
+                            className={`w-full py-2 px-4 rounded-xl font-semibold transition-colors ${isLoadingAirlineData
+                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                              : 'bg-blue-500 text-white hover:bg-blue-600'
+                              }`}
+                          >
+                            {isLoadingAirlineData ? '로딩 중...' : '검색'}
+                          </button>
                         </div>
-                        <div className="mb-3">
-                          <input
-                            type="text"
-                            placeholder="IATA/ICAO 코드 입력"
-                            value={airlineSearchQuery}
-                            onChange={(e) => setAirlineSearchQuery(e.target.value.toUpperCase())}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !isLoadingAirlineData) {
-                                handleAirlineSearch();
-                              }
-                            }}
-                            className={'w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ' + (isDarkMode
-                              ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
-                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500')}
-                          />
-                        </div>
-                        <button
-                          onClick={handleAirlineSearch}
-                          disabled={isLoadingAirlineData}
-                          className={'w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ' + (isLoadingAirlineData
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-blue-500 hover:bg-blue-600')}
-                        >
-                          {isLoadingAirlineData ? '로딩 중...' : '검색'}
-                        </button>
                       </div>
                     </div>
 
                     {/* 항공편 검색 결과 섹션 */}
                     {showFlightResults && (
-                      <div className={(isDarkMode ? 'bg-gray-800' : 'bg-white') + ' rounded-xl shadow-lg border ' + (isDarkMode ? 'border-gray-700' : 'border-gray-200') + ' p-4 mb-4 relative'}>
+                      <div className="glass-panel rounded-xl p-4 mb-4 relative">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공편 검색 결과</h3>
                           <button
@@ -3722,7 +3736,7 @@ const App: React.FC = () => {
                         ) : null}
                         {flightSearchResults.length > 0 ? (
                           flightSearchResults.map((flight, index) => (
-                            <div key={index} className={(isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white') + ' p-4 rounded-xl shadow-md border ' + (isDarkMode ? 'border-gray-600' : 'border-gray-200') + ' hover:shadow-lg transition-all duration-300 mb-3'}>
+                            <div key={index} className="glass-card p-4 rounded-xl hover:bg-white/5 transition-all duration-300 mb-3 border border-white/10">
                               <div className="flex items-center justify-between mb-3">
                                 <div>
                                   <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">
@@ -3870,7 +3884,7 @@ const App: React.FC = () => {
                             </div>
                           ))
                         ) : (
-                          <div className={(isDarkMode ? 'bg-gray-700' : 'bg-gray-100') + ' p-6 rounded-lg text-center'}>
+                          <div className="glass-card p-6 rounded-lg text-center border border-white/10">
                             <p className={'text-sm ' + (isDarkMode ? 'text-gray-400' : 'text-gray-600')}>
                               {flightSearchQuery.trim() ?
                                 '검색 결과가 없습니다.' :
@@ -3891,7 +3905,7 @@ const App: React.FC = () => {
 
                     {/* 항공사 정보 검색 결과 섹션 */}
                     {showAirlineResults && (
-                      <div className={(isDarkMode ? 'bg-gray-800' : 'bg-white') + ' rounded-xl shadow-lg border ' + (isDarkMode ? 'border-gray-700' : 'border-gray-200') + ' p-4 relative'}>
+                      <div className="glass-panel rounded-xl p-4 relative">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공사 정보 검색 결과</h3>
                           <button
@@ -3908,7 +3922,7 @@ const App: React.FC = () => {
                         {/* 항공사 정보 결과 */}
                         {airlineSearchResults.length > 0 ? (
                           airlineSearchResults.map((airline, index) => (
-                            <div key={index} className={(isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white') + ' p-4 rounded-xl shadow-md border ' + (isDarkMode ? 'border-gray-600' : 'border-gray-200') + ' hover:shadow-lg transition-all duration-300 mb-3'}>
+                            <div key={index} className="glass-card p-4 rounded-xl hover:bg-white/5 transition-all duration-300 mb-3 border border-white/10">
                               <div className="flex items-center justify-between mb-4">
                                 <div>
                                   <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">{airline.name}</h4>
@@ -3940,7 +3954,7 @@ const App: React.FC = () => {
                             </div>
                           ))
                         ) : (
-                          <div className={(isDarkMode ? 'bg-gray-700' : 'bg-gray-100') + ' p-6 rounded-lg text-center'}>
+                          <div className="glass-card p-6 rounded-lg text-center border border-white/10">
                             <p className={'text-sm ' + (isDarkMode ? 'text-gray-400' : 'text-gray-600')}>
                               {airlineSearchQuery.trim() ? '검색 결과가 없습니다.' : 'IATA/ICAO 코드, 항공사명, 호출부호로 검색하세요.'}
                             </p>

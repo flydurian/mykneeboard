@@ -162,22 +162,22 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
           window.L.marker([flightPath.departure.lat, flightPath.departure.lon], {
             icon: departureIcon
           })
-          .addTo(map)
-          .bindPopup(`<b>${flightPath.departure.icao}</b><br>${flightPath.departure.name}`);
+            .addTo(map)
+            .bindPopup(`<b>${flightPath.departure.icao}</b><br>${flightPath.departure.name}`);
 
           // 도착지 마커
           window.L.marker([flightPath.arrival.lat, flightPath.arrival.lon], {
             icon: arrivalIcon
           })
-          .addTo(map)
-          .bindPopup(`<b>${flightPath.arrival.icao}</b><br>${flightPath.arrival.name}`);
+            .addTo(map)
+            .bindPopup(`<b>${flightPath.arrival.icao}</b><br>${flightPath.arrival.name}`);
 
           // 실제 경로가 있으면 그리기
           if (flightPath.path && flightPath.path.length > 0) {
             console.log('✅ 실제 ADS-B 경로 사용:', flightPath.path.length, '개 포인트');
-            
+
             const pathCoords = flightPath.path.map(point => [point.lat, point.lon]);
-            
+
             // 경로 선 그리기
             window.L.polyline(pathCoords, {
               color: '#3b82f6',
@@ -192,13 +192,13 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
             map.fitBounds(group.getBounds().pad(0.1));
           } else {
             console.log('⚠️ 경로 데이터 없음, 직선 연결');
-            
+
             // 직선 연결
             const directPath = [
               [flightPath.departure.lat, flightPath.departure.lon],
               [flightPath.arrival.lat, flightPath.arrival.lon]
             ];
-            
+
             window.L.polyline(directPath, {
               color: '#f59e0b',
               weight: 3,
@@ -214,7 +214,7 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
 
         setMapLoaded(true);
         console.log('✅ Leaflet 지도 초기화 완료');
-        
+
         // 지도 크기 다시 조정
         setTimeout(() => {
           if (mapInstance.current) {
@@ -258,7 +258,7 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
             maxZoom: 19
           });
       }
-      
+
       tileLayer.addTo(map);
       map.tileLayer = tileLayer;
     };
@@ -281,13 +281,13 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
   // 지도 모드 전환 함수
   const switchMapMode = (mode: 'street' | 'satellite' | 'terrain') => {
     if (!mapInstance.current) return;
-    
+
     setMapMode(mode);
-    
+
     // 타일 레이어 교체
     const map = mapInstance.current;
     let tileLayer;
-    
+
     switch (mode) {
       case 'satellite':
         // 실제 위성 이미지 타일 (ESRI World Imagery)
@@ -310,7 +310,7 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
           maxZoom: 19
         });
     }
-    
+
     // 기존 타일 레이어 제거하고 새로 추가
     if (map.tileLayer) {
       map.removeLayer(map.tileLayer);
@@ -322,52 +322,49 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-1 sm:p-2" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-1 sm:p-2" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full h-full max-w-6xl flex flex-col mx-1 sm:mx-2" style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 8px)' }}>
         {/* 헤더 */}
         <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0" style={{ paddingTop: 'max(12px, env(safe-area-inset-top) + 12px)' }}>
           <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
             {flightPath ? `${flightPath.callsign} 항공편 경로` : '항공편 경로'}
           </h2>
-          
+
           {/* 지도 모드 전환 버튼들 */}
           <div className="flex items-center space-x-2">
             <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
               <button
                 onClick={() => switchMapMode('street')}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  mapMode === 'street' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${mapMode === 'street'
+                    ? 'bg-blue-500 text-white'
                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white'
-                }`}
+                  }`}
                 title="일반 지도"
               >
                 지도
               </button>
               <button
                 onClick={() => switchMapMode('satellite')}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  mapMode === 'satellite' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${mapMode === 'satellite'
+                    ? 'bg-blue-500 text-white'
                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white'
-                }`}
+                  }`}
                 title="위성 이미지"
               >
                 위성
               </button>
               <button
                 onClick={() => switchMapMode('terrain')}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  mapMode === 'terrain' 
-                    ? 'bg-blue-500 text-white' 
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${mapMode === 'terrain'
+                    ? 'bg-blue-500 text-white'
                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white'
-                }`}
+                  }`}
                 title="지형 지도"
               >
                 지형
               </button>
             </div>
-            
+
             <button
               onClick={onClose}
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
@@ -381,8 +378,8 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
 
         {/* 지도 컨테이너 */}
         <div className="flex-1 p-1 sm:p-2 overflow-hidden">
-          <div 
-            ref={mapRef} 
+          <div
+            ref={mapRef}
             className="w-full h-full rounded-lg border border-gray-200 dark:border-gray-700"
             style={{ position: 'relative', minHeight: '400px' }}
           >

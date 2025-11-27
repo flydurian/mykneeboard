@@ -192,7 +192,7 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe" onClick={onClose}>
       <div className="glass-panel rounded-lg max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="bg-red-500/90 backdrop-blur-md text-white p-4 flex-shrink-0">

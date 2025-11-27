@@ -25,7 +25,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, isLoading =
   const [empl, setEmpl] = useState('');
   const [base, setBase] = useState('');
   const [validationError, setValidationError] = useState('');
-  
+
   // 한글 입력을 위한 ref
   const displayNameRef = useRef<HTMLInputElement>(null);
 
@@ -75,8 +75,8 @@ export default function RegisterModal({ isOpen, onClose, onRegister, isLoading =
     try {
       import('../utils/indexedDBCache').then(({ indexedDBCache }) => {
         indexedDBCache.saveUserSettings('temp', { company, base: baseCode || undefined });
-      }).catch(() => {});
-    } catch {}
+      }).catch(() => { });
+    } catch { }
   };
 
   const handleClose = () => {
@@ -94,7 +94,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, isLoading =
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 pt-safe" onClick={handleClose}>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 pt-safe" onClick={handleClose}>
       <div className="bg-white dark:bg-gray-800 rounded-lg p-8 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">회원가입</h2>
@@ -121,19 +121,19 @@ export default function RegisterModal({ isOpen, onClose, onRegister, isLoading =
               placeholder="스케줄에 나오는 이름으로 적어주세요"
               onBlur={(e) => setDisplayName(e.target.value)}
               onCompositionStart={(e) => {
-                  // 한글 조합 시작 시 React 상태 업데이트 방지
-                  e.currentTarget.dataset.composing = 'true';
+                // 한글 조합 시작 시 React 상태 업데이트 방지
+                e.currentTarget.dataset.composing = 'true';
               }}
               onCompositionEnd={(e) => {
-                  // 한글 조합 완료 시 React 상태 업데이트 허용
-                  e.currentTarget.dataset.composing = 'false';
-                  setDisplayName(e.currentTarget.value);
+                // 한글 조합 완료 시 React 상태 업데이트 허용
+                e.currentTarget.dataset.composing = 'false';
+                setDisplayName(e.currentTarget.value);
               }}
               onInput={(e) => {
-                  // 조합 중이 아닐 때만 상태 업데이트
-                  if (e.currentTarget.dataset.composing !== 'true') {
-                      setDisplayName(e.currentTarget.value);
-                  }
+                // 조합 중이 아닐 때만 상태 업데이트
+                if (e.currentTarget.dataset.composing !== 'true') {
+                  setDisplayName(e.currentTarget.value);
+                }
               }}
               required
             />
@@ -167,7 +167,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, isLoading =
               id="base"
               value={base}
               onChange={(e) => {
-                const v = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0,3);
+                const v = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
                 setBase(v);
               }}
               maxLength={3}
@@ -261,7 +261,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, isLoading =
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
             이미 계정이 있으신가요?{' '}
-            <button 
+            <button
               onClick={handleClose}
               className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 font-medium"
             >

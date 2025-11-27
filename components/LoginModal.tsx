@@ -68,7 +68,7 @@ export default function LoginModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 pt-safe" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 pt-safe" onClick={onClose}>
       <div className="glass-panel rounded-2xl p-8 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-white">{isResetMode ? '비밀번호 찾기' : '로그인'}</h2>

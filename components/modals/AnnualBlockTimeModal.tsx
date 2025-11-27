@@ -366,7 +366,7 @@ const AnnualBlockTimeModal: React.FC<AnnualBlockTimeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-0.5 sm:px-1 py-1 sm:py-2 pt-12 sm:pt-16 pt-safe" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-0.5 sm:px-1 py-1 sm:py-2 pt-12 sm:pt-16 pt-safe" onClick={onClose}>
       <div className="glass-panel rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-white/10">

@@ -95,7 +95,7 @@ const DeleteDataModal: React.FC<DeleteDataModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe"
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe"
       onClick={handleBackdropClick}
     >
       <div className="glass-panel rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">

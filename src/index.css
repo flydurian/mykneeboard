@@ -7,15 +7,17 @@
   --glass-surface: rgba(255, 255, 255, 0.03);
   --glass-highlight: rgba(255, 255, 255, 0.1);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
-  
-  --primary-gradient-from: #6366f1; /* Indigo 500 */
-  --primary-gradient-to: #a855f7;   /* Purple 500 */
+
+  --primary-gradient-from: #6366f1;
+  /* Indigo 500 */
+  --primary-gradient-to: #a855f7;
+  /* Purple 500 */
 }
 
 /* Deep Dark Theme Background */
 body {
   @apply bg-slate-900 text-slate-100;
-  background-image: 
+  background-image:
     radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 25%),
     radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 25%);
   background-attachment: fixed;
@@ -23,24 +25,25 @@ body {
 
 /* Glassmorphism Utilities */
 .glass-panel {
-  @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
+  @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl transform-gpu overflow-hidden isolate;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
 .glass-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
-  @apply backdrop-blur-md border border-white/10 shadow-lg transition-all duration-300;
+  @apply backdrop-blur-md border border-white/10 shadow-lg transition-all duration-300 transform-gpu overflow-hidden isolate;
 }
 
 .glass-card:hover {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
   @apply border-white/20 shadow-xl transform -translate-y-1;
-  box-shadow: 0 10px 40px -10px rgba(99, 102, 241, 0.3); /* Primary glow */
+  box-shadow: 0 10px 40px -10px rgba(99, 102, 241, 0.3);
+  /* Primary glow */
 }
 
 .glass-button {
   background: linear-gradient(135deg, var(--primary-gradient-from), var(--primary-gradient-to));
-  @apply text-white font-medium shadow-lg transition-all duration-200 border border-white/10;
+  @apply text-white font-medium shadow-lg transition-all duration-200 border border-white/10 transform-gpu overflow-hidden isolate;
 }
 
 .glass-button:hover {
@@ -52,7 +55,7 @@ body {
 }
 
 .glass-input {
-  @apply bg-black/20 border border-white/10 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-200;
+  @apply bg-black/20 border border-white/10 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-200 transform-gpu overflow-hidden isolate;
 }
 
 .glass-input:focus {

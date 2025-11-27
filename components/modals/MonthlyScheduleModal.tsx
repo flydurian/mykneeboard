@@ -165,7 +165,7 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
     return (
         <>
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50"
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50"
                 style={{
                     paddingTop: 'max(1rem, env(safe-area-inset-top))',
                     paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
@@ -267,8 +267,8 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                                     <tr
                                                         key={`${flight.id}-${date}-${flightIndex}`}
                                                         className={`border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors ${isToday(flight.date)
-                                                                ? 'relative'
-                                                                : ''
+                                                            ? 'relative'
+                                                            : ''
                                                             }`}
                                                         onClick={() => handleFlightClick(flight)}
                                                     >
@@ -291,8 +291,8 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                                             {flight.flightNumber}
                                                         </td>
                                                         <td className={`${isKESchedule ? 'px-2 py-2 md:px-3 md:py-3 lg:px-4' : 'px-4 py-3'} text-white max-w-[120px] break-words ${isToday(flight.date) && !isKESchedule && !shouldShowTakeoffLandingButtons
-                                                                ? 'border-r-4 border-fuchsia-500'
-                                                                : ''
+                                                            ? 'border-r-4 border-fuchsia-500'
+                                                            : ''
                                                             }`}>
                                                             {isActualFlight(flight)
                                                                 ? flight.route?.replace('/', ' → ')
@@ -303,8 +303,8 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                                         {/* KE 스케줄에만 A/C TYPE 컬럼 표시 */}
                                                         {isKESchedule && (
                                                             <td className={`px-2 py-2 md:px-3 md:py-3 lg:px-4 text-white text-center ${isToday(flight.date) && !shouldShowTakeoffLandingButtons
-                                                                    ? 'border-r-4 border-fuchsia-500'
-                                                                    : ''
+                                                                ? 'border-r-4 border-fuchsia-500'
+                                                                : ''
                                                                 }`}>
                                                                 {flight.acType || ''}
                                                             </td>
@@ -371,8 +371,8 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                                             )}
                                                         </td>
                                                         <td className={`px-4 py-3 md:px-3 md:py-3 lg:px-4 text-white whitespace-nowrap hidden md:table-cell ${isToday(flight.date) && !shouldShowTakeoffLandingButtons
-                                                                ? 'border-r-4 border-fuchsia-500'
-                                                                : ''
+                                                            ? 'border-r-4 border-fuchsia-500'
+                                                            : ''
                                                             }`}>
                                                             {/* 특별 스케줄은 STD/STA 표시하지 않음 (단, A STBY/B STBY는 제외) */}
                                                             {flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
@@ -422,8 +422,8 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                                         </td>
                                                         {shouldShowTakeoffLandingButtons && (
                                                             <td className={`px-4 py-3 md:px-3 md:py-3 lg:px-4 whitespace-nowrap hidden md:table-cell ${isToday(flight.date)
-                                                                    ? 'border-r-4 border-fuchsia-500'
-                                                                    : ''
+                                                                ? 'border-r-4 border-fuchsia-500'
+                                                                : ''
                                                                 }`}>
                                                                 {isActualFlight(flight) && flight.route && (
                                                                     <div className="flex items-center justify-center gap-2">
@@ -443,8 +443,8 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                                                             }}
                                                                             title="이륙 완료"
                                                                             className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white transition-colors cursor-pointer ${flight.status?.departed
-                                                                                    ? 'bg-blue-600 hover:bg-blue-500'
-                                                                                    : 'bg-white/20 hover:bg-blue-500/50'
+                                                                                ? 'bg-blue-600 hover:bg-blue-500'
+                                                                                : 'bg-white/20 hover:bg-blue-500/50'
                                                                                 }`}
                                                                         >
                                                                             T
@@ -465,8 +465,8 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                                                             }}
                                                                             title="착륙 완료"
                                                                             className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white transition-colors cursor-pointer ${flight.status?.landed
-                                                                                    ? 'bg-emerald-600 hover:bg-emerald-500'
-                                                                                    : 'bg-white/20 hover:bg-emerald-500/50'
+                                                                                ? 'bg-emerald-600 hover:bg-emerald-500'
+                                                                                : 'bg-white/20 hover:bg-emerald-500/50'
                                                                                 }`}
                                                                         >
                                                                             L

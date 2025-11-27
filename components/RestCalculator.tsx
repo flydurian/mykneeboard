@@ -1582,8 +1582,8 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
                             {/* 비행 경로 시각화 (중앙) */}
                             <div className="flex-1 flex flex-col items-center px-4 sm:px-8">
-                                <div className={`text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                                    Total Flight Time
+                                <div className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold font-mono mb-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                                    {minutesToHhMm(flightTimeMinutes)}
                                 </div>
                                 <div className="w-full relative flex items-center justify-center">
                                     {/* 점선 */}
@@ -1595,10 +1595,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         </svg>
                                     </div>
                                 </div>
-                                <div className={`text-lg sm:text-xl font-bold font-mono mt-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-                                    {minutesToHhMm(flightTimeMinutes)}
-                                </div>
-                                <div className={`text-xs font-medium mt-1 px-2 py-0.5 rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
+                                <div className={`text-xs font-medium mt-2 px-2 py-0.5 rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
                                     UTC {timeZone >= 0 ? '+' : ''}{timeZone}
                                 </div>
                             </div>
@@ -1719,7 +1716,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
                 {/* 입력 폼 모달 */}
                 {!showTimeline && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 pt-safe" onClick={handleCancelEdit}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 pt-safe" onClick={handleCancelEdit}>
                         <div className="glass-panel rounded-2xl w-full max-w-lg max-h-[95vh] sm:max-h-[90vh] relative animate-fade-in-up flex flex-col m-4" onClick={(e) => e.stopPropagation()}>
                             <div className="p-6 sm:p-8 relative">
                                 <button
@@ -1737,7 +1734,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                 {/* 타임존 피커 모달 */}
                                 {showTimeZonePicker && (
                                     <div
-                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
+                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
                                         onClick={() => setShowTimeZonePicker(false)}
                                     >
                                         <div
@@ -1833,7 +1830,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                 {/* CRZ1 피커 모달 */}
                                 {showCrz1Picker && (
                                     <div
-                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
+                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
                                         onClick={() => setShowCrz1Picker(false)}
                                     >
                                         <div
@@ -1929,7 +1926,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                 {/* 이륙 후 드럼 픽커 모달 */}
                                 {showAfterTakeoffPicker && (
                                     <div
-                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
+                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
                                         onClick={() => setShowAfterTakeoffPicker(false)}
                                     >
                                         <div
@@ -2045,7 +2042,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                 {/* 착륙 전 드럼 픽커 모달 */}
                                 {showBeforeLandingPicker && (
                                     <div
-                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
+                                        className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm transition-opacity duration-300 pt-safe"
                                         onClick={() => setShowBeforeLandingPicker(false)}
                                     >
                                         <div
@@ -2140,38 +2137,49 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                 )}
 
                                 <div>
-                                    <h2 className="text-xl font-semibold mb-6 flex items-center">
-                                        <CalculatorIcon className="mr-2 text-blue-500" /> 비행 정보 입력
+                                    <h2 className="text-xl font-bold mb-6 flex items-center">
+                                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-600">
+                                            <CalculatorIcon className="inline-block mr-2 text-blue-500" />
+                                            비행 정보 입력
+                                        </span>
                                     </h2>
 
-                                    <div className={`flex border-b ${inputTab === '5p' ? 'mb-6' : 'mb-2'} ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                                        {INPUT_TABS.map(tab => (
-                                            <button
-                                                key={tab.id}
-                                                onClick={() => handleInputTabChange(tab.id)}
-                                                className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${inputTab === tab.id
-                                                    ? 'border-blue-500 text-blue-400'
-                                                    : isDark
-                                                        ? 'border-transparent text-gray-500 hover:text-gray-300'
-                                                        : 'border-transparent text-gray-600 hover:text-gray-800'
-                                                    }`}
-                                            >
-                                                {tab.label}
-                                            </button>
-                                        ))}
+                                    {/* 메인 탭 (2SET / 5P / 3PILOT) */}
+                                    <div className="glass-panel rounded-xl p-1 flex mb-6">
+                                        {INPUT_TABS.map(tab => {
+                                            const isActive = inputTab === tab.id;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    onClick={() => handleInputTabChange(tab.id)}
+                                                    className={`relative flex-1 py-1.5 px-4 rounded-lg text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                                                        ? 'text-white'
+                                                        : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                                                        }`}
+                                                >
+                                                    {isActive && (
+                                                        <motion.div
+                                                            layoutId="activeInputTab"
+                                                            className="absolute inset-0 rounded-lg bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                                                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                                        />
+                                                    )}
+                                                    {tab.label}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
 
+                                    {/* 2SET 서브 탭 (2교대 / 1교대) */}
                                     {inputTab === '2set' && (
-                                        <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                                        <div className="flex justify-center mb-6 space-x-4">
                                             {TWO_SET_MODES.map(mode => (
                                                 <button
                                                     key={mode.id}
                                                     onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { twoSetMode: mode.id } })}
-                                                    className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${twoSetMode === mode.id
-                                                        ? 'border-fuchsia-500 text-fuchsia-500'
-                                                        : isDark
-                                                            ? 'border-transparent text-gray-500 hover:text-gray-300'
-                                                            : 'border-transparent text-gray-600 hover:text-gray-800'
+                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border ${twoSetMode === mode.id
+                                                        ? 'bg-fuchsia-500/10 border-fuchsia-500 text-fuchsia-600 dark:text-fuchsia-400'
+                                                        : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                                                         }`}
                                                 >
                                                     {mode.id}
@@ -2180,17 +2188,16 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         </div>
                                     )}
 
+                                    {/* 3PILOT 서브 탭 (CASE 1 / CASE 2) */}
                                     {inputTab === '3pilot' && (
-                                        <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                                        <div className="flex justify-center mb-6 space-x-4">
                                             {THREE_PILOT_MODES.map(mode => (
                                                 <button
                                                     key={mode.id}
                                                     onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { threePilotMode: mode.id } })}
-                                                    className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${threePilotMode === mode.id
-                                                        ? 'border-fuchsia-500 text-fuchsia-500'
-                                                        : isDark
-                                                            ? 'border-transparent text-gray-500 hover:text-gray-300'
-                                                            : 'border-transparent text-gray-600 hover:text-gray-800'
+                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border ${threePilotMode === mode.id
+                                                        ? 'bg-fuchsia-500/10 border-fuchsia-500 text-fuchsia-600 dark:text-fuchsia-400'
+                                                        : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                                                         }`}
                                                 >
                                                     {mode.id}
@@ -2386,9 +2393,9 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         <button
                                             onClick={handleCompleteEditing}
                                             disabled={isSyncing}
-                                            className={`py-2 px-6 rounded-lg font-semibold transition-colors ${isSyncing
-                                                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                : 'bg-blue-500 text-white hover:bg-blue-600'
+                                            className={`py-3 px-8 rounded-xl font-bold text-white shadow-lg transition-all duration-200 transform active:scale-95 ${isSyncing
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 hover:shadow-blue-500/30'
                                                 }`}
                                         >
                                             {isSyncing ? '저장 중...' : '완료'}

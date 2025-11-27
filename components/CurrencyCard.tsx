@@ -164,7 +164,7 @@ const CurrencyCard: React.FC<CurrencyCardProps> = memo(({ title, currencyInfo, o
                 </p>
                 <p className="text-sm text-slate-400">(최근 90일)</p>
             </div>
-            <div className={`mt-3 py-2 px-3 rounded-lg text-center ${style.bg}`}>
+            <div className={`mt-3 py-2 px-3 rounded-lg text-center transform-gpu overflow-hidden isolation-isolate [mask-image:radial-gradient(white,black)] ${style.bg}`}>
                 <p className={`text-sm font-bold ${style.text}`}>{style.label}</p>
                 <p className={`text-xs ${style.text}`} style={{ fontSize: '0.65rem' }}>
                     {expiryDate ? `${expiryDate} 만료 예정` : currencyInfo.expiryDate ? `${currencyInfo.expiryDate} 만료 예정` : '자격 미충족'}

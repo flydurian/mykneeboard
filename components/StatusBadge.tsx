@@ -42,19 +42,22 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
 
     return (
         <>
-            {/* 모바일: 좌우 상단 분리 배치 */}
-            <div className="sm:hidden" key={`mobile-${statusKey}`}>
+            {/* 모든 화면 크기에서 좌우 상단 분리 배치 */}
+            <div key={`status-${statusKey}`}>
                 {/* 이륙 버튼 - 항상 표시, 상태에 따라 색상 변경 */}
                 <div className="absolute top-3 left-3">
                     <button
                         onClick={handleDepartureClick}
-                        className={`appearance-none text-xs font-bold px-2 py-1 rounded-full transition-colors cursor-pointer ${status.departed
-                                ? 'bg-blue-500 text-white dark:bg-blue-600'
-                                : 'bg-white border-2 border-gray-400 text-gray-600 hover:bg-blue-100 hover:text-blue-600 dark:bg-gray-700 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-blue-900 dark:hover:text-blue-300'
-                            }`}
-                        title={status.departed ? "이륙 완료됨" : "이륙 완료 표시"}
+                        className="relative px-3 py-0.5 sm:py-1 flex items-center justify-center"
                     >
-                        이륙
+                        <div className={`absolute inset-0 rounded-full backdrop-blur-md border transition-all duration-300 shadow-lg ${status.departed
+                            ? 'bg-blue-500/80 border-blue-400/50 shadow-blue-500/30'
+                            : 'bg-slate-800/40 border-white/10 hover:bg-slate-700/50'
+                            }`}
+                        />
+                        <span className={`relative z-10 text-xs font-bold ${status.departed ? 'text-white' : 'text-slate-400'}`}>
+                            DEP
+                        </span>
                     </button>
                 </div>
 
@@ -62,42 +65,18 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
                 <div className="absolute top-3 right-3">
                     <button
                         onClick={handleLandingClick}
-                        className={`appearance-none text-xs font-bold px-2 py-1 rounded-full transition-colors cursor-pointer ${status.landed
-                                ? 'bg-green-500 text-white dark:bg-green-600'
-                                : 'bg-white border-2 border-gray-400 text-gray-600 hover:bg-green-100 hover:text-green-600 dark:bg-gray-700 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-green-900 dark:hover:text-green-300'
-                            }`}
-                        title={status.landed ? "착륙 완료됨" : "착륙 완료 표시"}
+                        className="relative px-3 py-0.5 sm:py-1 flex items-center justify-center"
                     >
-                        착륙
+                        <div className={`absolute inset-0 rounded-full backdrop-blur-md border transition-all duration-300 shadow-lg ${status.landed
+                            ? 'bg-lime-500/80 border-lime-400/50 shadow-lime-500/30'
+                            : 'bg-slate-800/40 border-white/10 hover:bg-slate-700/50'
+                            }`}
+                        />
+                        <span className={`relative z-10 text-xs font-bold ${status.landed ? 'text-white' : 'text-slate-400'}`}>
+                            ARR
+                        </span>
                     </button>
                 </div>
-            </div>
-
-            {/* 태블릿 이상: 우측 상단 세로 배치 */}
-            <div className="hidden sm:block absolute top-3 right-3 flex flex-col items-end" key={`desktop-${statusKey}`}>
-                {/* 이륙 버튼 - 항상 표시, 상태에 따라 색상 변경 */}
-                <button
-                    onClick={handleDepartureClick}
-                    className={`text-xs font-bold px-2 py-1 rounded-full transition-colors cursor-pointer mb-2 ${status.departed
-                            ? 'bg-blue-500 text-white dark:bg-blue-600'
-                            : 'bg-white border-2 border-gray-400 text-gray-600 hover:bg-blue-100 hover:text-blue-600 dark:bg-gray-700 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-blue-900 dark:hover:text-blue-300'
-                        }`}
-                    title={status.departed ? "이륙 완료됨" : "이륙 완료 표시"}
-                >
-                    이륙
-                </button>
-
-                {/* 착륙 버튼 - 항상 표시, 상태에 따라 색상 변경 */}
-                <button
-                    onClick={handleLandingClick}
-                    className={`text-xs font-bold px-2 py-1 rounded-full transition-colors cursor-pointer ${status.landed
-                            ? 'bg-green-500 text-white dark:bg-green-600'
-                            : 'bg-white border-2 border-gray-400 text-gray-600 hover:bg-green-100 hover:text-green-600 dark:bg-gray-700 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-green-900 dark:hover:text-green-300'
-                        }`}
-                    title={status.landed ? "착륙 완료됨" : "착륙 완료 표시"}
-                >
-                    착륙
-                </button>
             </div>
         </>
     );

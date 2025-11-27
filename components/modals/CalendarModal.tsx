@@ -268,7 +268,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
             <div className="glass-panel rounded-2xl shadow-xl w-full max-w-4xl p-6 relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
                 {/* 월 이동 버튼들 */}
                 <div className="absolute top-4 right-16 flex gap-2">

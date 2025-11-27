@@ -330,7 +330,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-40 p-4 pt-safe">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-40 p-4 pt-safe">
       <div className="glass-panel rounded-lg shadow-lg w-full max-w-md">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">

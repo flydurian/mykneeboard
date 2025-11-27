@@ -668,7 +668,7 @@ const CityMemoModal: React.FC<CityMemoModalProps> = ({ isOpen, onClose, cityCode
 
     return (
         <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[110] p-4 pt-safe"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-[110] p-4 pt-safe"
             onClick={onClose}
             onTouchMove={handleTouchMove}
         >

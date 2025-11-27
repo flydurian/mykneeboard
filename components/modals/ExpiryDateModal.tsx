@@ -121,7 +121,7 @@ const ExpiryDateModal: React.FC<ExpiryDateModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={handleClose}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={handleClose}>
             <div ref={triggerRef} className="glass-panel rounded-2xl shadow-xl w-full max-w-sm sm:max-w-md p-4 sm:p-6 relative animate-fade-in-up max-h-[90vh] overflow-y-auto" style={{ height: 'auto', minHeight: '280px' }} onClick={(e) => e.stopPropagation()}>
                 <button
                     onClick={handleClose}
