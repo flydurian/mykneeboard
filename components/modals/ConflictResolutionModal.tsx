@@ -54,21 +54,21 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
   // 스크롤 이벤트 핸들러
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     setShowScrollbar(true);
-    
+
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
-    
+
     scrollTimeoutRef.current = setTimeout(() => {
       setShowScrollbar(false);
     }, 1000);
   };
 
   const handleResolutionChange = (flightId: number, useLocal: boolean) => {
-    setResolutions(prev => 
-      prev.map(resolution => 
-        resolution.flightId === flightId 
-          ? { ...resolution, useLocal } 
+    setResolutions(prev =>
+      prev.map(resolution =>
+        resolution.flightId === flightId
+          ? { ...resolution, useLocal }
           : resolution
       )
     );
@@ -94,7 +94,7 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
 
         // 기존 비행 데이터에서 로컬과 서버 데이터 구성
         const existingFlight = existingFlights.find(f => f.id === conflict.flightId);
-        
+
         // 로컬 비행 데이터 구성 (기존 데이터 + 로컬 status)
         const localFlight = {
           ...(existingFlight || {}),
@@ -153,9 +153,9 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
         // --- STEP 4: 완성된 데이터로 충돌 해결 실행 ---
         const selectedResolution = { flightId: conflict.flightId, useLocal: resolution.useLocal };
         await onResolve([selectedResolution]);
-        
+
       }
-      
+
       onClose();
     } catch (error) {
       console.error('❌ 충돌 해결 중 오류 발생:', error);
@@ -192,10 +192,10 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe" onClick={onClose}>
-              <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe" onClick={onClose}>
+      <div className="glass-panel rounded-lg max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
-        <div className="bg-red-500 text-white p-4 flex-shrink-0">
+        <div className="bg-red-500/90 backdrop-blur-md text-white p-4 flex-shrink-0">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">데이터 충돌 해결</h2>
             <button
@@ -211,18 +211,18 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
         </div>
 
         {/* 내용 */}
-                        <div 
-                            className={`p-6 overflow-y-auto flex-grow bg-white dark:bg-gray-800 ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
-                            onScroll={handleScroll}
-                        >
+        <div
+          className={`p-6 overflow-y-auto flex-grow bg-transparent ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
+          onScroll={handleScroll}
+        >
           {conflicts.map((conflict, index) => (
-            <div key={conflict.flightId} className="mb-6 p-4 border dark:border-gray-700 rounded-lg">
+            <div key={conflict.flightId} className="mb-6 p-4 border border-white/10 rounded-lg">
               {/* 항공편 정보 */}
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                <h3 className="text-lg font-semibold text-white">
                   {conflict.flightNumber} - {conflict.route}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-slate-400">
                   날짜: {new Date(conflict.date).toLocaleDateString('ko-KR')}
                 </p>
               </div>
@@ -230,13 +230,12 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
               {/* 데이터 비교 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 {/* 로컬 데이터 */}
-                <div className={`p-3 rounded-lg border-2 ${
-                  resolutions.find(r => r.flightId === conflict.flightId)?.useLocal 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                    : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50'
-                }`}>
+                <div className={`p-3 rounded-lg border-2 ${resolutions.find(r => r.flightId === conflict.flightId)?.useLocal
+                  ? 'border-blue-500 bg-blue-500/20'
+                  : 'border-white/10 bg-white/5'
+                  }`}>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-blue-700 dark:text-blue-400">로컬 데이터</h4>
+                    <h4 className="font-semibold text-blue-400">로컬 데이터</h4>
                     <input
                       type="radio"
                       name={`conflict-${conflict.flightId}`}
@@ -245,13 +244,13 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
                       className="text-blue-600 focus:ring-blue-500"
                     />
                   </div>
-                  <div className="space-y-2 text-sm text-gray-800 dark:text-gray-300">
+                  <div className="space-y-2 text-sm text-slate-200">
                     <div>
                       <span className="font-medium">상태:</span> {getStatusText(conflict.localData.status)}
                     </div>
                     <div>
                       <span className="font-medium">최종 수정:</span>
-                      <div className="text-gray-600 dark:text-gray-400">
+                      <div className="text-slate-400">
                         {formatDateTime(conflict.localData.lastModified)}
                       </div>
                     </div>
@@ -259,13 +258,12 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
                 </div>
 
                 {/* 서버 데이터 */}
-                <div className={`p-3 rounded-lg border-2 ${
-                  !resolutions.find(r => r.flightId === conflict.flightId)?.useLocal 
-                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
-                    : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50'
-                }`}>
+                <div className={`p-3 rounded-lg border-2 ${!resolutions.find(r => r.flightId === conflict.flightId)?.useLocal
+                  ? 'border-green-500 bg-green-500/20'
+                  : 'border-white/10 bg-white/5'
+                  }`}>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-green-700 dark:text-green-400">서버 데이터</h4>
+                    <h4 className="font-semibold text-green-400">서버 데이터</h4>
                     <input
                       type="radio"
                       name={`conflict-${conflict.flightId}`}
@@ -274,13 +272,13 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
                       className="text-green-600 focus:ring-green-500"
                     />
                   </div>
-                  <div className="space-y-2 text-sm text-gray-800 dark:text-gray-300">
+                  <div className="space-y-2 text-sm text-slate-200">
                     <div>
                       <span className="font-medium">상태:</span> {getStatusText(conflict.serverData.status)}
                     </div>
                     <div>
                       <span className="font-medium">최종 수정:</span>
-                      <div className="text-gray-600 dark:text-gray-400">
+                      <div className="text-slate-400">
                         {formatDateTime(conflict.serverData.lastModified)}
                       </div>
                     </div>
@@ -289,9 +287,9 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
               </div>
 
               {/* 차이점 표시 */}
-              <div className="bg-yellow-50 dark:bg-yellow-900/50 p-3 rounded-lg">
-                <h5 className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">주요 차이점:</h5>
-                <ul className="text-sm text-yellow-700 dark:text-yellow-200 space-y-1">
+              <div className="bg-yellow-500/10 p-3 rounded-lg">
+                <h5 className="font-medium text-yellow-300 mb-2">주요 차이점:</h5>
+                <ul className="text-sm text-yellow-200 space-y-1">
                   {conflict.localData.status.departed !== conflict.serverData.status.departed && (
                     <li>• 이륙 상태: 로컬({conflict.localData.status.departed ? '완료' : '대기'}) vs 서버({conflict.serverData.status.departed ? '완료' : '대기'})</li>
                   )}
@@ -305,10 +303,10 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
         </div>
 
         {/* 푸터 */}
-        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 flex justify-end gap-3 flex-shrink-0">
+        <div className="bg-black/20 p-4 flex justify-end gap-3 flex-shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-500 rounded"
+            className="px-4 py-2 text-slate-300 border border-white/20 rounded hover:bg-white/10 transition-colors"
           >
             취소
           </button>

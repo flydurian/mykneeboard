@@ -2286,35 +2286,35 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-[100] p-4 pt-safe" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg p-6 relative animate-fade-in-up z-[101] city-schedule-modal-container" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 dark:text-gray-300">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[100] p-4 pt-safe" onClick={onClose}>
+            <div className="glass-panel rounded-2xl shadow-xl w-full max-w-lg p-6 relative animate-fade-in-up z-[101] city-schedule-modal-container" onClick={(e) => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
                     <XIcon className="w-6 h-6" />
                 </button>
 
 
                 <div className="mb-4">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                    <h2 className="text-xl font-bold text-white flex items-center">
                         <span className="mr-2">{getCountryFlag(city ? getCountry(city) : null)}</span>
-                        <span><span className="text-xl">{city} 정보</span> <span className="text-sm">{city ? getUTCOffset(city) || '(UTC)' : '(UTC)'}</span></span>
+                        <span><span className="text-xl">{city} 정보</span> <span className="text-sm text-slate-400">{city ? getUTCOffset(city) || '(UTC)' : '(UTC)'}</span></span>
                         <button
                             onClick={() => onMemoClick && onMemoClick(city || '')}
                             title="도시 메모 작성/수정"
                             className="ml-2"
                         >
-                            <MemoIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                            <MemoIcon className="w-5 h-5 text-slate-400 hover:text-white transition-colors" />
                         </button>
                         <button
                             onClick={() => setShowWeather(!showWeather)}
                             title="날씨 정보 보기/숨기기"
                             className="ml-2"
                         >
-                            <InfoIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                            <InfoIcon className="w-5 h-5 text-slate-400 hover:text-white transition-colors" />
                         </button>
                         <button
                             onClick={() => setShowMetar(!showMetar)}
                             title="METAR/TAF 정보 보기/숨기기"
-                            className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-700 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-600 transition-colors"
+                            className="ml-2 px-2 py-1 text-xs font-medium bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors"
                         >
                             TAF
                         </button>
@@ -2337,7 +2337,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                         setShowDatis(!showDatis);
                                     }}
                                     title="DATIS 정보 보기/숨기기"
-                                    className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-600 transition-colors"
+                                    className="ml-2 px-2 py-1 text-xs font-medium bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
                                 >
                                     DATIS
                                 </button>
@@ -2351,10 +2351,10 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 >
 
                     {showMetar && (
-                        <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <div className="mb-4 p-4 bg-black/20 rounded-lg border border-white/10">
                             <div className="flex justify-between items-center mb-2">
                                 <div className="flex items-center space-x-2">
-                                    <h3 className="font-bold text-gray-800 dark:text-gray-200 text-sm">METAR / TAF</h3>
+                                    <h3 className="font-bold text-white text-sm">METAR / TAF</h3>
                                     {(metar || taf) && (
                                         <button
                                             onClick={() => setShowDecoded(!showDecoded)}
@@ -2366,67 +2366,67 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                 </div>
                                 {zuluTime && <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{zuluTime}</span>}
                             </div>
-                            {loadingMetarTaf && <p className="text-center text-sm text-gray-600 dark:text-gray-400">METAR/TAF 정보를 불러오는 중...</p>}
-                            {metarTafError && <p className="text-red-500 dark:text-red-400 text-center text-sm">{metarTafError}</p>}
+                            {loadingMetarTaf && <p className="text-center text-sm text-slate-400">METAR/TAF 정보를 불러오는 중...</p>}
+                            {metarTafError && <p className="text-rose-400 text-center text-sm">{metarTafError}</p>}
                             {(metar || taf) && (
-                                <div className="space-y-2 text-xs bg-gray-100 dark:bg-gray-900/50 p-3 rounded text-gray-800 dark:text-gray-300">
+                                <div className="space-y-2 text-xs bg-black/40 p-3 rounded text-slate-300">
                                     {showDecoded ? (
                                         <div className="space-y-4">
                                             {metar && (
                                                 <div>
-                                                    <h4 className="font-semibold text-blue-600 dark:text-blue-400 mb-2">METAR</h4>
+                                                    <h4 className="font-semibold text-blue-400 mb-2">METAR</h4>
                                                     {(() => {
                                                         const d = decodeMetar(metar);
                                                         return (
                                                             <div className="space-y-3">
                                                                 {d.time && (
-                                                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-700">
-                                                                        <div className="text-gray-600 dark:text-gray-400 text-xs">Observation Time</div>
-                                                                        <div className="font-semibold text-blue-800 dark:text-blue-200 text-sm">{d.time}</div>
+                                                                    <div className="bg-blue-500/10 p-2 rounded border border-blue-500/20">
+                                                                        <div className="text-slate-400 text-xs">Observation Time</div>
+                                                                        <div className="font-semibold text-blue-300 text-sm">{d.time}</div>
                                                                     </div>
                                                                 )}
                                                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                                                     {d.wind && (
-                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                                                                            <div className="text-gray-600 dark:text-gray-400">Wind</div>
-                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{d.wind}</div>
+                                                                        <div className="bg-blue-500/10 p-2 rounded">
+                                                                            <div className="text-slate-400">Wind</div>
+                                                                            <div className="font-semibold text-blue-300">{d.wind}</div>
                                                                         </div>
                                                                     )}
                                                                     {d.visibility && (
-                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                                                                            <div className="text-gray-600 dark:text-gray-400">Visibility</div>
-                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{d.visibility}</div>
+                                                                        <div className="bg-blue-500/10 p-2 rounded">
+                                                                            <div className="text-slate-400">Visibility</div>
+                                                                            <div className="font-semibold text-blue-300">{d.visibility}</div>
                                                                         </div>
                                                                     )}
                                                                     {d.temp && (
-                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                                                                            <div className="text-gray-600 dark:text-gray-400">Temperature</div>
-                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200">{d.temp}</div>
+                                                                        <div className="bg-blue-500/10 p-2 rounded">
+                                                                            <div className="text-slate-400">Temperature</div>
+                                                                            <div className="font-semibold text-blue-300">{d.temp}</div>
                                                                         </div>
                                                                     )}
                                                                     {d.pressure && (
-                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                                                                            <div className="text-gray-600 dark:text-gray-400">Pressure</div>
-                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.pressure}</div>
+                                                                        <div className="bg-blue-500/10 p-2 rounded">
+                                                                            <div className="text-slate-400">Pressure</div>
+                                                                            <div className="font-semibold text-blue-300 text-xs">{d.pressure}</div>
                                                                         </div>
                                                                     )}
                                                                     {d.weather && d.weather !== 'No significant weather' && (
-                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
-                                                                            <div className="text-gray-600 dark:text-gray-400">Weather</div>
-                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.weather}</div>
+                                                                        <div className="bg-blue-500/10 p-2 rounded col-span-2">
+                                                                            <div className="text-slate-400">Weather</div>
+                                                                            <div className="font-semibold text-blue-300 text-xs">{d.weather}</div>
                                                                         </div>
                                                                     )}
                                                                     {d.clouds && (
-                                                                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded col-span-2">
-                                                                            <div className="text-gray-600 dark:text-gray-400">Clouds</div>
-                                                                            <div className="font-semibold text-blue-800 dark:text-blue-200 text-xs">{d.clouds}</div>
+                                                                        <div className="bg-blue-500/10 p-2 rounded col-span-2">
+                                                                            <div className="text-slate-400">Clouds</div>
+                                                                            <div className="font-semibold text-blue-300 text-xs">{d.clouds}</div>
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                                 {d.remarks && (
-                                                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-700 col-span-2">
-                                                                        <div className="text-gray-600 dark:text-gray-400">Remarks (RMK)</div>
-                                                                        <ul className="list-disc ml-4 space-y-1 text-yellow-800 dark:text-yellow-200">
+                                                                    <div className="bg-yellow-500/10 p-2 rounded border border-yellow-500/20 col-span-2">
+                                                                        <div className="text-slate-400">Remarks (RMK)</div>
+                                                                        <ul className="list-disc ml-4 space-y-1 text-yellow-300">
                                                                             {d.remarks.split('; ').map((remark, idx) => (
                                                                                 <li key={idx}>{remark}</li>
                                                                             ))}
@@ -2434,12 +2434,12 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                                                     </div>
                                                                 )}
                                                                 {(d.auto || d.corrected) && (
-                                                                    <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
-                                                                        <div className="text-gray-600 dark:text-gray-400 text-xs">Status</div>
-                                                                        <div className="font-semibold text-gray-800 dark:text-gray-200 text-xs">
-                                                                            {d.auto && <span className="text-blue-600 dark:text-blue-400">AUTO</span>}
+                                                                    <div className="bg-black/20 p-2 rounded border border-white/10">
+                                                                        <div className="text-slate-400 text-xs">Status</div>
+                                                                        <div className="font-semibold text-slate-200 text-xs">
+                                                                            {d.auto && <span className="text-blue-400">AUTO</span>}
                                                                             {d.auto && d.corrected && <span className="mx-1">•</span>}
-                                                                            {d.corrected && <span className="text-green-600 dark:text-green-400">COR</span>}
+                                                                            {d.corrected && <span className="text-emerald-400">COR</span>}
                                                                         </div>
                                                                     </div>
                                                                 )}

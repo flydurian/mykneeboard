@@ -51,13 +51,13 @@ const ExpiryDateModal: React.FC<ExpiryDateModalProps> = ({
 
     const handleDateChange = (date: string) => {
         setExpiryDate(date);
-        
+
         // 날짜 유효성 검사
         if (date) {
             const selectedDate = new Date(date);
             const today = new Date();
             today.setHours(0, 0, 0, 0); // 시간 부분 제거
-            
+
             setIsValid(selectedDate >= today);
         } else {
             setIsValid(true);
@@ -121,11 +121,11 @@ const ExpiryDateModal: React.FC<ExpiryDateModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={handleClose}>
-            <div ref={triggerRef} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm sm:max-w-md p-4 sm:p-6 relative animate-fade-in-up max-h-[90vh] overflow-y-auto" style={{ height: 'auto', minHeight: '280px' }} onClick={(e) => e.stopPropagation()}>
-                <button 
-                    onClick={handleClose} 
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={handleClose}>
+            <div ref={triggerRef} className="glass-panel rounded-2xl shadow-xl w-full max-w-sm sm:max-w-md p-4 sm:p-6 relative animate-fade-in-up max-h-[90vh] overflow-y-auto" style={{ height: 'auto', minHeight: '280px' }} onClick={(e) => e.stopPropagation()}>
+                <button
+                    onClick={handleClose}
+                    className="absolute top-4 right-4 text-slate-400 hover:text-white"
                 >
                     <XIcon className="w-5 h-5" />
                 </button>
@@ -134,16 +134,16 @@ const ExpiryDateModal: React.FC<ExpiryDateModalProps> = ({
                     <div className="flex justify-center mb-2 sm:mb-3">
                         {getCardIcon(cardType)}
                     </div>
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white mb-1">
+                    <h2 className="text-lg sm:text-xl font-bold text-white mb-1">
                         {cardName} 만기일 설정
                     </h2>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-xs sm:text-sm text-slate-400">
                         {cardName}의 만료일을 입력하세요.
                     </p>
                 </div>
 
                 <div className="mb-3 sm:mb-4">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">
                         만료일
                     </label>
                     <CustomDatePicker
@@ -153,9 +153,8 @@ const ExpiryDateModal: React.FC<ExpiryDateModalProps> = ({
                         placeholder="만료일을 선택하세요"
                         triggerRef={triggerRef}
                         theme={theme}
-                        className={`${
-                            !isValid ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
-                        }`}
+                        className={`${!isValid ? 'border-red-500 focus:ring-red-500' : 'glass-input border-white/10'
+                            }`}
                     />
                     {!isValid && (
                         <p className="text-red-500 text-xs sm:text-sm mt-1">
@@ -167,14 +166,14 @@ const ExpiryDateModal: React.FC<ExpiryDateModalProps> = ({
                 <div className="flex gap-2 sm:gap-3 mt-2">
                     <button
                         onClick={handleClose}
-                        className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+                        className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base border border-white/20 text-slate-300 rounded-lg hover:bg-white/10 transition-colors font-medium"
                     >
                         취소
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={!expiryDate || !isValid}
-                        className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                        className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base glass-button text-white rounded-lg transition-colors font-medium"
                     >
                         저장
                     </button>

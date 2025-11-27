@@ -13,7 +13,7 @@ const BlockTimeCard: React.FC<BlockTimeCardProps> = memo(({ flights = [], todayS
     const currentMonth = today.getMonth();
     const nextMonth = (currentMonth + 1) % 12;
     const currentYear = today.getFullYear();
-    
+
     // 다음 달이 1월인 경우 연도 조정
     const nextYear = nextMonth === 0 ? currentYear + 1 : currentYear;
 
@@ -53,7 +53,7 @@ const BlockTimeCard: React.FC<BlockTimeCardProps> = memo(({ flights = [], todayS
             }
             return total;
         }, 0);
-        
+
         if (totalBlockMinutes > 0) {
             const hours = Math.floor(totalBlockMinutes / 60);
             const minutes = totalBlockMinutes % 60;
@@ -65,7 +65,7 @@ const BlockTimeCard: React.FC<BlockTimeCardProps> = memo(({ flights = [], todayS
     }, []);
 
     const monthNames = useMemo(() => ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"], []);
-    
+
     const { currentMonthDuty, nextMonthDuty } = useMemo(() => ({
         currentMonthDuty: getDutyTime(currentMonthFlights),
         nextMonthDuty: getDutyTime(nextMonthFlights)
@@ -82,24 +82,24 @@ const BlockTimeCard: React.FC<BlockTimeCardProps> = memo(({ flights = [], todayS
 
     return (
         <div className="grid grid-cols-2 gap-6">
-                {/* 현재 달 카드 */}
-                <div 
-                    onClick={handleCurrentMonthClick}
-                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 text-center cursor-pointer"
-                >
-                    <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">{monthNames[currentMonth]} 비행시간</p>
-                    <p className="text-4xl font-bold my-1 text-gray-800 dark:text-gray-200">{currentMonthDuty}</p>
-                </div>
-
-                {/* 다음 달 카드 */}
-                <div 
-                    onClick={handleNextMonthClick}
-                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 text-center cursor-pointer"
-                >
-                    <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">{monthNames[nextMonth]} 비행시간</p>
-                    <p className="text-4xl font-bold my-1 text-gray-800 dark:text-gray-200">{nextMonthDuty}</p>
-                </div>
+            {/* 현재 달 카드 */}
+            <div
+                onClick={handleCurrentMonthClick}
+                className="glass-card rounded-2xl p-4 text-center cursor-pointer hover:bg-white/10 transition-colors"
+            >
+                <p className="text-sm font-semibold text-slate-400">{monthNames[currentMonth]} 비행시간</p>
+                <p className="text-4xl font-bold my-1 text-white">{currentMonthDuty}</p>
             </div>
+
+            {/* 다음 달 카드 */}
+            <div
+                onClick={handleNextMonthClick}
+                className="glass-card rounded-2xl p-4 text-center cursor-pointer hover:bg-white/10 transition-colors"
+            >
+                <p className="text-sm font-semibold text-slate-400">{monthNames[nextMonth]} 비행시간</p>
+                <p className="text-4xl font-bold my-1 text-white">{nextMonthDuty}</p>
+            </div>
+        </div>
     );
 });
 

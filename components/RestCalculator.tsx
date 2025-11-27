@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, memo, useCallback, useReducer } from 'react';
+import { motion } from 'framer-motion';
 import { saveRestInfo, getRestInfo, subscribeToRestInfo, RestInfo } from '../src/firebase/database';
 import { getCurrentUser } from '../src/firebase/auth';
 
@@ -160,29 +161,23 @@ const PlaneIcon = memo((props: any) => (
 // --- UI Components ---
 const DisplayInput = memo(({ label, value, onClick, warning, isDark }: { label: string; value: string; onClick: () => void; warning?: string; isDark: boolean }) => (
     <div>
-        <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{label}</label>
+        <label className="block text-sm font-medium mb-1 text-slate-300">{label}</label>
         <div
-            className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] ${isDark
-                ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-100'
-                : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-900'
-                } ${warning ? 'border-red-500' : ''}`}
+            className={`w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] hover:bg-white/10 transition-colors ${warning ? 'border-rose-500/50 ring-1 ring-rose-500/30' : ''}`}
             onClick={onClick}
             role="button"
         >
             {value}
         </div>
-        {warning && <p className="text-xs text-red-500 mt-1 text-center">{warning}</p>}
+        {warning && <p className="text-xs text-rose-400 mt-1 text-center">{warning}</p>}
     </div>
 ));
 
 const ReadOnlyDisplay = memo(({ label, value, isDark }: { label: string; value: string; isDark: boolean }) => (
     <div>
-        <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{label}</label>
+        <label className="block text-sm font-medium mb-1 text-slate-400">{label}</label>
         <div
-            className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed ${isDark
-                ? 'bg-gray-900/50 border-gray-700 text-gray-400'
-                : 'bg-gray-100 border-gray-300 text-gray-500'
-                }`}
+            className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed opacity-60"
         >
             {value}
         </div>
@@ -221,27 +216,27 @@ const FlightTimeline = memo(({
     // totalDuration이 0이면 빈 타임라인 표시
     if (totalDuration <= 0) {
         return (
-            <div className={`p-6 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-100'} text-white font-sans w-full`}>
-                <div className="text-center text-gray-400">
+            <div className="glass-card rounded-2xl p-8 text-center w-full min-h-[120px] flex flex-col justify-center items-center">
+                <p className="text-slate-400 font-medium text-lg">
                     비행 시간을 입력해주세요
-                </div>
+                </p>
             </div>
         );
     }
 
     return (
-        <div className={`px-1 py-2 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-100'} text-white font-sans w-full`}>
-            <div className="relative h-12">
-                <div className="w-full h-8 bg-gray-700 rounded-full flex overflow-hidden shadow-inner animate-breathing border-2 border-blue-400/50">
+        <div className="w-full">
+            <div className="relative h-14 mb-8">
+                {/* 타임라인 배경 트랙 */}
+                <div className="absolute inset-0 w-full h-10 bg-black/30 rounded-full border border-white/10 backdrop-blur-md overflow-hidden shadow-inner">
                     {segments.map((segment, index) => {
                         const cumulativeDurationBefore = segments.slice(0, index).reduce((acc, s) => acc + s.duration, 0);
                         const elapsedTotalMinutes = progress * totalDuration;
 
                         let minutesToShow;
-                        const isFlightCompleted = progress >= 1; // 비행이 완전히 종료되었는지 확인
+                        const isFlightCompleted = progress >= 1;
 
                         if (isFlightCompleted) {
-                            // 비행이 완전히 종료되면 각 구간의 전체 시간을 다시 표시
                             minutesToShow = segment.duration;
                         } else if (elapsedTotalMinutes < cumulativeDurationBefore) {
                             minutesToShow = segment.duration;
@@ -256,84 +251,86 @@ const FlightTimeline = memo(({
                         return (
                             <div
                                 key={index}
-                                className={`${segment.color} h-full relative flex items-center justify-center shrink-0 transition-opacity duration-500 ${isCompleted && !isFlightCompleted ? 'opacity-30' : 'opacity-100'}`}
-                                style={{ width: `${(segment.duration / totalDuration) * 100}%` }}
+                                className={`${segment.color} h-full relative float-left flex items-center justify-center transition-all duration-500 ${isCompleted && !isFlightCompleted ? 'opacity-30 grayscale' : 'opacity-90 hover:opacity-100'}`}
+                                style={{
+                                    width: `${(segment.duration / totalDuration) * 100}%`,
+                                    boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.1)'
+                                }}
                             >
+                                {/* 글래스 효과 그라데이션 오버레이 */}
+                                <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-black/10 pointer-events-none"></div>
+                                <div className="absolute top-0 left-0 w-full h-[1px] bg-white/30 pointer-events-none"></div>
+
                                 <span
-                                    className={`text-white font-bold z-10 ${(segment.duration / totalDuration) * 100 < 15 ? 'text-xs' : (segment.duration / totalDuration) * 100 < 25 ? 'text-sm' : 'text-base'} sm:text-sm md:text-base`}
-                                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+                                    className={`text-white font-bold z-10 drop-shadow-md ${(segment.duration / totalDuration) * 100 < 15 ? 'text-xs' : (segment.duration / totalDuration) * 100 < 25 ? 'text-sm' : 'text-base'}`}
                                 >
                                     {minutesToDisplayFormat(minutesToShow)}
                                 </span>
+                                {/* 세그먼트 구분선 */}
+                                {index < segments.length - 1 && (
+                                    <div className="absolute right-0 top-0 bottom-0 w-px bg-white/20 z-20"></div>
+                                )}
                             </div>
                         );
                     })}
                 </div>
-
-
             </div>
 
             {/* 시간 표시 지점 */}
-            <div className={`relative mt-2 h-20 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <div className="relative h-24 text-xs">
                 {timePoints.map((point, index) => {
                     if (point.hidden) return null;
-                    // 시간 포인트 위치 계산 - 각 세그먼트의 종료 부분과 연동
+
                     let position = 0;
                     if (index === 0) {
-                        // 첫 번째 포인트 (이륙 후 종료) - 첫 번째 세그먼트의 끝
                         position = (segments[0].duration / totalDuration) * 100;
                     } else if (index === 1) {
-                        // 두 번째 포인트 (CRZ1 종료) - 첫 번째 + 두 번째 세그먼트의 끝
                         const cumulativeDuration = segments.slice(0, 2).reduce((acc, segment) => acc + segment.duration, 0);
                         position = (cumulativeDuration / totalDuration) * 100;
                     } else if (index === 2) {
-                        // 세 번째 포인트 (MID 종료) - 첫 번째 + 두 번째 + 세 번째 세그먼트의 끝
                         const cumulativeDuration = segments.slice(0, 3).reduce((acc, segment) => acc + segment.duration, 0);
                         position = (cumulativeDuration / totalDuration) * 100;
                     } else if (index === 3) {
-                        // 네 번째 포인트 (CRZ2 종료) - 첫 번째 + 두 번째 + 세 번째 + 네 번째 세그먼트의 끝
                         const cumulativeDuration = segments.slice(0, 4).reduce((acc, segment) => acc + segment.duration, 0);
                         position = (cumulativeDuration / totalDuration) * 100;
                     }
 
-                    // ✨ [핵심 수정] 하이라이트 로직 변경
                     const isHighlighted = (() => {
                         if (segments.length === 0 || totalDuration === 0) return false;
-
-                        // 각 세그먼트의 시작과 끝 진행률을 계산
                         const cumulativeDuration = segments.slice(0, index).reduce((acc, s) => acc + s.duration, 0);
                         const segmentStartProgress = cumulativeDuration / totalDuration;
                         const segmentEndProgress = (cumulativeDuration + segments[index].duration) / totalDuration;
 
-                        // progress가 0일 때, 첫 번째 타임포인트(index 0)가 하이라이트되도록 처리
-                        if (progress === 0 && index === 0) {
-                            return true;
-                        }
-
-                        // 현재 진행률이 해당 세그먼트의 범위 내에 있는지 확인
-                        // (단, 시작 지점은 포함하지 않아 이전 세그먼트와 겹치지 않도록 함)
+                        if (progress === 0 && index === 0) return true;
                         return progress > segmentStartProgress && progress <= segmentEndProgress;
                     })();
 
                     return (
                         <div
                             key={index}
-                            className="absolute -translate-x-1/2"
-                            style={{ left: `${position}%` }}
+                            className="absolute transform -translate-x-1/2 transition-all duration-300"
+                            style={{ left: `${position}%`, top: '-10px' }}
                         >
-                            {/* 모든 타임표에 동일한 세로선 표시 */}
-                            <div className={`w-px h-2 mx-auto ${isHighlighted ? 'bg-blue-400 animate-pulse' : 'bg-gray-600'}`}></div>
+                            {/* 연결선 */}
+                            <div className={`w-px h-4 mx-auto mb-1 transition-colors duration-300 ${isHighlighted ? 'bg-indigo-400' : 'bg-white/20'}`}></div>
+
+                            {/* 시간 정보 카드 */}
                             <div
-                                className={`mt-2 p-2 rounded-md text-center whitespace-nowrap border-2 ${isHighlighted ? (isDark ? 'border-white' : 'border-black') + ' shadow-lg' : 'border-transparent'}`}
-                                style={isHighlighted ? {
-                                    boxShadow: isDark
-                                        ? '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4), 0 0 30px rgba(255, 255, 255, 0.2)'
-                                        : '0 0 10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 0, 0, 0.2)'
-                                } : {}}
+                                className={`
+                                    px-3 py-2 rounded-xl text-center whitespace-nowrap backdrop-blur-md border transition-all duration-300
+                                    ${isHighlighted
+                                        ? 'bg-indigo-500/20 border-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-105 z-10'
+                                        : 'bg-black/20 border-white/10 text-slate-400 hover:bg-white/5 hover:border-white/20'
+                                    }
+                                `}
                             >
-                                <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{point.zulu}</p>
-                                <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>{point.local}</p>
-                                <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>{point.korea}</p>
+                                <p className={`font-bold text-sm mb-0.5 ${isHighlighted ? 'text-white' : 'text-slate-300'}`}>
+                                    {point.zulu}
+                                </p>
+                                <div className="flex flex-col gap-0.5 text-[10px] opacity-80">
+                                    <span className={isHighlighted ? 'text-indigo-200' : 'text-slate-500'}>{point.local}</span>
+                                    <span className={isHighlighted ? 'text-indigo-200' : 'text-slate-500'}>{point.korea}</span>
+                                </div>
                             </div>
                         </div>
                     );
@@ -1529,77 +1526,127 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
     return (
         <div className={`transition-colors duration-500 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-screen-xl mx-auto">
                 {/* 타임라인 화면 */}
-                <div className={`rounded-2xl shadow-lg p-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl sm:text-2xl font-semibold text-gray-700 dark:text-gray-300">
-                            비행 타임라인
-                        </h2>
-                        {flightTimeMinutes > 0 && (
-                            <div className="text-right">
-                                <div className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>총 비행시간</div>
-                                <div className="text-2xl font-mono font-bold text-green-400">{minutesToHhMm(flightTimeMinutes)}</div>
-                            </div>
-                        )}
-                    </div>
+                <div className="glass-panel rounded-2xl p-6">
 
-                    <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                        {VIEW_TABS.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => handleViewTabChange(tab.id)}
-                                className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${isViewTabActive(tab.id)
-                                    ? 'border-blue-500 text-blue-400'
-                                    : isDark
-                                        ? 'border-transparent text-gray-500 hover:text-gray-300'
-                                        : 'border-transparent text-gray-600 hover:text-gray-800'
-                                    }`}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
+
+                    <div className="glass-panel rounded-xl p-1 flex mb-6">
+                        {VIEW_TABS.map(tab => {
+                            const isActive = isViewTabActive(tab.id);
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => handleViewTabChange(tab.id)}
+                                    className={`relative flex-1 py-1.5 px-4 rounded-lg text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                                        ? 'text-white'
+                                        : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                                        }`}
+                                >
+                                    {isActive && (
+                                        <motion.div
+                                            layoutId="activeViewTab"
+                                            className="absolute inset-0 rounded-lg bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        />
+                                    )}
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
                     </div>
 
                     <div
-                        className={`flex justify-between items-center p-4 rounded-lg mb-4 cursor-pointer transition-colors ${isDark
-                            ? 'bg-gray-700/60 hover:bg-gray-700/80'
-                            : 'bg-gray-100 hover:bg-gray-200'
-                            }`}
+                        className="relative p-6 rounded-2xl mb-6 cursor-pointer transition-all duration-300 glass-input hover:bg-white/10 group overflow-hidden"
                         onClick={() => { preEditStateRef.current = { ...state }; setShowTimeline(false); }}
                     >
-                        <div className="text-left text-sm font-mono">
-                            <p className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>이륙</p>
-                            <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatTimeDisplay(departureTime)} UTC</p>
-                            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{formatTimeDisplay(convertTime(departureMinutesUTC, timeZone))}L / {formatTimeDisplay(convertTime(departureMinutesUTC, 9))}K</p>
-                        </div>
+                        {/* 배경 장식 효과 */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
-                        <div className={`text-center font-mono text-sm font-bold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            ({timeZone >= 0 ? '+' : ''}{timeZone})
-                        </div>
+                        <div className="flex justify-between items-center relative z-10">
+                            {/* 이륙 정보 (좌측) */}
+                            <div className="flex flex-col items-start min-w-[100px]">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <svg className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                    </svg>
+                                    <span className={`text-xs font-bold tracking-wider uppercase ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Departure</span>
+                                </div>
+                                <div className={`text-2xl sm:text-3xl font-bold font-mono tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                    {formatTimeDisplay(departureTime)}
+                                </div>
+                                <div className={`text-xs sm:text-sm font-medium mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    {formatTimeDisplay(convertTime(departureMinutesUTC, timeZone))}L / {formatTimeDisplay(convertTime(departureMinutesUTC, 9))}K
+                                </div>
+                            </div>
 
-                        <div className="text-right text-sm font-mono">
-                            <p className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>착륙</p>
-                            <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatTimeDisplay(convertZuluTime(departureMinutesUTC + flightTimeMinutes))} UTC</p>
-                            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{formatTimeDisplay(convertTime(departureMinutesUTC + flightTimeMinutes, timeZone))}L / {formatTimeDisplay(convertTime(departureMinutesUTC + flightTimeMinutes, 9))}K</p>
+                            {/* 비행 경로 시각화 (중앙) */}
+                            <div className="flex-1 flex flex-col items-center px-4 sm:px-8">
+                                <div className={`text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Total Flight Time
+                                </div>
+                                <div className="w-full relative flex items-center justify-center">
+                                    {/* 점선 */}
+                                    <div className={`absolute w-full h-px border-t-2 border-dashed ${isDark ? 'border-gray-600' : 'border-gray-300'}`}></div>
+                                    {/* 비행기 아이콘 */}
+                                    <div className={`relative z-10 p-2 rounded-full ${isDark ? 'bg-gray-800 text-blue-400' : 'bg-white text-blue-600'} shadow-sm border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                                        <svg className="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div className={`text-lg sm:text-xl font-bold font-mono mt-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                                    {minutesToHhMm(flightTimeMinutes)}
+                                </div>
+                                <div className={`text-xs font-medium mt-1 px-2 py-0.5 rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
+                                    UTC {timeZone >= 0 ? '+' : ''}{timeZone}
+                                </div>
+                            </div>
+
+                            {/* 착륙 정보 (우측) */}
+                            <div className="flex flex-col items-end min-w-[100px]">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className={`text-xs font-bold tracking-wider uppercase ${isDark ? 'text-fuchsia-400' : 'text-fuchsia-600'}`}>Arrival</span>
+                                    <svg className={`w-5 h-5 ${isDark ? 'text-fuchsia-400' : 'text-fuchsia-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    </svg>
+                                </div>
+                                <div className={`text-2xl sm:text-3xl font-bold font-mono tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                    {formatTimeDisplay(convertZuluTime(departureMinutesUTC + flightTimeMinutes))}
+                                </div>
+                                <div className={`text-xs sm:text-sm font-medium mt-1 text-right ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    {formatTimeDisplay(convertTime(departureMinutesUTC + flightTimeMinutes, timeZone))}L / {formatTimeDisplay(convertTime(departureMinutesUTC + flightTimeMinutes, 9))}K
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {activeTab === '2set' && (
                         <>
                             {twoSetMode !== '5P' && (
-                                <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                                    {TWO_SET_MODES.map(mode => (
-                                        <button key={mode.id} onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { twoSetMode: mode.id } })}
-                                            className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${twoSetMode === mode.id
-                                                ? 'border-fuchsia-500 text-fuchsia-500'
-                                                : isDark
-                                                    ? 'border-transparent text-gray-500 hover:text-gray-300'
-                                                    : 'border-transparent text-gray-600 hover:text-gray-800'
-                                                }`}>
-                                            {mode.label}
-                                        </button>
-                                    ))}
+                                <div className="glass-panel rounded-xl p-1 flex mb-6">
+                                    {TWO_SET_MODES.map(mode => {
+                                        const isActive = twoSetMode === mode.id;
+                                        return (
+                                            <button
+                                                key={mode.id}
+                                                onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { twoSetMode: mode.id } })}
+                                                className={`relative flex-1 py-1.5 px-4 rounded-lg text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                                                    ? 'text-white'
+                                                    : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                                                    }`}
+                                            >
+                                                {isActive && (
+                                                    <motion.div
+                                                        layoutId="activeTwoSetTab"
+                                                        className="absolute inset-0 rounded-lg bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                                    />
+                                                )}
+                                                {mode.label}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             )}
                             <FlightTimeline
@@ -1613,15 +1660,29 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
                     {activeTab === '3pilot' && (
                         <>
-                            <div className={`flex border-b mb-6 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
-                                {THREE_PILOT_MODES.map(c => (
-                                    <button key={c.id} onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { threePilotMode: c.id } })} className={`flex-1 text-center py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200 ${threePilotMode === c.id
-                                        ? 'border-fuchsia-500 text-fuchsia-500'
-                                        : isDark
-                                            ? 'border-transparent text-gray-500 hover:text-gray-300'
-                                            : 'border-transparent text-gray-600 hover:text-gray-800'
-                                        }`}>{c.id}</button>
-                                ))}
+                            <div className="glass-panel rounded-xl p-1 flex mb-6">
+                                {THREE_PILOT_MODES.map(c => {
+                                    const isActive = threePilotMode === c.id;
+                                    return (
+                                        <button
+                                            key={c.id}
+                                            onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { threePilotMode: c.id } })}
+                                            className={`relative flex-1 py-1.5 px-4 rounded-lg text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                                                ? 'text-white'
+                                                : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                                                }`}
+                                        >
+                                            {isActive && (
+                                                <motion.div
+                                                    layoutId="activeThreePilotTab"
+                                                    className="absolute inset-0 rounded-lg bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                                />
+                                            )}
+                                            {c.id}
+                                        </button>
+                                    );
+                                })}
                             </div>
                             <div className="space-y-3">
                                 <div>
@@ -1658,8 +1719,8 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
                 {/* 입력 폼 모달 */}
                 {!showTimeline && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity duration-300 pt-safe" onClick={handleCancelEdit}>
-                        <div className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-4 max-h-[90vh] overflow-y-auto ${isDark ? 'bg-gray-800' : 'bg-white'}`} onClick={(e) => e.stopPropagation()}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 pt-safe" onClick={handleCancelEdit}>
+                        <div className="glass-panel rounded-2xl w-full max-w-lg max-h-[95vh] sm:max-h-[90vh] relative animate-fade-in-up flex flex-col m-4" onClick={(e) => e.stopPropagation()}>
                             <div className="p-6 sm:p-8 relative">
                                 <button
                                     onClick={handleCancelEdit}
@@ -1680,7 +1741,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         onClick={() => setShowTimeZonePicker(false)}
                                     >
                                         <div
-                                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                                            className="glass-card rounded-2xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3"
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <div className="text-center mb-4">
@@ -1695,19 +1756,19 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                     </div>
 
                                                     {/* 드럼이 남은 공간을 모두 차지하도록 설정 */}
-                                                    <div className={`p-1 rounded-lg shadow-lg flex-grow min-w-0 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`} style={{ minWidth: '60px' }}>
+                                                    <div className="p-1 rounded-lg shadow-lg flex-grow min-w-0 bg-black/20 backdrop-blur-sm" style={{ minWidth: '60px' }}>
                                                         <div className="relative h-32 overflow-hidden">
                                                             {/* 중앙 선택 영역 하이라이트 */}
-                                                            <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
+
 
                                                             {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
-                                                            <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
-                                                            <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
+                                                            <div className="absolute top-0 left-0 w-full h-10 z-20 pointer-events-none bg-gradient-to-b from-black/50 to-transparent"></div>
+                                                            <div className="absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none bg-gradient-to-t from-black/50 to-transparent"></div>
 
                                                             <div
                                                                 ref={timeZonePickerRef}
                                                                 onScroll={handleScroll}
-                                                                className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isScrollingState ? 'scrolling' : ''}`}
+                                                                className={`h-full overflow-y-scroll custom-scrollbar ${isScrollingState ? 'scrolling' : ''}`}
                                                                 style={{
                                                                     scrollbarWidth: 'thin',
                                                                     scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
@@ -1725,7 +1786,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                                         return (
                                                                             <div
                                                                                 key={index}
-                                                                                className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer snap-start transition-all duration-200 ${isSelected
+                                                                                className={`h-12 flex items-center justify-center font-mono text-center cursor-pointer transition-all duration-200 ${isSelected
                                                                                     ? isDark ? 'text-white text-xl' : 'text-gray-900 text-xl' // 선택 시
                                                                                     : isDark ? 'text-gray-500 text-base' : 'text-gray-600 text-base' // 비선택 시
                                                                                     }`}
@@ -1776,7 +1837,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         onClick={() => setShowCrz1Picker(false)}
                                     >
                                         <div
-                                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                                            className="glass-card rounded-2xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3"
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <div className="text-center mb-4">
@@ -1784,19 +1845,19 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </div>
 
                                             <div className="flex justify-center mb-4">
-                                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                                                <div className="p-1 rounded-lg shadow-lg w-full bg-black/20 backdrop-blur-sm">
                                                     <div className="relative h-32 overflow-hidden">
                                                         {/* 중앙 선택 영역 하이라이트 */}
-                                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
+
 
                                                         {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
-                                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
-                                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
+                                                        <div className="absolute top-0 left-0 w-full h-10 z-20 pointer-events-none bg-gradient-to-b from-black/50 to-transparent"></div>
+                                                        <div className="absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none bg-gradient-to-t from-black/50 to-transparent"></div>
 
                                                         <div
                                                             ref={crz1PickerRef}
                                                             onScroll={handleCrz1Scroll}
-                                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isCrz1ScrollingState ? 'scrolling' : ''}`}
+                                                            className={`h-full overflow-y-scroll custom-scrollbar ${isCrz1ScrollingState ? 'scrolling' : ''}`}
                                                             style={{
                                                                 scrollbarWidth: 'thin',
                                                                 scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
@@ -1872,7 +1933,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         onClick={() => setShowAfterTakeoffPicker(false)}
                                     >
                                         <div
-                                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                                            className="glass-card rounded-2xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3"
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <div className="text-center mb-4">
@@ -1880,19 +1941,19 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </div>
 
                                             <div className="flex justify-center mb-4">
-                                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                                                <div className="p-1 rounded-lg shadow-lg w-full bg-black/20 backdrop-blur-sm">
                                                     <div className="relative h-32 overflow-hidden">
                                                         {/* 중앙 선택 영역 하이라이트 */}
-                                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
+
 
                                                         {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
-                                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
-                                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
+                                                        <div className="absolute top-0 left-0 w-full h-10 z-20 pointer-events-none bg-gradient-to-b from-black/50 to-transparent"></div>
+                                                        <div className="absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none bg-gradient-to-t from-black/50 to-transparent"></div>
 
                                                         <div
                                                             ref={afterTakeoffPickerRef}
                                                             onScroll={handleAfterTakeoffScroll}
-                                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isAfterTakeoffScrollingState ? 'scrolling' : ''}`}
+                                                            className={`h-full overflow-y-scroll custom-scrollbar ${isAfterTakeoffScrollingState ? 'scrolling' : ''}`}
                                                             style={{
                                                                 scrollbarWidth: 'thin',
                                                                 scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
@@ -1988,7 +2049,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         onClick={() => setShowBeforeLandingPicker(false)}
                                     >
                                         <div
-                                            className={`rounded-xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                                            className="glass-card rounded-2xl shadow-2xl max-w-lg md:max-w-lg lg:max-w-lg xl:max-w-lg w-full m-2 p-3"
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <div className="text-center mb-4">
@@ -1996,19 +2057,19 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </div>
 
                                             <div className="flex justify-center mb-4">
-                                                <div className={`p-1 rounded-lg shadow-lg w-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                                                <div className="p-1 rounded-lg shadow-lg w-full bg-black/20 backdrop-blur-sm">
                                                     <div className="relative h-32 overflow-hidden">
                                                         {/* 중앙 선택 영역 하이라이트 */}
-                                                        <div className="absolute top-1/2 left-0 w-full h-12 -translate-y-1/2 bg-white/5 rounded-lg border-y border-white/10 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)', width: 'calc(100% - 2px)' }}></div>
+
 
                                                         {/* ✨ [UI 개선] 위아래 그라데이션 마스크 추가 */}
-                                                        <div className={`absolute top-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-b from-gray-800 to-transparent' : 'bg-gradient-to-b from-gray-100 to-transparent'}`}></div>
-                                                        <div className={`absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none ${isDark ? 'bg-gradient-to-t from-gray-800 to-transparent' : 'bg-gradient-to-t from-gray-100 to-transparent'}`}></div>
+                                                        <div className="absolute top-0 left-0 w-full h-10 z-20 pointer-events-none bg-gradient-to-b from-black/50 to-transparent"></div>
+                                                        <div className="absolute bottom-0 left-0 w-full h-10 z-20 pointer-events-none bg-gradient-to-t from-black/50 to-transparent"></div>
 
                                                         <div
                                                             ref={beforeLandingPickerRef}
                                                             onScroll={handleBeforeLandingScroll}
-                                                            className={`h-full overflow-y-scroll scroll-snap-y-mandatory snap-center custom-scrollbar ${isBeforeLandingScrollingState ? 'scrolling' : ''}`}
+                                                            className={`h-full overflow-y-scroll custom-scrollbar ${isBeforeLandingScrollingState ? 'scrolling' : ''}`}
                                                             style={{
                                                                 scrollbarWidth: 'thin',
                                                                 scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
@@ -2152,10 +2213,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 onChange={handleTimeInputChange(
                                                     inputTab === '3pilot' ? 'flightTime3Pilot' : inputTab === '5p' ? 'flightTime5P' : 'flightTime'
                                                 )}
-                                                className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none ${isDark
-                                                    ? 'bg-gray-700 border-gray-600 text-gray-100'
-                                                    : 'bg-white border-gray-300 text-gray-900'
-                                                    }`}
+                                                className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                                 maxLength={isFlightTimeInputFocused ? 4 : 7}
                                             />
                                             <div className={`text-center text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -2186,20 +2244,14 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         inputMode="numeric"
                                                         value={departureTime}
                                                         onChange={handleTimeInputChange('departureTime')}
-                                                        className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none ${isDark
-                                                            ? 'bg-gray-700 border-gray-600 text-gray-100'
-                                                            : 'bg-white border-gray-300 text-gray-900'
-                                                            }`}
+                                                        className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                                         maxLength={4}
                                                     />
                                                 </div>
                                                 <div>
                                                     <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>Time Zone</label>
                                                     <div
-                                                        className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer transition-colors ${isDark
-                                                            ? 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-100'
-                                                            : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-900'
-                                                            }`}
+                                                        className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer hover:bg-white/10 transition-colors"
                                                         onClick={() => setShowTimeZonePicker(true)}
                                                     >
                                                         UTC {timeZone >= 0 ? '+' : ''}{timeZone}
@@ -2260,10 +2312,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                                 const rawValue = e.target.value.replace(/\D/g, '').slice(0, 4);
                                                                 dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff5P: rawValue } });
                                                             }}
-                                                            className={`w-full px-3 py-2 border rounded-lg text-center font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none min-h-[44px] ${isDark
-                                                                ? 'bg-gray-700 border-gray-600 text-gray-100'
-                                                                : 'bg-white border-gray-300 text-gray-900'
-                                                                }`}
+                                                            className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none min-h-[44px] transition-all"
                                                             maxLength={isAfterTakeoff5PInputFocused ? 4 : 7}
                                                         />
                                                     </div>

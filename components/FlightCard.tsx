@@ -123,7 +123,7 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
         return (
             <motion.div
                 onClick={handleClick}
-                className="glass-card rounded-2xl p-4 sm:p-6 text-center flex flex-col justify-center items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer group"
+                className="glass-card rounded-2xl p-4 sm:p-6 text-center flex flex-col justify-center items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer group hover:bg-white/10 transition-colors"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
             >
@@ -184,7 +184,7 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
     return (
         <motion.div
             onClick={handleClick}
-            className="relative glass-card rounded-2xl p-4 sm:p-6 text-center flex flex-col justify-between items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer"
+            className="relative glass-card rounded-2xl p-4 sm:p-6 text-center flex flex-col justify-between items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer hover:bg-white/10 transition-colors"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}

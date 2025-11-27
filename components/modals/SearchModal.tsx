@@ -330,14 +330,14 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-40 p-4 pt-safe">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-40 p-4 pt-safe">
+      <div className="glass-panel rounded-lg shadow-lg w-full max-w-md">
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-600">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">검색</h3>
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <h3 className="text-lg font-semibold text-white">검색</h3>
           <button
             onClick={handleClose}
-            className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
+            className="p-1 text-slate-400 hover:text-white transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -346,7 +346,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
         </div>
 
         {/* 검색 타입 선택 */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-600">
+        <div className="p-4 border-b border-white/10">
           <div className="flex justify-center">
             <div className="flex w-full max-w-xs">
               <button
@@ -356,13 +356,13 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                   setShowResults(false);
                 }}
                 className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative ${searchType === 'city'
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  ? 'text-blue-400'
+                  : 'text-slate-400 hover:text-slate-200'
                   }`}
               >
                 도시 검색
                 {searchType === 'city' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
                 )}
               </button>
               <button
@@ -372,13 +372,13 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                   setShowResults(false);
                 }}
                 className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative ${searchType === 'crew'
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  ? 'text-blue-400'
+                  : 'text-slate-400 hover:text-slate-200'
                   }`}
               >
                 CREW 검색
                 {searchType === 'crew' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
                 )}
               </button>
             </div>
@@ -401,13 +401,13 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                 setSearchResults([]);
                 setShowResults(false);
               }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-700"
+              className="glass-input w-full px-3 py-2 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-400 bg-black/20"
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
           </div>
           <button
             onClick={handleSearch}
-            className="w-full bg-blue-500 dark:bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors font-medium"
+            className="w-full glass-button bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded-lg transition-colors font-medium"
           >
             검색
           </button>
@@ -415,15 +415,15 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
 
         {/* 검색 결과 */}
         {showResults && (
-          <div className="px-4 pb-4 max-h-96 overflow-y-auto border-t border-gray-200 dark:border-gray-600">
+          <div className="px-4 pb-4 max-h-96 overflow-y-auto border-t border-white/10">
             {searchResults.length > 0 ? (
               <div className="space-y-3 pt-4">
                 {searchResults.map((result, index) => (
                   <div
                     key={index}
-                    className={`p-3 rounded-lg border border-gray-200 dark:border-gray-600 ${searchType === 'city'
-                        ? 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer transition-colors'
-                        : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer transition-colors'
+                    className={`p-3 rounded-lg border border-white/10 ${searchType === 'city'
+                      ? 'bg-black/20 hover:bg-white/10 cursor-pointer transition-colors'
+                      : 'bg-black/20 hover:bg-white/10 cursor-pointer transition-colors'
                       }`}
                     onClick={searchType === 'city' && onCityClick ? () => {
                       onCityClick(result.code);
@@ -435,19 +435,19 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                   >
                     {searchType === 'city' ? (
                       <div>
-                        <div className="font-semibold text-gray-700 dark:text-gray-200">
+                        <div className="font-semibold text-white">
                           {result.code} - {result.name}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-slate-400">
                           {result.flights.length}개 비행
                         </div>
                       </div>
                     ) : (
                       <div>
-                        <div className="font-semibold text-gray-700 dark:text-gray-200">
+                        <div className="font-semibold text-white">
                           {result.name}({result.empl})
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-slate-400">
                           {result.rank} • {result.flights}개 비행
                         </div>
                       </div>
@@ -456,7 +456,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-slate-400">
                 검색 결과가 없습니다.
               </div>
             )}

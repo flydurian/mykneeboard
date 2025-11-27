@@ -9,8 +9,9 @@ let isOfflineMode = false;
 
 // Firebase 연결 상태 관리
 export const setFirebaseOfflineMode = (offline: boolean) => {
+  console.log(`📡 setFirebaseOfflineMode 호출됨: ${offline}`);
   isOfflineMode = offline;
-  
+
   if (database) {
     if (offline) {
       goOffline(database);
@@ -34,7 +35,7 @@ const decryptDataLegacy = (encryptedData: string): string => {
       'neuroscience123',
       ''
     ];
-    
+
     for (const keyBase of possibleKeys) {
       try {
         const key = btoa(keyBase).slice(0, 16);
@@ -42,7 +43,7 @@ const decryptDataLegacy = (encryptedData: string): string => {
         const dataWithKey = decoded;
         const data = dataWithKey.slice(0, -key.length);
         const result = decodeURIComponent(escape(atob(data)));
-        
+
         if (isValidDateFormat(result)) {
           return result;
         }
@@ -50,7 +51,7 @@ const decryptDataLegacy = (encryptedData: string): string => {
         continue;
       }
     }
-    
+
     try {
       const directDecode = atob(encryptedData);
       if (isValidDateFormat(directDecode)) {
@@ -59,7 +60,7 @@ const decryptDataLegacy = (encryptedData: string): string => {
     } catch (e) {
       // 직접 디코딩도 실패
     }
-    
+
     return encryptedData;
   } catch (error) {
     console.error('기존 방식 복호화 오류:', error);
@@ -78,7 +79,7 @@ const isValidDateFormat = (dateString: string): boolean => {
 const isNetworkError = (error: any): boolean => {
   const errorMessage = error?.message || '';
   const errorCode = error?.code || '';
-  
+
   return (
     errorMessage.includes('net::ERR_INTERNET_DISCONNECTED') ||
     errorMessage.includes('net::ERR_NETWORK_CHANGED') ||
@@ -96,7 +97,7 @@ const safeParseInt = (value: string): number => {
   if (/^\d+$/.test(value)) {
     return parseInt(value);
   }
-  
+
   // 숫자가 아닌 경우 해시 기반 숫자 생성
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
@@ -171,16 +172,16 @@ const updateData = async (path: string, data: any) => {
 const deleteData = async (path: string) => {
   try {
     const dataRef = ref(database, path);
-    
+
     // 삭제 전 데이터 확인
     const snapshot = await get(dataRef);
-    
+
     if (!snapshot.exists()) {
       return false;
     }
-    
+
     await remove(dataRef);
-    
+
     return true;
   } catch (error) {
     if (isNetworkError(error)) {
@@ -207,7 +208,7 @@ const subscribeToData = (path: string, callback: (data: any) => void) => {
     }
     console.error(`Error subscribing to ${path}:`, error);
   });
-  
+
   return () => off(dataRef);
 };
 
@@ -225,10 +226,10 @@ const getMonthPath = (date: string, userId: string) => {
 // -----------------------------
 
 // 배열을 {"0": item0, "1": item1, ...} 객체로 변환 (Firebase에 안전하게 저장)
-const arrayToIndexedObject = (arr: any[] | undefined | null): {[key: string]: any} | undefined => {
+const arrayToIndexedObject = (arr: any[] | undefined | null): { [key: string]: any } | undefined => {
   if (!arr) return undefined;
   if (Array.isArray(arr)) {
-    const obj: {[key: string]: any} = {};
+    const obj: { [key: string]: any } = {};
     arr.forEach((item, idx) => {
       if (item !== undefined) obj[String(idx)] = item;
     });
@@ -251,10 +252,10 @@ const indexedObjectToArray = (obj: any): any[] => {
 };
 
 // crew 배열/객체를 인덱스 객체로 변환하면서 'posn type' 호환 키도 함께 저장
-const toIndexedCrewObjectForWrite = (value: any[] | {[k: string]: any} | undefined | null) => {
+const toIndexedCrewObjectForWrite = (value: any[] | { [k: string]: any } | undefined | null) => {
   const obj = arrayToIndexedObject(value);
   if (!obj) return obj;
-  const result: {[k: string]: any} = {};
+  const result: { [k: string]: any } = {};
   Object.keys(obj).forEach(k => {
     const member = obj[k] || {};
     // 기존 필드 보존 + 호환 키 추가
@@ -297,14 +298,14 @@ const transformCrewFieldsForRead = (flightData: any) => {
 // Firebase 데이터베이스 연결 테스트
 export const testDatabaseConnection = async (userId: string) => {
   try {
-    
+
     if (!auth.currentUser) {
       // Firebase 인증되지 않음
       return { success: false, error: 'Firebase 인증되지 않음' };
     }
-    
+
     const testRef = ref(database, `users/${userId}/test`);
-    
+
     // 읽기 권한 테스트
     try {
       await get(testRef);
@@ -312,24 +313,24 @@ export const testDatabaseConnection = async (userId: string) => {
     } catch (readError) {
       return { success: false, error: '읽기 권한 없음', details: readError };
     }
-    
+
     // 쓰기 권한 테스트 (테스트 데이터 생성 후 삭제)
     try {
       const testData = { test: true, timestamp: Date.now() };
       const newRef = await pushData(`users/${userId}/test`, testData);
       // 쓰기 권한 확인됨
-      
+
       // 테스트 데이터 삭제
       if (newRef) {
         const deleteRef = ref(database, `users/${userId}/test/${newRef}`);
         await remove(deleteRef);
       }
-      
+
       return { success: true, message: 'Firebase 데이터베이스 연결 성공' };
     } catch (writeError) {
       return { success: false, error: '쓰기 권한 없음', details: writeError };
     }
-    
+
   } catch (error) {
     console.error('❌ Firebase 데이터베이스 연결 테스트 실패:', error);
     return { success: false, error: '연결 테스트 실패', details: error };
@@ -341,43 +342,37 @@ export const getAllFlights = async (userId: string) => {
   try {
     // 오프라인 상태 체크
     if (isFirebaseOffline()) {
+      console.log('❌ getAllFlights: 오프라인 모드임');
       return [];
     }
 
-    // getAllFlights 호출됨
-    
     if (!userId) {
-      if ((import.meta as any).env?.DEV) {
-      }
+      console.log('❌ getAllFlights: userId가 없음');
       return [];
     }
-    
-    // 현재 인증 상태 확인
+
+    console.log(`🔍 getAllFlights 호출됨: userId=${userId}`);
+
+    // 현재 인증 상태 확인 (디버깅용)
     const currentUser = auth.currentUser;
-    
-    if (!currentUser) {
-      if ((import.meta as any).env?.DEV) {
-        // Firebase 인증되지 않음
-      }
-      return [];
-    }
-    
-    // 🔧 인증 상태 불일치 문제 해결: 현재 인증된 사용자 데이터만 가져오기
-    const actualUserId = currentUser.uid;
-    
+
+    // 🔧 인증 상태 불일치 문제 해결: 전달받은 userId 사용
+    // auth.currentUser가 없더라도 userId가 있으면 시도 (보안 규칙이 처리)
+    const actualUserId = userId;
+
     const allFlightsRef = ref(database, `users/${actualUserId}/flights`);
-    
+
     // 🔧 간단한 연결 테스트: 실제 데이터 경로로 직접 시도
     try {
       const snapshot = await get(allFlightsRef);
-      
+
       if (!snapshot.exists()) {
         return [];
       }
-      
+
       const allFlights: any[] = [];
       const yearData = snapshot.val();
-      
+
       // 모든 연도와 월을 순회 (안전한 구조 검증 추가)
       Object.keys(yearData).forEach(year => {
         if (yearData[year] && typeof yearData[year] === 'object') {
@@ -385,15 +380,15 @@ export const getAllFlights = async (userId: string) => {
             const monthFlights = yearData[year][month];
             if (monthFlights && typeof monthFlights === 'object') {
               Object.keys(monthFlights).forEach(flightKey => {
-              let flightData = monthFlights[flightKey];
+                let flightData = monthFlights[flightKey];
                 if (flightData && typeof flightData === 'object') {
                   // crew/cabinCrew 배열 복원
                   flightData = transformCrewFieldsForRead(flightData);
                   // id 필드가 없거나 유효하지 않은 경우 안전한 숫자 변환 사용
-                  const flightId = flightData.id && typeof flightData.id === 'number' && !isNaN(flightData.id) && flightData.id > 0 
-                    ? flightData.id 
+                  const flightId = flightData.id && typeof flightData.id === 'number' && !isNaN(flightData.id) && flightData.id > 0
+                    ? flightData.id
                     : safeParseInt(flightKey);
-                  
+
                   allFlights.push({
                     ...flightData,
                     id: flightId,
@@ -416,45 +411,46 @@ export const getAllFlights = async (userId: string) => {
           });
         }
       });
-      
+
       // 총 비행 데이터 로드 완료 - 날짜와 출발시간 기준으로 정렬
       const sortedFlights = allFlights.sort((a, b) => {
         // 먼저 날짜로 정렬
         const dateA = new Date(a.date).getTime();
         const dateB = new Date(b.date).getTime();
-        
+
         if (dateA !== dateB) {
           return dateA - dateB;
         }
-        
+
         // 같은 날짜인 경우 출발시간으로 정렬
         if (a.departureDateTimeUtc && b.departureDateTimeUtc) {
           return new Date(a.departureDateTimeUtc).getTime() - new Date(b.departureDateTimeUtc).getTime();
         }
-        
+
         // 출발시간이 없는 경우 STD로 정렬
         if (a.std && b.std) {
           return a.std.localeCompare(b.std);
         }
-        
+
         return 0;
       });
-      
-      
+
+
       return sortedFlights;
-      
+
     } catch (dbError) {
       console.error('❌ Firebase 데이터베이스 읽기 오류:', dbError);
-      
+
       // 권한 오류인 경우 빈 배열 반환
       if (dbError.code === 'PERMISSION_DENIED') {
+        console.error('❌ 권한 거부됨: 데이터베이스 규칙을 확인하세요.');
         return [];
       }
-      
+
       // 기타 오류는 상위로 전파
       throw dbError;
     }
-    
+
   } catch (error) {
     console.error('❌ getAllFlights 오류:', error);
     console.error('🔍 오류 상세 정보:', {
@@ -463,12 +459,12 @@ export const getAllFlights = async (userId: string) => {
       userId: userId,
       stack: error.stack
     });
-    
+
     // 권한 오류인 경우 빈 배열 반환
     if (error.code === 'PERMISSION_DENIED') {
       return [];
     }
-    
+
     throw error;
   }
 };
@@ -488,12 +484,12 @@ export const getFlightsByMonth = async (year: number, month: number, userId: str
     if (flightData && typeof flightData === 'object') {
       // crew/cabinCrew 배열 복원
       flightData = transformCrewFieldsForRead(flightData);
-      const flightId = flightData.id && typeof flightData.id === 'number' && !isNaN(flightData.id) && flightData.id > 0 
-        ? flightData.id 
+      const flightId = flightData.id && typeof flightData.id === 'number' && !isNaN(flightData.id) && flightData.id > 0
+        ? flightData.id
         : safeParseInt(flightKey);
-      
+
       // 비행 데이터 읽어옴
-      
+
       return {
         ...flightData,
         id: flightId
@@ -519,24 +515,24 @@ export const addFlight = async (flightData: any, userId: string) => {
     }
     return acc;
   }, {} as any);
-  
+
   // crew/cabinCrew를 인덱스 객체로 변환하여 저장
   const dataForWrite = transformCrewFieldsForWrite(cleanedFlightData);
-  
+
   // ✨ REG NO 디버깅
   if (flightData.regNo) {
   }
-  
+
   const monthPath = getMonthPath(flightData.date, userId);
   const newKey = await pushData(monthPath, dataForWrite);
-  
+
   // 생성된 키를 id 필드로 저장 (안전한 숫자 변환 사용)
   if (newKey) {
     const flightRef = ref(database, `${monthPath}/${newKey}`);
     const safeId = safeParseInt(newKey);
     await update(flightRef, { id: safeId });
   }
-  
+
   return newKey;
 };
 
@@ -545,11 +541,11 @@ export const updateFlight = async (flightId: number, dataToUpdate: any, userId: 
   // 모든 월에서 해당 비행을 찾아서 업데이트
   const allFlightsRef = ref(database, `users/${userId}/flights`);
   const snapshot = await get(allFlightsRef);
-  
+
   if (snapshot.exists()) {
     const yearData = snapshot.val();
     let found = false;
-    
+
     for (const year of Object.keys(yearData)) {
       if (yearData[year] && typeof yearData[year] === 'object') {
         for (const month of Object.keys(yearData[year])) {
@@ -559,10 +555,10 @@ export const updateFlight = async (flightId: number, dataToUpdate: any, userId: 
             for (const firebaseKey of Object.keys(monthFlights)) {
               const existingFlightData = monthFlights[firebaseKey];
               if (existingFlightData && typeof existingFlightData === 'object') {
-                const flightIdNum = existingFlightData.id && typeof existingFlightData.id === 'number' && !isNaN(existingFlightData.id) && existingFlightData.id > 0 
-                  ? existingFlightData.id 
+                const flightIdNum = existingFlightData.id && typeof existingFlightData.id === 'number' && !isNaN(existingFlightData.id) && existingFlightData.id > 0
+                  ? existingFlightData.id
                   : safeParseInt(firebaseKey);
-                
+
                 // ID가 일치하는 항공편 찾기 (타입 불일치 해결을 위해 String() 변환 사용)
                 if (String(flightIdNum) === String(flightId)) {
                   const flightRef = ref(database, `users/${userId}/flights/${year}/${month}/${firebaseKey}`);
@@ -578,7 +574,7 @@ export const updateFlight = async (flightId: number, dataToUpdate: any, userId: 
         if (found) break;
       }
     }
-    
+
     if (!found) {
       console.error(`항공편을 찾을 수 없음: ID=${flightId}`);
       throw new Error(`항공편을 찾을 수 없습니다: ${flightId}`);
@@ -587,9 +583,9 @@ export const updateFlight = async (flightId: number, dataToUpdate: any, userId: 
 };
 
 // 비행 데이터 삭제 (실제 저장 경로 사용)
-export const deleteFlight = async (flightId: string, storagePath: {year: string, month: string, firebaseKey: string}, userId: string) => {
+export const deleteFlight = async (flightId: string, storagePath: { year: string, month: string, firebaseKey: string }, userId: string) => {
   const fullPath = `users/${userId}/flights/${storagePath.year}/${storagePath.month}/${storagePath.firebaseKey}`;
-  
+
   // 실제 데이터 존재 여부 확인
   try {
     const dataRef = ref(database, fullPath);
@@ -601,7 +597,7 @@ export const deleteFlight = async (flightId: string, storagePath: {year: string,
     console.error('🗑️ 데이터 존재 확인 중 오류:', error);
     return false;
   }
-  
+
   const result = await deleteData(fullPath);
   return result;
 };
@@ -613,7 +609,7 @@ export const addMultipleFlights = async (flights: any[], userId: string) => {
     const regNoFlights = flights.filter(flight => flight.regNo);
     if (regNoFlights.length > 0) {
     }
-    
+
     const promises = flights.map(flight => addFlight(flight, userId));
     const results = await Promise.all(promises);
     return results;
@@ -627,7 +623,7 @@ export const addMultipleFlights = async (flights: any[], userId: string) => {
 export const subscribeToAllFlights = (callback: (flights: any[]) => void, userId: string) => {
   // 오프라인 상태 체크
   if (isFirebaseOffline()) {
-    return () => {}; // 빈 unsubscribe 함수 반환
+    return () => { }; // 빈 unsubscribe 함수 반환
   }
 
   const allFlightsRef = ref(database, `users/${userId}/flights`);
@@ -636,10 +632,10 @@ export const subscribeToAllFlights = (callback: (flights: any[]) => void, userId
       callback([]);
       return;
     }
-    
+
     const allFlights: any[] = [];
     const yearData = snapshot.val();
-    
+
     Object.keys(yearData).forEach(year => {
       if (yearData[year] && typeof yearData[year] === 'object') {
         Object.keys(yearData[year]).forEach(month => {
@@ -649,10 +645,10 @@ export const subscribeToAllFlights = (callback: (flights: any[]) => void, userId
               const flightData = monthFlights[flightKey];
               if (flightData && typeof flightData === 'object') {
                 // id 필드가 없거나 유효하지 않은 경우 안전한 숫자 변환 사용
-                const flightId = flightData.id && typeof flightData.id === 'number' && !isNaN(flightData.id) && flightData.id > 0 
-                  ? flightData.id 
+                const flightId = flightData.id && typeof flightData.id === 'number' && !isNaN(flightData.id) && flightData.id > 0
+                  ? flightData.id
                   : safeParseInt(flightKey);
-                
+
                 allFlights.push({
                   ...flightData,
                   id: flightId,
@@ -669,32 +665,32 @@ export const subscribeToAllFlights = (callback: (flights: any[]) => void, userId
         });
       }
     });
-    
+
     // 날짜와 출발시간 기준으로 정렬
     const sortedFlights = allFlights.sort((a, b) => {
       // 먼저 날짜로 정렬
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
-      
+
       if (dateA !== dateB) {
         return dateA - dateB;
       }
-      
+
       // 같은 날짜인 경우 출발시간으로 정렬
       if (a.departureDateTimeUtc && b.departureDateTimeUtc) {
         return new Date(a.departureDateTimeUtc).getTime() - new Date(b.departureDateTimeUtc).getTime();
       }
-      
+
       // 출발시간이 없는 경우 STD로 정렬
       if (a.std && b.std) {
         return a.std.localeCompare(b.std);
       }
-      
+
       return 0;
     });
     callback(sortedFlights);
   });
-  
+
   return () => off(allFlightsRef);
 };
 
@@ -717,16 +713,16 @@ export const subscribeToFlights = (callback: (flights: any) => void, userId: str
 export const saveUserSettings = async (userId: string, settings: { airline?: string; selectedCurrencyCards?: string[]; empl?: string; userName?: string; base?: string; company?: string }) => {
   try {
     const settingsPath = `users/${userId}/settings`;
-    
+
     // 기존 설정을 먼저 가져오기
     const existingSettings = await readData(settingsPath) || {};
-    
+
     // 기존 설정과 새로운 설정을 병합
     const mergedSettings = {
       ...existingSettings,
       ...settings
     };
-    
+
     // 암호화 없이 직접 저장
     const success = await writeData(settingsPath, mergedSettings);
 
@@ -740,7 +736,7 @@ export const saveUserSettings = async (userId: string, settings: { airline?: str
     } catch (e) {
       console.warn('⚠️ IndexedDB 사용자 설정 저장 경고:', e);
     }
-    
+
     return success;
   } catch (error) {
     console.error('Error saving user settings:', error);
@@ -764,7 +760,7 @@ export const getUserSettings = async (userId: string) => {
 
     const settingsPath = `users/${userId}/settings`;
     const settings = await readData(settingsPath);
-    
+
     if (!settings) {
       // 원격 데이터가 없으면 IndexedDB에서 다시 시도
       const localSettings = await indexedDBCache.loadUserSettings(userId);
@@ -776,7 +772,7 @@ export const getUserSettings = async (userId: string) => {
       }
       return { airline: 'OZ' }; // 기본값 설정
     }
-    
+
     const normalizedSettings = {
       ...settings,
       base: settings.base ? String(settings.base).toUpperCase() : settings.base
@@ -792,11 +788,11 @@ export const getUserSettings = async (userId: string) => {
     } catch (e) {
       console.warn('⚠️ IndexedDB 사용자 설정 업데이트 경고:', e);
     }
-    
+
     return normalizedSettings;
   } catch (error) {
     console.error('Error getting user settings:', error);
-    
+
     // 오류 시 IndexedDB에서 최후로 시도
     try {
       const localSettings = await indexedDBCache.loadUserSettings(userId);
@@ -809,19 +805,19 @@ export const getUserSettings = async (userId: string) => {
     } catch (e) {
       console.warn('⚠️ IndexedDB 사용자 설정 로드 실패:', e);
     }
-    
+
     return { airline: 'OZ' }; // 오류 시 기본값 반환
   }
 };
 
 // 문서 만료일 저장 (AES-GCM 암호화)
-export const saveDocumentExpiryDates = async (userId: string, expiryDates: {[key: string]: string}) => {
+export const saveDocumentExpiryDates = async (userId: string, expiryDates: { [key: string]: string }) => {
   try {
     const expiryDatesPath = `users/${userId}/documentExpiryDates`;
-    
+
     // 데이터 암호화 (AES-GCM)
     const encryptedExpiryDates = await encryptDocumentExpiryDates(expiryDates, userId);
-    
+
     const success = await writeData(expiryDatesPath, encryptedExpiryDates);
     return success;
   } catch (error) {
@@ -835,14 +831,14 @@ export const getDocumentExpiryDates = async (userId: string) => {
   try {
     const expiryDatesPath = `users/${userId}/documentExpiryDates`;
     const encryptedExpiryDates = await readData(expiryDatesPath);
-    
+
     if (!encryptedExpiryDates) {
       return {};
     }
-    
+
     // 데이터 복호화 (기존 방식 우선)
     const decryptedExpiryDates = await decryptDocumentExpiryDates(encryptedExpiryDates, userId);
-    
+
     // 업그레이드가 필요한지 확인 (기존 방식으로 복호화된 데이터가 있는지)
     const needsUpgrade = Object.values(encryptedExpiryDates).some((encryptedDate: string) => {
       try {
@@ -853,16 +849,16 @@ export const getDocumentExpiryDates = async (userId: string) => {
         return false;
       }
     });
-    
+
     // 업그레이드가 필요한 경우에만 실행
     if (needsUpgrade) {
       try {
         // 모든 데이터를 새로운 방식으로 업그레이드
         const upgradedExpiryDates = await upgradeDocumentExpiryDates(encryptedExpiryDates, userId);
-        
+
         // 업그레이드된 데이터를 Firebase에 저장
         await writeData(expiryDatesPath, upgradedExpiryDates);
-        
+
         // 업그레이드된 데이터로 다시 복호화
         const upgradedDecryptedDates = await decryptDocumentExpiryDates(upgradedExpiryDates, userId);
         return upgradedDecryptedDates;
@@ -872,7 +868,7 @@ export const getDocumentExpiryDates = async (userId: string) => {
         return decryptedExpiryDates;
       }
     }
-    
+
     return decryptedExpiryDates;
   } catch (error) {
     console.error('Error getting document expiry dates:', error);
@@ -881,19 +877,19 @@ export const getDocumentExpiryDates = async (userId: string) => {
 };
 
 // Crew 메모 저장
-export const saveCrewMemos = async (userId: string, memos: {[key: string]: string}): Promise<void> => {
+export const saveCrewMemos = async (userId: string, memos: { [key: string]: string }): Promise<void> => {
   try {
-    
+
     // 메모 암호화
     const encryptedMemos = await encryptCrewMemos(memos, userId);
-    
+
     // IndexedDB에 암호화된 상태로 저장 (오프라인 대응)
     await indexedDBCache.saveCrewMemos(encryptedMemos, userId);
-    
+
     // Firebase에 저장
     const memosRef = ref(database, `users/${userId}/crewMemos`);
     await set(memosRef, encryptedMemos);
-    
+
   } catch (error) {
     console.error('Error saving crew memos:', error);
     // Firebase 저장 실패해도 IndexedDB에는 저장되어 있음
@@ -901,12 +897,12 @@ export const saveCrewMemos = async (userId: string, memos: {[key: string]: strin
 };
 
 // Crew 메모 불러오기
-export const getCrewMemos = async (userId: string): Promise<{[key: string]: string}> => {
+export const getCrewMemos = async (userId: string): Promise<{ [key: string]: string }> => {
   try {
-    
+
     const memosRef = ref(database, `users/${userId}/crewMemos`);
     const snapshot = await get(memosRef);
-    
+
     if (!snapshot.exists()) {
       // IndexedDB 캐시에서 확인
       const cachedEncryptedMemos = await indexedDBCache.loadCrewMemos(userId);
@@ -917,12 +913,12 @@ export const getCrewMemos = async (userId: string): Promise<{[key: string]: stri
       }
       return {};
     }
-    
-    const encryptedMemos = snapshot.val() as {[key: string]: string};
-    
+
+    const encryptedMemos = snapshot.val() as { [key: string]: string };
+
     // 메모 복호화
     const decryptedMemos = await decryptCrewMemos(encryptedMemos, userId);
-    
+
     // 업그레이드 필요성 확인 및 자동 업그레이드
     const needsUpgrade = Object.values(encryptedMemos).some(encryptedMemo => {
       try {
@@ -932,35 +928,35 @@ export const getCrewMemos = async (userId: string): Promise<{[key: string]: stri
         return false;
       }
     });
-    
+
     // 업그레이드가 필요한 경우에만 실행
     if (needsUpgrade) {
       try {
         const upgradedMemos = await upgradeCrewMemos(encryptedMemos, userId);
         await set(memosRef, upgradedMemos);
-        
+
         // 업그레이드된 데이터로 다시 복호화
         const upgradedDecryptedMemos = await decryptCrewMemos(upgradedMemos, userId);
-        
+
         // IndexedDB 캐시에 암호화된 상태로 저장
         await indexedDBCache.saveCrewMemos(upgradedMemos, userId);
-        
+
         return upgradedDecryptedMemos;
       } catch (upgradeError) {
         console.error('Crew 메모 업그레이드 오류:', upgradeError);
         // 업그레이드 실패 시 기존 데이터 반환
-        
+
         // IndexedDB 캐시에 암호화된 상태로 저장
         await indexedDBCache.saveCrewMemos(encryptedMemos, userId);
-        
+
         return decryptedMemos;
       }
     }
-    
-    
+
+
     // IndexedDB 캐시에 암호화된 상태로 저장
     await indexedDBCache.saveCrewMemos(encryptedMemos, userId);
-    
+
     return decryptedMemos;
   } catch (error) {
     console.error('Error getting crew memos:', error);
@@ -976,19 +972,19 @@ export const getCrewMemos = async (userId: string): Promise<{[key: string]: stri
 };
 
 // 도시 메모 저장
-export const saveCityMemos = async (userId: string, memos: {[key: string]: string}): Promise<void> => {
+export const saveCityMemos = async (userId: string, memos: { [key: string]: string }): Promise<void> => {
   try {
-    
+
     // 메모 암호화
     const encryptedMemos = await encryptCityMemos(memos, userId);
-    
+
     // IndexedDB에 암호화된 상태로 저장 (오프라인 대응)
     await indexedDBCache.saveCityMemos(encryptedMemos, userId);
-    
+
     // Firebase에 저장
     const userRef = ref(database, `users/${userId}/cityMemos`);
     await set(userRef, encryptedMemos);
-    
+
   } catch (error) {
     console.error('Error saving city memos:', error);
     // Firebase 저장 실패해도 IndexedDB에는 저장되어 있음
@@ -996,12 +992,12 @@ export const saveCityMemos = async (userId: string, memos: {[key: string]: strin
 };
 
 // 도시 메모 불러오기
-export const getCityMemos = async (userId: string): Promise<{[key: string]: string}> => {
+export const getCityMemos = async (userId: string): Promise<{ [key: string]: string }> => {
   try {
-    
+
     const userRef = ref(database, `users/${userId}/cityMemos`);
     const snapshot = await get(userRef);
-    
+
     if (!snapshot.exists()) {
       // IndexedDB 캐시에서 확인
       const cachedEncryptedMemos = await indexedDBCache.loadCityMemos(userId);
@@ -1012,48 +1008,48 @@ export const getCityMemos = async (userId: string): Promise<{[key: string]: stri
       }
       return {};
     }
-    
+
     const encryptedMemos = snapshot.val();
-    
+
     // 메모 복호화
     const decryptedMemos = await decryptCityMemos(encryptedMemos, userId);
-    
+
     // 업그레이드가 필요한지 확인 (레거시 데이터가 있는 경우)
-    const needsUpgrade = Object.values(encryptedMemos).some((memo: any) => 
+    const needsUpgrade = Object.values(encryptedMemos).some((memo: any) =>
       typeof memo === 'string' && !memo.includes('|')
     );
-    
+
     // 업그레이드가 필요한 경우에만 실행
     if (needsUpgrade) {
       try {
         // 업그레이드 실행
         const upgradedMemos = await upgradeCityMemos(encryptedMemos, userId);
-        
+
         // 업그레이드된 데이터를 Firebase에 저장
         await set(userRef, upgradedMemos);
-        
+
         // 업그레이드된 데이터로 다시 복호화
         const upgradedDecryptedMemos = await decryptCityMemos(upgradedMemos, userId);
-        
+
         // IndexedDB 캐시에 암호화된 상태로 저장
         await indexedDBCache.saveCityMemos(upgradedMemos, userId);
-        
+
         return upgradedDecryptedMemos;
       } catch (upgradeError) {
         console.error('도시 메모 업그레이드 오류:', upgradeError);
         // 업그레이드 실패 시 기존 데이터 반환
-        
+
         // IndexedDB 캐시에 암호화된 상태로 저장
         await indexedDBCache.saveCityMemos(encryptedMemos, userId);
-        
+
         return decryptedMemos;
       }
     }
-    
-    
+
+
     // IndexedDB 캐시에 암호화된 상태로 저장
     await indexedDBCache.saveCityMemos(encryptedMemos, userId);
-    
+
     return decryptedMemos;
   } catch (error) {
     console.error('Error getting city memos:', error);
@@ -1107,11 +1103,11 @@ export const saveRestInfo = async (userId: string, restInfo: RestInfo): Promise<
 
     // IndexedDB에 저장 (오프라인 대응)
     await indexedDBCache.saveRestInfo(restInfoWithTimestamp, userId);
-    
+
     // Firebase에 저장
     const userRef = ref(database, `users/${userId}/restInfo`);
     await set(userRef, restInfoWithTimestamp);
-    
+
   } catch (error) {
     console.error('Error saving REST info:', error);
     // Firebase 저장 실패해도 IndexedDB에는 저장되어 있음
@@ -1124,21 +1120,21 @@ export const getRestInfo = async (userId: string): Promise<RestInfo | null> => {
     if (isFirebaseOffline()) {
       return await indexedDBCache.loadRestInfo(userId);
     }
-    
+
     const userRef = ref(database, `users/${userId}/restInfo`);
     const snapshot = await get(userRef);
-    
+
     if (!snapshot.exists()) {
       // IndexedDB 캐시에서 확인
       const cachedRestInfo = await indexedDBCache.loadRestInfo(userId);
       return cachedRestInfo;
     }
-    
+
     const restInfo = snapshot.val();
-    
+
     // IndexedDB 캐시에 저장
     await indexedDBCache.saveRestInfo(restInfo, userId);
-    
+
     return restInfo;
   } catch (error) {
     console.error('Error getting REST info:', error);
@@ -1150,7 +1146,7 @@ export const getRestInfo = async (userId: string): Promise<RestInfo | null> => {
 // REST 정보 실시간 동기화 구독
 export const subscribeToRestInfo = (userId: string, callback: (restInfo: RestInfo | null) => void): (() => void) => {
   const userRef = ref(database, `users/${userId}/restInfo`);
-  
+
   const unsubscribe = onValue(userRef, async (snapshot) => {
     if (snapshot.exists()) {
       const restInfo = snapshot.val();
@@ -1167,7 +1163,7 @@ export const subscribeToRestInfo = (userId: string, callback: (restInfo: RestInf
     // 오류 발생 시 IndexedDB에서 불러오기
     indexedDBCache.loadRestInfo(userId).then(callback);
   });
-  
+
   return unsubscribe;
 };
 
@@ -1180,23 +1176,23 @@ export const findExistingSchedule = async (userId: string, flight: any): Promise
 
     // 날짜 형식 변환 및 연도/월 추출
     let normalizedDate = flight.date;
-    
+
     // 08Sep25 형식을 2025-09-08 형식으로 변환
     if (flight.date.match(/^\d{2}[A-Za-z]{3}\d{2}$/)) {
       const day = flight.date.substring(0, 2);
       const month = flight.date.substring(2, 5);
       const year = '20' + flight.date.substring(5, 7);
-      
+
       const monthMap: { [key: string]: string } = {
         'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
         'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
         'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
       };
-      
+
       const monthNum = monthMap[month] || '01';
       normalizedDate = `${year}-${monthNum}-${day}`;
     }
-    
+
     // 날짜에서 연도와 월 추출
     const dateParts = normalizedDate.split('-');
     const year = dateParts[0];
@@ -1204,17 +1200,17 @@ export const findExistingSchedule = async (userId: string, flight: any): Promise
 
     const flightsRef = ref(database, `users/${userId}/flights/${year}/${month}`);
     const snapshot = await get(flightsRef);
-    
+
     if (!snapshot.exists()) {
       return null;
     }
 
     const monthFlights = snapshot.val();
-    
+
     // 같은 날짜, 편명, 노선을 가진 스케줄 찾기
     for (const [flightId, flightData] of Object.entries(monthFlights)) {
       const existingFlight = flightData as any;
-      
+
       // VAC 스케줄의 경우 route 비교를 다르게 처리
       let routeMatches = false;
       if (flight.flightNumber === 'VAC_R' || flight.flightNumber === 'VAC') {
@@ -1224,17 +1220,17 @@ export const findExistingSchedule = async (userId: string, flight: any): Promise
         // 일반 비행 스케줄은 route도 비교
         routeMatches = existingFlight.route === flight.route;
       }
-      
-      if (existingFlight.date === normalizedDate && 
-          existingFlight.flightNumber === flight.flightNumber && 
-          routeMatches) {
+
+      if (existingFlight.date === normalizedDate &&
+        existingFlight.flightNumber === flight.flightNumber &&
+        routeMatches) {
         return {
           flightId: flightId,
           version: existingFlight.version || 0
         };
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error('기존 스케줄 찾기 오류:', error);
@@ -1251,23 +1247,23 @@ export const saveFlightSchedule = async (userId: string, flight: any): Promise<v
 
     // 날짜 형식 변환 및 연도/월 추출
     let normalizedDate = flight.date;
-    
+
     // 08Sep25 형식을 2025-09-08 형식으로 변환
     if (flight.date.match(/^\d{2}[A-Za-z]{3}\d{2}$/)) {
       const day = flight.date.substring(0, 2);
       const month = flight.date.substring(2, 5);
       const year = '20' + flight.date.substring(5, 7);
-      
+
       const monthMap: { [key: string]: string } = {
         'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
         'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
         'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
       };
-      
+
       const monthNum = monthMap[month] || '01';
       normalizedDate = `${year}-${monthNum}-${day}`;
     }
-    
+
     // 날짜에서 연도와 월 추출
     const dateParts = normalizedDate.split('-');
     const year = dateParts[0];
@@ -1275,10 +1271,10 @@ export const saveFlightSchedule = async (userId: string, flight: any): Promise<v
 
     // 기존 스케줄 찾기
     const existingSchedule = await findExistingSchedule(userId, flight);
-    
+
     let flightToSave;
     let flightRef;
-    
+
     if (existingSchedule) {
       // 기존 스케줄이 있으면 버전 업데이트
       const newVersion = existingSchedule.version + 1;
@@ -1288,11 +1284,11 @@ export const saveFlightSchedule = async (userId: string, flight: any): Promise<v
         version: newVersion,
         lastUpdated: new Date().toISOString()
       });
-      
+
       // 기존 스케줄 업데이트
       flightRef = ref(database, `users/${userId}/flights/${year}/${month}/${existingSchedule.flightId}`);
       await update(flightRef, flightToSave);
-      
+
     } else {
       // 새로운 스케줄이면 버전 0으로 생성
       flightToSave = transformCrewFieldsForWrite({
@@ -1301,13 +1297,13 @@ export const saveFlightSchedule = async (userId: string, flight: any): Promise<v
         version: 0,
         lastUpdated: flight.lastUpdated || new Date().toISOString()
       });
-      
+
       // 새로운 스케줄 저장
       flightRef = ref(database, `users/${userId}/flights/${year}/${month}/${flight.id}`);
       await set(flightRef, flightToSave);
-      
+
     }
-    
+
   } catch (error) {
     console.error('Error saving flight schedule:', error);
     throw error;
@@ -1315,19 +1311,19 @@ export const saveFlightSchedule = async (userId: string, flight: any): Promise<v
 };
 
 // 비행 스케줄 불러오기 (연도별)
-export const getFlightSchedules = async (userId: string, year: string): Promise<{[month: string]: {[flightId: string]: any}} | null> => {
+export const getFlightSchedules = async (userId: string, year: string): Promise<{ [month: string]: { [flightId: string]: any } } | null> => {
   try {
     if (isFirebaseOffline()) {
       return null;
     }
-    
+
     const flightsRef = ref(database, `users/${userId}/flights/${year}`);
     const snapshot = await get(flightsRef);
-    
+
     if (!snapshot.exists()) {
       return null;
     }
-    
+
     return snapshot.val();
   } catch (error) {
     console.error('Error getting flight schedules:', error);
@@ -1336,9 +1332,9 @@ export const getFlightSchedules = async (userId: string, year: string): Promise<
 };
 
 // 비행 스케줄 실시간 동기화 구독
-export const subscribeToFlightSchedules = (userId: string, year: string, callback: (flights: {[month: string]: {[flightId: string]: any}} | null) => void): (() => void) => {
+export const subscribeToFlightSchedules = (userId: string, year: string, callback: (flights: { [month: string]: { [flightId: string]: any } } | null) => void): (() => void) => {
   const flightsRef = ref(database, `users/${userId}/flights/${year}`);
-  
+
   const unsubscribe = onValue(flightsRef, (snapshot) => {
     if (snapshot.exists()) {
       const flights = snapshot.val();
@@ -1350,7 +1346,7 @@ export const subscribeToFlightSchedules = (userId: string, year: string, callbac
     console.error('비행 스케줄 동기화 오류:', error);
     callback(null);
   });
-  
+
   return unsubscribe;
 };
 

@@ -9,12 +9,12 @@ interface CrewMemoModalProps {
     onSave: (crewName: string, memo: string) => void;
 }
 
-const CrewMemoModal: React.FC<CrewMemoModalProps> = ({ 
-    isOpen, 
-    onClose, 
-    crewName, 
-    initialMemo = '', 
-    onSave 
+const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
+    isOpen,
+    onClose,
+    crewName,
+    initialMemo = '',
+    onSave
 }) => {
     const [memo, setMemo] = useState(initialMemo);
     const [isComposing, setIsComposing] = useState(false);
@@ -90,14 +90,14 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
         if (textareaRef.current) {
             const textarea = textareaRef.current;
             const minHeight = 200; // 최소 높이
-            
+
             // contentEditable div의 경우 scrollHeight를 사용하여 내용에 맞게 높이 조정
             const scrollHeight = textarea.scrollHeight;
-            
+
             // 최소 높이를 보장하면서 내용에 맞게 높이 조정
             const newHeight = Math.max(minHeight, scrollHeight);
             textarea.style.height = newHeight + 'px';
-            
+
             textarea.style.overflowY = 'auto';
         }
     };
@@ -134,7 +134,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
         if (!isEditing && textareaRef.current && memo !== textareaRef.current.innerHTML) {
             textareaRef.current.innerHTML = memo || '<span class="text-gray-500 dark:text-gray-400">메모를 입력하세요...</span>';
             setTimeout(() => {
-        adjustTextareaHeight();
+                adjustTextareaHeight();
             }, 0);
         }
     }, [memo, isEditing]);
@@ -154,23 +154,23 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
             const selection = window.getSelection();
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
-            
-            // 들여쓰기와 점/번호 추가
-            const indent = '    '; // 4칸 들여쓰기 (공백)
-            const bullet = ordered ? '1. ' : '• ';
-            const listText = indent + bullet;
-            
-            // 현재 위치에 목록 텍스트 삽입
+
+                // 들여쓰기와 점/번호 추가
+                const indent = '    '; // 4칸 들여쓰기 (공백)
+                const bullet = ordered ? '1. ' : '• ';
+                const listText = indent + bullet;
+
+                // 현재 위치에 목록 텍스트 삽입
                 const textNode = document.createTextNode(listText);
                 range.deleteContents();
                 range.insertNode(textNode);
-            
-            // 커서를 목록 텍스트 뒤로 이동
+
+                // 커서를 목록 텍스트 뒤로 이동
                 range.setStartAfter(textNode);
                 range.setEndAfter(textNode);
                 selection.removeAllRanges();
                 selection.addRange(range);
-                
+
                 // 메모 상태 업데이트
                 setMemo(textareaRef.current.innerHTML);
             }
@@ -184,7 +184,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 const selectedText = range.toString();
-                
+
                 if (selectedText) {
                     // 선택된 텍스트에 폰트 크기 적용
                     const span = document.createElement('span');
@@ -205,7 +205,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 const selectedText = range.toString();
-                
+
                 if (selectedText) {
                     if (color === '#000000') {
                         // 기본색(검은색)을 선택하면 색상 제거
@@ -213,11 +213,11 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                         if (container.nodeType === Node.TEXT_NODE) {
                             container = container.parentNode!;
                         }
-                        
+
                         // span 태그를 찾아서 색상 제거
                         let spanElement = null;
                         let currentElement = container;
-                        
+
                         // 부모 요소들을 순회하면서 color 스타일이 있는 span 찾기
                         while (currentElement && currentElement !== textareaRef.current) {
                             if (currentElement.nodeType === Node.ELEMENT_NODE) {
@@ -229,7 +229,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                             }
                             currentElement = currentElement.parentNode;
                         }
-                        
+
                         if (spanElement) {
                             const parent = spanElement.parentNode;
                             if (parent) {
@@ -258,7 +258,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 const selectedText = range.toString();
-                
+
                 if (selectedText) {
                     // 선택된 텍스트에 배경색 적용
                     const bgColor = color === 'transparent' ? 'transparent' : color;
@@ -280,18 +280,18 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 const selectedText = range.toString();
-                
+
                 if (selectedText) {
                     // 선택된 텍스트가 이미 strong 태그 안에 있는지 확인
                     let container = range.commonAncestorContainer;
                     if (container.nodeType === Node.TEXT_NODE) {
                         container = container.parentNode!;
                     }
-                    
+
                     // strong 태그를 찾아서 토글
                     let strongElement = null;
                     let currentElement = container;
-                    
+
                     // 부모 요소들을 순회하면서 strong 태그 찾기
                     while (currentElement && currentElement !== textareaRef.current) {
                         if (currentElement.nodeType === Node.ELEMENT_NODE) {
@@ -303,7 +303,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                         }
                         currentElement = currentElement.parentNode;
                     }
-                    
+
                     if (strongElement) {
                         // 이미 볼드이면 해제
                         const parent = strongElement.parentNode;
@@ -331,18 +331,18 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 const selectedText = range.toString();
-                
+
                 if (selectedText) {
                     // 선택된 텍스트가 이미 em 태그 안에 있는지 확인
                     let container = range.commonAncestorContainer;
                     if (container.nodeType === Node.TEXT_NODE) {
                         container = container.parentNode!;
                     }
-                    
+
                     // em 태그를 찾아서 토글
                     let emElement = null;
                     let currentElement = container;
-                    
+
                     // 부모 요소들을 순회하면서 em 태그 찾기
                     while (currentElement && currentElement !== textareaRef.current) {
                         if (currentElement.nodeType === Node.ELEMENT_NODE) {
@@ -354,7 +354,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                         }
                         currentElement = currentElement.parentNode;
                     }
-                    
+
                     if (emElement) {
                         // 이미 이탤릭이면 해제
                         const parent = emElement.parentNode;
@@ -382,18 +382,18 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 const selectedText = range.toString();
-                
+
                 if (selectedText) {
                     // 선택된 텍스트가 이미 u 태그 안에 있는지 확인
                     let container = range.commonAncestorContainer;
                     if (container.nodeType === Node.TEXT_NODE) {
                         container = container.parentNode!;
                     }
-                    
+
                     // u 태그를 찾아서 토글
                     let uElement = null;
                     let currentElement = container;
-                    
+
                     // 부모 요소들을 순회하면서 u 태그 찾기
                     while (currentElement && currentElement !== textareaRef.current) {
                         if (currentElement.nodeType === Node.ELEMENT_NODE) {
@@ -405,7 +405,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                         }
                         currentElement = currentElement.parentNode;
                     }
-                    
+
                     if (uElement) {
                         // 이미 밑줄이면 해제
                         const parent = uElement.parentNode;
@@ -503,7 +503,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
     // 팔레트 외부 클릭 시 닫기
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if ((showTextColorPalette || showBackgroundColorPalette || showSymbolPalette) && 
+            if ((showTextColorPalette || showBackgroundColorPalette || showSymbolPalette) &&
                 !(event.target as Element).closest('.color-palette-container') &&
                 !(event.target as Element).closest('.symbol-palette-container')) {
                 setShowTextColorPalette(false);
@@ -530,11 +530,11 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
     const handleTouchMove = (e: React.TouchEvent) => {
         // 모달 내부의 스크롤 가능한 영역에서만 스크롤 허용
         const target = e.target as HTMLElement;
-        const isScrollableArea = target.closest('[contenteditable="true"]') || 
-                                 target.closest('.custom-scrollbar') ||
-                                 target.closest('[style*="overflow"]') ||
-                                 target.closest('.memo-content-area');
-        
+        const isScrollableArea = target.closest('[contenteditable="true"]') ||
+            target.closest('.custom-scrollbar') ||
+            target.closest('[style*="overflow"]') ||
+            target.closest('.memo-content-area');
+
         // 스크롤 가능한 영역이 아니면 기본 동작 방지
         if (!isScrollableArea) {
             e.preventDefault();
@@ -542,43 +542,43 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
     };
 
     return (
-        <div 
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-[80] p-4 pt-safe" 
+        <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[80] p-4 pt-safe"
             onClick={onClose}
             onTouchMove={handleTouchMove}
         >
-            <div 
+            <div
                 ref={modalRef}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 relative animate-fade-in-up flex flex-col my-4 custom-scrollbar" 
+                className="glass-panel rounded-2xl shadow-xl w-full max-w-md p-6 relative animate-fade-in-up flex flex-col my-4 custom-scrollbar"
                 onClick={(e) => e.stopPropagation()}
-                style={{ 
-                    maxHeight: '90vh', 
+                style={{
+                    maxHeight: '90vh',
                     height: 'auto',
                     minHeight: 'auto'
                 }}
             >
-                <button 
-                    onClick={onClose} 
-                    className="absolute top-4 right-4 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
                 >
                     <XIcon className="w-6 h-6" />
                 </button>
-                
+
                 <div className="flex-shrink-0 mb-2">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-                        <span className="text-blue-600 dark:text-blue-400">{crewName}</span>님 메모
+                    <h2 className="text-xl font-bold text-white mb-1">
+                        <span className="text-blue-400">{crewName}</span>님 메모
                     </h2>
                 </div>
-                
+
                 <div className="flex-1 min-h-0 flex flex-col">
                     {/* 툴바 */}
                     {isEditing && (
-                        <div className="flex-shrink-0 border border-gray-300 dark:border-gray-600 rounded-t-lg bg-gray-50 dark:bg-gray-700 p-2 flex flex-wrap gap-1">
+                        <div className="flex-shrink-0 border border-white/10 rounded-t-lg bg-white/5 p-2 flex flex-wrap gap-1">
                             {/* 폰트 크기 */}
                             <select
                                 onChange={(e) => changeFontSize(e.target.value)}
                                 defaultValue="14"
-                                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white"
                                 title="폰트 크기"
                             >
                                 <option value="8">8pt</option>
@@ -592,20 +592,20 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                 <option value="20">20pt</option>
                                 <option value="24">24pt</option>
                             </select>
-                            
+
                             {/* 텍스트 색상 */}
                             <div className="relative color-palette-container">
                                 <button
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => setShowTextColorPalette(!showTextColorPalette)}
-                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600"
+                                    className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white hover:bg-white/10"
                                     title="텍스트 색상"
                                 >
                                     A
                                 </button>
-                                
+
                                 {showTextColorPalette && (
-                                    <div className="absolute top-full left-0 mt-2 p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl" style={{ zIndex: 9999, width: '140px' }}>
+                                    <div className="absolute top-full left-0 mt-2 p-3 bg-gray-800 border border-white/10 rounded-lg shadow-xl" style={{ zIndex: 9999, width: '140px' }}>
                                         <div className="grid grid-cols-5 gap-2 justify-items-center">
                                             {['#000000', '#FFFFFF', '#FF0000', '#00AA00', '#0066FF', '#FF6600', '#9900FF', '#00AAAA', '#FFAA00', '#AA00AA'].map((color) => (
                                                 <button
@@ -615,7 +615,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                                         changeTextColor(color);
                                                         setShowTextColorPalette(false);
                                                     }}
-                                                    className="w-6 h-6 border border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+                                                    className="w-6 h-6 border border-white/20 rounded cursor-pointer hover:scale-110 active:scale-95 transition-transform"
                                                     style={{ backgroundColor: color }}
                                                     title={`텍스트 색상: ${color}`}
                                                 />
@@ -624,20 +624,20 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                     </div>
                                 )}
                             </div>
-                            
+
                             {/* 배경 색상 */}
                             <div className="relative color-palette-container">
                                 <button
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => setShowBackgroundColorPalette(!showBackgroundColorPalette)}
-                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600"
+                                    className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white hover:bg-white/10"
                                     title="배경 색상"
                                 >
                                     🎨
                                 </button>
-                                
+
                                 {showBackgroundColorPalette && (
-                                    <div className="absolute top-full left-0 mt-2 p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl" style={{ zIndex: 9999, width: '140px' }}>
+                                    <div className="absolute top-full left-0 mt-2 p-3 bg-gray-800 border border-white/10 rounded-lg shadow-xl" style={{ zIndex: 9999, width: '140px' }}>
                                         <div className="grid grid-cols-5 gap-2 justify-items-center">
                                             {['transparent', '#FFE6E6', '#E6F3FF', '#E6FFE6', '#FFF0E6', '#F0E6FF', '#E6FFFF', '#FFFFE6', '#FFE6F0', '#E6E6E6'].map((color) => (
                                                 <button
@@ -647,7 +647,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                                         changeBackgroundColor(color);
                                                         setShowBackgroundColorPalette(false);
                                                     }}
-                                                    className="w-6 h-6 border border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+                                                    className="w-6 h-6 border border-white/20 rounded cursor-pointer hover:scale-110 active:scale-95 transition-transform"
                                                     style={{ backgroundColor: color }}
                                                     title={color === 'transparent' ? '배경 없음' : `배경 색상: ${color}`}
                                                 />
@@ -656,54 +656,54 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                     </div>
                                 )}
                             </div>
-                            
-                            <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
-                            
+
+                            <div className="w-px h-6 bg-white/10 mx-1"></div>
+
                             {/* 볼드 */}
                             <button
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={applyBold}
-                                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 font-bold"
+                                className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white hover:bg-white/10 font-bold"
                                 title="굵게"
                             >
                                 B
                             </button>
-                            
+
                             {/* 이탤릭 */}
                             <button
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={applyItalic}
-                                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 italic"
+                                className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white hover:bg-white/10 italic"
                                 title="기울임"
                             >
                                 I
                             </button>
-                            
+
                             {/* 밑줄 */}
                             <button
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={applyUnderline}
-                                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 underline"
+                                className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white hover:bg-white/10 underline"
                                 title="밑줄"
                             >
                                 U
                             </button>
-                            
-                            <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
-                            
+
+                            <div className="w-px h-6 bg-white/10 mx-1"></div>
+
                             {/* 특수문자 */}
                             <div className="relative symbol-palette-container">
                                 <button
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => setShowSymbolPalette(!showSymbolPalette)}
-                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600"
+                                    className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white hover:bg-white/10"
                                     title="특수문자"
                                 >
                                     Ω
                                 </button>
-                                
+
                                 {showSymbolPalette && (
-                                    <div className="absolute top-full left-0 mt-2 p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl" style={{ zIndex: 9999, width: '140px' }}>
+                                    <div className="absolute top-full left-0 mt-2 p-3 bg-gray-800 border border-white/10 rounded-lg shadow-xl" style={{ zIndex: 9999, width: '140px' }}>
                                         <div className="grid grid-cols-5 gap-2 justify-items-center">
                                             {['←', '→', '↑', '↓', '↵', '●', '■', '▲', '▼', '◆'].map((symbol) => (
                                                 <button
@@ -713,7 +713,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                                         insertSymbol(symbol);
                                                         setShowSymbolPalette(false);
                                                     }}
-                                                    className="w-6 h-6 border border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:scale-110 active:scale-95 transition-transform text-gray-900 dark:text-gray-100 font-bold"
+                                                    className="w-6 h-6 border border-white/20 rounded cursor-pointer hover:scale-110 active:scale-95 transition-transform text-white font-bold"
                                                     style={{ fontSize: '13px' }}
                                                     title={`특수문자: ${symbol}`}
                                                 >
@@ -724,24 +724,24 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                     </div>
                                 )}
                             </div>
-                            
+
                             {/* 목록 */}
                             <button
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => insertList(false)}
-                                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600"
+                                className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white hover:bg-white/10"
                                 title="목록"
                             >
                                 •
                             </button>
                         </div>
                     )}
-                    
+
                     {/* 텍스트 영역 */}
                     <div className="flex-1 min-h-0 flex flex-col">
                         {isEditing ? (
                             <div
-                        ref={textareaRef}
+                                ref={textareaRef}
                                 contentEditable={true}
                                 suppressContentEditableWarning={true}
                                 onInput={handleTextChange}
@@ -774,8 +774,8 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                 onCompositionStart={handleCompositionStart}
                                 onCompositionEnd={handleCompositionEnd}
                                 data-placeholder="메모를 입력하세요..."
-                                className="memo-content-area w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none transition-colors custom-scrollbar flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 rounded-t-none"
-                                style={{ 
+                                className="memo-content-area w-full p-3 border border-white/10 rounded-lg resize-none transition-colors custom-scrollbar flex-1 bg-black/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-t-none"
+                                style={{
                                     minHeight: '150px',
                                     maxHeight: 'calc(90vh - 130px)',
                                     height: 'auto',
@@ -791,8 +791,8 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                             />
                         ) : (
                             <div
-                                className="memo-content-area w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg custom-scrollbar flex-1 bg-white dark:bg-gray-800 text-black dark:text-white"
-                                style={{ 
+                                className="memo-content-area w-full p-3 border border-white/10 rounded-lg custom-scrollbar flex-1 bg-black/20 text-white"
+                                style={{
                                     minHeight: '150px',
                                     maxHeight: 'calc(90vh - 130px)',
                                     height: 'auto',
@@ -835,20 +835,20 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                         padding-left: 2em;
                                     }
                                 `}
-                                dangerouslySetInnerHTML={{ 
-                                    __html: memo && memo.length > 0 
-                                        ? memo 
+                                dangerouslySetInnerHTML={{
+                                    __html: memo && memo.length > 0
+                                        ? memo
                                         : '<div class="text-gray-400 dark:text-gray-500 italic">메모를 입력하세요...</div>'
                                 }}
                             />
                         )}
-                        
+
                         <div className="flex-shrink-0 text-right text-xs text-gray-400 dark:text-gray-500 mt-1">
                             {(isEditing ? editLength : memo.length)}/{MAX_LENGTH.toLocaleString()}
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="flex-shrink-0 flex justify-between mt-1 pt-1 border-t border-gray-200 dark:border-gray-600">
                     {isEditing ? (
                         <>

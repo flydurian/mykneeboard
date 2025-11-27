@@ -92,25 +92,25 @@ const simplifyAircraftType = (aircraftType: string): string => {
   // Airbus A3xx-xxx 형식을 A3xx-xxx로 변환 (예: Airbus A330-300 -> A330-300)
   const airbusWithVariantMatch = aircraftType.match(/Airbus\s*A(\d{3}[-]\d{3}(?:ER|LR|NEO|CEO)?)/i);
   if (airbusWithVariantMatch) {
-    return `A${airbusWithVariantMatch[1]}`;
+    return 'A' + (airbusWithVariantMatch[1]);
   }
 
   // Airbus A3xx 형식을 A3xx로 변환 (variant 없는 경우)
   const airbusMatch = aircraftType.match(/Airbus\s*A(\d{3})/i);
   if (airbusMatch) {
-    return `A${airbusMatch[1]}`;
+    return 'A' + (airbusMatch[1]);
   }
 
   // Boeing 7xx-xxx 형식을 B7xx-xxx로 변환 (예: Boeing 777-300ER -> B777-300ER)
   const boeingWithVariantMatch = aircraftType.match(/Boeing\s*(\d{3}[-]\d{3}(?:ER|LR|X)?)/i);
   if (boeingWithVariantMatch) {
-    return `B${boeingWithVariantMatch[1]}`;
+    return 'B' + (boeingWithVariantMatch[1]);
   }
 
   // Boeing 7xx 형식을 B7xx로 변환 (variant 없는 경우)
   const boeingMatch = aircraftType.match(/Boeing\s*(\d{3})/i);
   if (boeingMatch) {
-    return `B${boeingMatch[1]}`;
+    return 'B' + (boeingMatch[1]);
   }
 
   // 이미 간단한 형식인 경우 (A320-200, B777-300ER 등)
@@ -152,7 +152,7 @@ const checkNetworkStatus = async (): Promise<boolean> => {
 
 // 새로고침 실행 (온라인 시 최신 버전 확인 후만 리로드)
 const safeReload = async (reason: string = '새로고침') => {
-  console.log(`🔄 ${reason} 요청`);
+  console.log('🔄 ' + (reason) + ' 요청');
   // 오프라인이면 아무 것도 하지 않음
   if (!navigator.onLine) {
     console.log('🚫 오프라인 상태: 새로고침 취소');
@@ -341,8 +341,11 @@ const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [userInfo, setUserInfo] = useState<{ displayName: string | null; empl?: string; userName?: string; company?: string } | null>(null);
 
-  // TanStack Query로 데이터 관리
-  const { data: flights = [], isLoading: isFlightsLoading } = useFlights(user?.uid);
+  // TanStack  // 항공편 데이터 가져오기
+  const { data: flights = [], isLoading: isFlightsLoading, refetch: refetchFlights } = useFlights(user?.uid);
+
+
+
   const addFlightMutation = useAddFlight();
   const updateFlightMutation = useUpdateFlight();
   const deleteFlightMutation = useDeleteFlight();
@@ -597,7 +600,7 @@ const App: React.FC = () => {
       if (!basicOnline) {
         // 오프라인이 확실하면 바로 설정
         setIsOffline(true);
-        setFirebaseOfflineMode(true);
+        // setFirebaseOfflineMode(true); // 공격적인 오프라인 모드 전환 방지
         return;
       }
 
@@ -605,11 +608,11 @@ const App: React.FC = () => {
       try {
         const online = await checkNetworkStatus();
         setIsOffline(!online);
-        setFirebaseOfflineMode(!online);
+        // setFirebaseOfflineMode(!online); // 공격적인 오프라인 모드 전환 방지
       } catch (error) {
         // 오류 시 안전하게 오프라인으로 설정
         setIsOffline(true);
-        setFirebaseOfflineMode(true);
+        // setFirebaseOfflineMode(true); // 공격적인 오프라인 모드 전환 방지
       }
     })();
     const initializeServiceWorker = async () => {
@@ -670,7 +673,7 @@ const App: React.FC = () => {
 
         // Firebase RTDB 연결 상태 동기화
         try {
-          setFirebaseOfflineMode(!isOnline);
+          // setFirebaseOfflineMode(!isOnline); // 공격적인 오프라인 모드 전환 방지
         } catch (error) {
           console.error('❌ Firebase 오프라인 모드 설정 실패:', error);
         }
@@ -689,7 +692,7 @@ const App: React.FC = () => {
       const now = new Date();
       const utcHours = now.getUTCHours().toString().padStart(2, '0');
       const utcMinutes = now.getUTCMinutes().toString().padStart(2, '0');
-      setUtcTime(`${utcHours}:${utcMinutes}Z`);
+      setUtcTime((utcHours) + ':' + (utcMinutes) + 'Z');
     };
 
     // 초기 실행
@@ -809,8 +812,8 @@ const App: React.FC = () => {
 
       if (airline) {
         const iataCode = airline.iata;
-        searchQuery = `${iataCode}${number}`;
-        console.log('🔄 ICAO→IATA 변환:', `${icaoCode}${number}`, '→', searchQuery);
+        searchQuery = (iataCode) + (number);
+        console.log('🔄 ICAO→IATA 변환:', (icaoCode) + (number), '→', searchQuery);
       }
     }
 
@@ -964,8 +967,8 @@ const App: React.FC = () => {
       // 3글자 코드면 ICAO일 가능성이 높음
       if (airlineCode.length === 3 && icaoToIataMap[airlineCode]) {
         const iataCode = icaoToIataMap[airlineCode];
-        flightNum = `${iataCode}${number}`;
-        console.log('🔄 ICAO→IATA 변환:', `${airlineCode}${number}`, '→', flightNum);
+        flightNum = (iataCode) + (number);
+        console.log('🔄 ICAO→IATA 변환:', (airlineCode) + (number), '→', flightNum);
       }
     }
 
@@ -977,7 +980,7 @@ const App: React.FC = () => {
     // 4자리 숫자인 경우 시간 검색으로 처리
     // 정규식 테스트 결과를 로그로 출력하여 디버깅
     const isTimeSearch = /^\d{4}$/.test(flightNum);
-    console.log(`🔍 시간 검색 모드 판별: "${flightNum}" (길이: ${flightNum.length}) -> ${isTimeSearch}`);
+    console.log('🔍 시간 검색 모드 판별: "' + (flightNum) + '" (길이: ' + (flightNum.length) + ') -> ' + (isTimeSearch));
 
     // 도시 IATA 코드 검색인지 확인 (3글자 코드)
     const isCitySearch = /^[A-Z]{3}$/.test(flightNum);
@@ -1017,14 +1020,14 @@ const App: React.FC = () => {
                 // 공동운항(Code Share) 필터링
                 // 대소문자 구분 없이 'SLAVE' 체크, remark에서 공백 제거 후 'codeshare' 포함 여부 체크
                 if (flight.codeshare && String(flight.codeshare).toUpperCase() === 'SLAVE') {
-                  // if (debugDropCount < 3) console.log(`🚫 [${flight.flightNumber}] 필터링(Codeshare):`, flight.codeshare);
+                  // if (debugDropCount < 3) console.log('🚫 [' + (flight.flightNumber) + '] 필터링(Codeshare):', flight.codeshare);
                   // debugDropCount++;
                   return false;
                 }
 
                 const remark = flight.remark ? String(flight.remark).toLowerCase().replace(/\s/g, '') : '';
                 if (remark.includes('codeshare')) {
-                  // if (debugDropCount < 3) console.log(`🚫 [${flight.flightNumber}] 필터링(Remark):`, flight.remark);
+                  // if (debugDropCount < 3) console.log('🚫 [' + (flight.flightNumber) + '] 필터링(Remark):', flight.remark);
                   // debugDropCount++;
                   return false;
                 }
@@ -1055,7 +1058,7 @@ const App: React.FC = () => {
                 }
 
                 if (!timeStr || timeStr.length !== 4) {
-                  // if (debugDropCount < 10) console.log(`🚫 [${flight.flightNumber}] 시간 파싱 실패: raw=${flight.rawScheduleTime}, sch=${flight.scheduledTime}, parsed=${timeStr}`);
+                  // if (debugDropCount < 10) console.log('🚫 [' + (flight.flightNumber) + '] 시간 파싱 실패: raw=' + (flight.rawScheduleTime) + ', sch=' + (flight.scheduledTime) + ', parsed=' + (timeStr));
                   // debugDropCount++;
                   return false;
                 }
@@ -1069,7 +1072,7 @@ const App: React.FC = () => {
 
                 const isMatch = diff <= 30;
                 // if (!isMatch) {
-                //    if (debugDropCount < 10) console.log(`🚫 [${flight.flightNumber}] 시간 범위 초과: ${timeStr} (차이: ${diff}분) vs 검색: ${flightNum}`);
+                //    if (debugDropCount < 10) console.log('🚫 [' + (flight.flightNumber) + '] 시간 범위 초과: ' + (timeStr) + ' (차이: ' + (diff) + '분) vs 검색: ' + (flightNum));
                 //    debugDropCount++;
                 // }
                 return isMatch;
@@ -1078,12 +1081,12 @@ const App: React.FC = () => {
                 // 시간 표시 포맷팅
                 let displayTime = '';
                 if (flight.rawScheduleTime && /^\d{4}$/.test(flight.rawScheduleTime)) {
-                  displayTime = `${flight.rawScheduleTime.substring(0, 2)}:${flight.rawScheduleTime.substring(2, 4)}`;
+                  displayTime = (flight.rawScheduleTime.substring(0, 2)) + ':' + (flight.rawScheduleTime.substring(2, 4));
                 } else if (flight.scheduledTime) {
                   // YYYYMMDDHHMM 형식 처리 (12자리 숫자)
                   const timeStr = String(flight.scheduledTime);
                   if (/^\d{12}$/.test(timeStr)) {
-                    displayTime = `${timeStr.substring(8, 10)}:${timeStr.substring(10, 12)}`;
+                    displayTime = (timeStr.substring(8, 10)) + ':' + (timeStr.substring(10, 12));
                   } else {
                     displayTime = flight.scheduledTime;
                   }
@@ -1116,7 +1119,7 @@ const App: React.FC = () => {
             return;
           } else {
             console.log('⚠️ 시간 검색 결과 없음');
-            alert(`"${flightNum}" 시간대(±1시간)의 인천공항 출발 항공편이 없습니다.`);
+            alert('"' + (flightNum) + '" 시간대(±1시간)의 인천공항 출발 항공편이 없습니다.');
             setIsLoadingFlightData(false);
             return;
           }
@@ -1168,7 +1171,7 @@ const App: React.FC = () => {
           return;
         } else {
           console.log('❌ 도시 검색 결과 없음');
-          alert(`도시 코드 "${flightNum}"에 대한 항공편 검색 결과가 없습니다.\n\n가능한 원인:\n• 해당 도시로 운항하는 항공편이 없음\n• 도시 코드가 잘못됨\n• Firebase 데이터베이스에 해당 도시 정보 없음`);
+          alert('도시 코드 "' + (flightNum) + '"에 대한 항공편 검색 결과가 없습니다.\n\n가능한 원인:\n• 해당 도시로 운항하는 항공편이 없음\n• 도시 코드가 잘못됨\n• Firebase 데이터베이스에 해당 도시 정보 없음');
           setIsLoadingFlightData(false); // 로딩 상태 해제
           return;
         }
@@ -1223,9 +1226,9 @@ const App: React.FC = () => {
                 // YYYYMMDDHHMM 형식 처리
                 const timeStr = String(flight.scheduledDateTime);
                 if (/^\d{12}$/.test(timeStr)) {
-                  displayTime = `${timeStr.substring(8, 10)}:${timeStr.substring(10, 12)}`;
+                  displayTime = (timeStr.substring(8, 10)) + ':' + (timeStr.substring(10, 12));
                 } else if (/^\d{4}$/.test(timeStr)) {
-                  displayTime = `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}`;
+                  displayTime = (timeStr.substring(0, 2)) + ':' + (timeStr.substring(2, 4));
                 } else {
                   displayTime = flight.scheduledDateTime;
                 }
@@ -1302,7 +1305,7 @@ const App: React.FC = () => {
           setShowFlightResults(true);
         } else {
           console.log('❌ 검색 결과 없음 (모든 소스)');
-          alert(`항공편 "${flightNum}"에 대한 검색 결과가 없습니다.\n\n가능한 원인:\n• 해당 항공편이 오늘 운항하지 않음\n• 항공편 번호가 잘못됨\n• API 서비스 일시 중단\n• Firebase 데이터베이스에 해당 항공편 정보 없음`);
+          alert('항공편 "' + (flightNum) + '"에 대한 검색 결과가 없습니다.\n\n가능한 원인:\n• 해당 항공편이 오늘 운항하지 않음\n• 항공편 번호가 잘못됨\n• API 서비스 일시 중단\n• Firebase 데이터베이스에 해당 항공편 정보 없음');
         }
       } catch (fbError) {
         console.error('❌ Firebase 공유 DB 검색 실패:', fbError);
@@ -1603,9 +1606,24 @@ const App: React.FC = () => {
           sessionTimeout.clearTimeout();
           setSessionTimeout(null);
         }
-
-
       } else {
+        // 로그인 성공 시
+        console.log('✅ 사용자 로그인 감지:', user.uid);
+
+        // 데이터베이스 연결 테스트 실행
+        import('./src/firebase/database').then(async ({ testDatabaseConnection }) => {
+          console.log('🔍 데이터베이스 연결 테스트 시작...');
+          const result = await testDatabaseConnection(user.uid);
+          console.log('🔍 데이터베이스 연결 테스트 결과:', result);
+
+          if (!result.success) {
+            console.error('❌ 데이터베이스 연결 실패:', result.error);
+            // 사용자에게 알림 (옵션)
+            alert('데이터베이스 연결 실패: ' + (result.error) + '\n네트워크 상태나 권한을 확인해주세요.');
+          } else {
+            console.log('✅ 데이터베이스 연결 성공');
+          }
+        });
         // 사용자 정보 가져오기 (EMPL 정보 포함)
         try {
           const userInfoData = await getUserInfo(user.uid);
@@ -1763,7 +1781,7 @@ const App: React.FC = () => {
       // 업데이트된 데이터 다시 로드 (Query Invalidation)
       queryClient.invalidateQueries({ queryKey: flightKeys.list(user.uid) });
 
-      setUploadMessage(`${year}년 ${month}월 데이터가 삭제되었습니다.`);
+      setUploadMessage((year) + '년 ' + (month) + '월 데이터가 삭제되었습니다.');
       setTimeout(() => setUploadMessage(''), 3000);
 
     } catch (error) {
@@ -1851,7 +1869,7 @@ const App: React.FC = () => {
       if (userCompany === 'KE' || userCompany === 'OZ') {
         // KE, OZ는 Excel만 허용
         if (fileExtension !== 'xls' && fileExtension !== 'xlsx') {
-          setUploadError(`${userCompany} 항공사는 Excel 파일(.xls, .xlsx)만 업로드 가능합니다.`);
+          setUploadError((userCompany) + ' 항공사는 Excel 파일(.xls, .xlsx)만 업로드 가능합니다.');
           setTimeout(() => setUploadError(''), 5000);
           return;
         }
@@ -1921,7 +1939,7 @@ const App: React.FC = () => {
             const makeDateSignature = (flightsArr: any[], date: string) => {
               const items = flightsArr
                 .filter(f => f.date === date && !(f.route === '' && (!f.crew || f.crew.length === 0) && (!f.cabinCrew || f.cabinCrew.length === 0)))
-                .map((f: any) => `${f.flightNumber || ''}|${f.scheduleType || ''}|${f.route || ''}|${f.std || ''}|${f.sta || ''}|${f.acType || ''}|${f.departureDateTimeUtc || ''}|${f.arrivalDateTimeUtc || ''}|${f.showUpDateTimeUtc || ''}`)
+                .map((f: any) => (f.flightNumber || '') + '|' + (f.scheduleType || '') + '|' + (f.route || '') + '|' + (f.std || '') + '|' + (f.sta || '') + '|' + (f.acType || '') + '|' + (f.departureDateTimeUtc || '') + '|' + (f.arrivalDateTimeUtc || '') + '|' + (f.showUpDateTimeUtc || ''))
                 .sort();
               return items.join('||');
             };
@@ -1949,7 +1967,7 @@ const App: React.FC = () => {
         try {
           const d = new Date(f.date);
           if (isNaN(d.getTime())) continue;
-          const key = `${d.getFullYear()}-${d.getMonth() + 1}`; // 1-based month (zero-pad 불필요: 아래와 동일 포맷)
+          const key = (d.getFullYear()) + '-' + (d.getMonth() + 1); // 1-based month (zero-pad 불필요: 아래와 동일 포맷)
           const weight = f.monthlyTotalBlock ? 10 : 1; // 파일의 대표 월 신뢰도 가중치
           monthScoreMap[key] = (monthScoreMap[key] || 0) + weight;
         } catch { }
@@ -1968,7 +1986,7 @@ const App: React.FC = () => {
         const flightDate = new Date(flight.date);
         const year = flightDate.getFullYear();
         const month = flightDate.getMonth() + 1;
-        const key = `${year}-${month}`;
+        const key = (year) + '-' + (month);
 
         if (!acc[key]) {
           acc[key] = [];
@@ -2033,7 +2051,7 @@ const App: React.FC = () => {
           const makeDateSignature = (flightsArr: any[], date: string) => {
             const items = flightsArr
               .filter(f => f.date === date && !(f.route === '' && (!f.crew || f.crew.length === 0) && (!f.cabinCrew || f.cabinCrew.length === 0)))
-              .map((f: any) => `${f.flightNumber || ''}|${f.scheduleType || ''}|${f.route || ''}|${f.std || ''}|${f.sta || ''}|${f.acType || ''}|${f.departureDateTimeUtc || ''}|${f.arrivalDateTimeUtc || ''}|${f.showUpDateTimeUtc || ''}`)
+              .map((f: any) => (f.flightNumber || '') + '|' + (f.scheduleType || '') + '|' + (f.route || '') + '|' + (f.std || '') + '|' + (f.sta || '') + '|' + (f.acType || '') + '|' + (f.departureDateTimeUtc || '') + '|' + (f.arrivalDateTimeUtc || '') + '|' + (f.showUpDateTimeUtc || ''))
               .sort();
             return items.join('||');
           };
@@ -2055,10 +2073,10 @@ const App: React.FC = () => {
 
       const processedMonths = Object.keys(flightsByMonth).map(key => {
         const [year, month] = key.split('-');
-        return `${year}년 ${month}월`;
+        return (year) + '년 ' + (month) + '월';
       }).join(', ');
 
-      setUploadMessage(`✅ 다중 월 스마트 업데이트 완료 (${processedMonths}): ${totalNewCount}개 추가, ${totalUpdatedCount}개 업데이트, 이착륙 상태 보존됨`);
+      setUploadMessage('✅ 다중 월 스마트 업데이트 완료 (' + (processedMonths) + '): ' + (totalNewCount) + '개 추가, ' + (totalUpdatedCount) + '개 업데이트, 이착륙 상태 보존됨');
       setTimeout(() => setUploadMessage(''), 8000);
 
       if (fileInputRef.current) {
@@ -2173,11 +2191,11 @@ const App: React.FC = () => {
 
       if (result.success) {
         console.log('✅ 업로드 성공');
-        setUploadMessage(`✅ ${result.message}`);
+        setUploadMessage('✅ ' + (result.message));
         setTimeout(() => setUploadMessage(''), 8000);
       } else {
         console.log('❌ 업로드 실패:', result.message);
-        setUploadError(`❌ ${result.message}`);
+        setUploadError('❌ ' + (result.message));
         setTimeout(() => setUploadError(''), 8000);
       }
 
@@ -2189,7 +2207,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('❌ JSON 파일 업로드 오류:', error);
       console.error('❌ 오류 상세:', error instanceof Error ? error.stack : error);
-      setUploadError(`JSON 파일 업로드 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      setUploadError('JSON 파일 업로드 중 오류가 발생했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
       setTimeout(() => setUploadError(''), 5000);
     } finally {
       console.log('🔍 업로드 프로세스 완료');
@@ -2235,7 +2253,7 @@ const App: React.FC = () => {
       // 4) 수동 요청: 최신 index.html 강제 조회 후 하드 리로드 (브라우저 새로고침 효과)
       setRefreshMessage('캐시 삭제 완료! 최신 버전 확인 중...');
       try {
-        await fetch(`/index.html?ts=${Date.now()}`, {
+        await fetch('/index.html?ts=' + (Date.now()), {
           method: 'GET',
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
@@ -2497,7 +2515,7 @@ const App: React.FC = () => {
       if (totalBlockMinutes > 0) {
         const hours = Math.floor(totalBlockMinutes / 60);
         const minutes = totalBlockMinutes % 60;
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        return (String(hours).padStart(2, '0')) + ':' + (String(minutes).padStart(2, '0'));
       }
 
       // 모든 방법이 실패하면 00:00 반환
@@ -2525,13 +2543,13 @@ const App: React.FC = () => {
     const todayStr = new Date().toLocaleDateString('en-CA');
     const KOREA_TIME_ZONE = 'Asia/Seoul';
 
-    const today = toZonedTime(`${todayStr}T00:00:00`, KOREA_TIME_ZONE);
-    const sixMonthsAgo = toZonedTime(`${todayStr}T00:00:00`, KOREA_TIME_ZONE);
+    const today = toZonedTime((todayStr) + 'T00:00:00', KOREA_TIME_ZONE);
+    const sixMonthsAgo = toZonedTime((todayStr) + 'T00:00:00', KOREA_TIME_ZONE);
     sixMonthsAgo.setMonth(today.getMonth() - 6);
 
     const sixMonthFlights = flights.filter(f => {
       try {
-        const flightDate = toZonedTime(`${f.date}T00:00:00`, KOREA_TIME_ZONE);
+        const flightDate = toZonedTime((f.date) + 'T00:00:00', KOREA_TIME_ZONE);
         return flightDate >= sixMonthsAgo && flightDate <= today;
       } catch (error) {
         return false;
@@ -2843,13 +2861,13 @@ const App: React.FC = () => {
         // _storagePath 정보를 사용해서 정확한 경로 구성
         year = flight._storagePath.year;
         month = flight._storagePath.month;
-        flightPath = `users/${user.uid}/flights/${year}/${month}/${flight._storagePath.firebaseKey}`;
+        flightPath = 'users/' + (user.uid) + '/flights/' + (year) + '/' + (month) + '/' + (flight._storagePath.firebaseKey);
       } else {
         // 기존 방식: 날짜에서 년/월 추출
         const flightDate = new Date(flight.date);
         year = flightDate.getFullYear();
         month = (flightDate.getMonth() + 1).toString().padStart(2, '0');
-        flightPath = `users/${user.uid}/flights/${year}/${month}/${flight.id}`;
+        flightPath = 'users/' + (user.uid) + '/flights/' + (year) + '/' + (month) + '/' + (flight.id);
       }
 
       // Firebase에 업데이트 (Mutation 사용)
@@ -2870,7 +2888,7 @@ const App: React.FC = () => {
 
 
     } catch (error) {
-      alert(`수정 중 오류가 발생했습니다: ${error.message}`);
+      alert('수정 중 오류가 발생했습니다: ' + (error.message));
     }
   };
 
@@ -2944,7 +2962,7 @@ const App: React.FC = () => {
             if (totalBlockMinutes > 0) {
               const hours = Math.floor(totalBlockMinutes / 60);
               const minutes = totalBlockMinutes % 60;
-              return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+              return (String(hours).padStart(2, '0')) + ':' + (String(minutes).padStart(2, '0'));
             }
 
             return '00:00';
@@ -3013,9 +3031,9 @@ const App: React.FC = () => {
             const [hh, mm] = (f as any).std.split(':').map((v: string) => parseInt(v, 10));
             const hhStr = String(isFinite(hh) ? hh : 0).padStart(2, '0');
             const mmStr = String(isFinite(mm) ? mm : 0).padStart(2, '0');
-            return new Date(`${f.date}T${hhStr}:${mmStr}:00Z`).getTime();
+            return new Date((f.date) + 'T' + (hhStr) + ':' + (mmStr) + ':00Z').getTime();
           }
-          return new Date(`${f.date}T00:00:00Z`).getTime();
+          return new Date((f.date) + 'T00:00:00Z').getTime();
         }
       } catch { }
       return null;
@@ -3036,7 +3054,7 @@ const App: React.FC = () => {
     const arrivalCode = (nextFlight.route || '').split('/')[1] || '';
     if (arrivalCode) {
       const chain = flights
-        .filter((f) => isActual(f) && typeof f.route === 'string' && f.route.toUpperCase().startsWith(`${arrivalCode.toUpperCase()}/`))
+        .filter((f) => isActual(f) && typeof f.route === 'string' && f.route.toUpperCase().startsWith((arrivalCode.toUpperCase()) + '/'))
         .map((f) => ({ f, ts: getDepartureTimestamp(f) }))
         .sort((a, b) => (a.ts || 0) - (b.ts || 0));
       if (chain.length > 0) return chain[0].f;
@@ -3048,7 +3066,7 @@ const App: React.FC = () => {
       id: -1000,
       date: nextFlight.date,
       flightNumber: 'NEXT_CHAIN',
-      route: `${dep}/???`,
+      route: (dep) + '/???',
       block: 0,
       status: { departed: false, landed: false },
       crew: []
@@ -3082,8 +3100,17 @@ const App: React.FC = () => {
 
   // gap-6 = 24px (Tailwind 기본 16px 기준)
   const GAP_PX = 24;
-  const cardItemWidth = Math.max(0, (sliderContainerWidth - GAP_PX) / 2);
-  const roundedItemWidth = Math.round(cardItemWidth);
+
+  // 반응형 카드 너비 계산 - BlockTimeCard의 grid-cols-2와 정확히 일치하도록 수정
+  // BlockTimeCard는 내부적으로 gap-6을 사용하므로, 여기서도 동일한 gap을 고려해야 함
+  const isMobile = sliderContainerWidth < 640; // Tailwind sm breakpoint
+  const visibleCardCount = isMobile ? 1 : 2;
+
+  // 그리드 레이아웃과 정확히 일치하는 너비 계산
+  // 전체 너비에서 gap을 뺀 후 카드 개수로 나눔
+  const cardItemWidth = Math.max(0, (sliderContainerWidth - (GAP_PX * (visibleCardCount - 1))) / visibleCardCount);
+  // 소수점 처리를 위해 floor 사용 (round는 미세한 오차로 줄바꿈 발생 가능)
+  const roundedItemWidth = Math.floor(cardItemWidth);
   const sliderOffsetPx = currentCardIndex * (roundedItemWidth + GAP_PX);
 
   // 카드 데이터 배열 (항상 2개씩 표시)
@@ -3131,7 +3158,7 @@ const App: React.FC = () => {
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
-    if (isLeftSwipe && currentCardIndex < cardData.length - 2) {
+    if (isLeftSwipe && currentCardIndex < cardData.length - visibleCardCount) {
       setCurrentCardIndex(prev => prev + 1);
     }
     if (isRightSwipe && currentCardIndex > 0) {
@@ -3164,11 +3191,10 @@ const App: React.FC = () => {
   const takeoffCurrency = currencyData?.takeoff;
   const landingCurrency = currencyData?.landing;
 
-
   // 로딩 화면
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen transition-colors duration-200 p-4 sm:p-6 pb-24 sm:pb-24 pt-safe pl-safe pr-safe pb-safe flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100 mx-auto"></div>
           <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mt-4">데이터를 불러오는 중...</p>
@@ -3245,7 +3271,7 @@ const App: React.FC = () => {
           )}
 
           {/* 헤더 */}
-          <header className={`mb-4 grid grid-cols-3 items-center gap-2 sm:gap-4 ${isIosStandalone ? 'pt-safe' : ''}`}>
+          <header className="mb-4 grid grid-cols-3 items-center gap-2 sm:gap-4">
             {/* Left: User Info */}
             <div className="flex flex-col items-start gap-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -3315,9 +3341,9 @@ const App: React.FC = () => {
                   onClick={handleHardRefresh}
                   disabled={isRefreshing || isOffline}
                   title={isOffline ? "오프라인 상태에서는 새로고침할 수 없습니다" : "Clear Cache & Hard Refresh"}
-                  className={`p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${(isRefreshing || isOffline) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >
-                  <RefreshCwIcon className={`w-6 h-6 ${isRefreshing ? 'animate-clock-rotation' : ''}`} />
+                  <RefreshCwIcon className="w-6 h-6" />
                 </button>
                 <button
                   onClick={() => setIsDeleteDataModalOpen(true)}
@@ -3339,7 +3365,7 @@ const App: React.FC = () => {
                   }
                   className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <UploadCloudIcon className={`w-6 h-6 ${isUploading ? 'animate-spin' : ''}`} />
+                  <UploadCloudIcon className="w-6 h-6" />
                 </button>
               </div>
               <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 text-right">
@@ -3373,596 +3399,577 @@ const App: React.FC = () => {
           )}
 
           {/* 탭 네비게이션 */}
-          <div className="mb-1">
-            <div className="flex border-b border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => handleTabChange('dashboard')}
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'dashboard'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => handleTabChange('rest')}
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'rest'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
-              >
-                Rest
-              </button>
-              <button
-                onClick={() => handleTabChange('flightData')}
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'flightData'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
-              >
-                Flight Data
-              </button>
+          <div className="w-full max-w-screen-xl mx-auto">
+            <div className="glass-panel rounded-2xl p-1 mb-6 flex justify-between items-center sticky top-4 z-30">
+              <div className="flex space-x-1 w-full">
+                <button
+                  onClick={() => handleTabChange('dashboard')}
+                  className={'flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-all duration-200 ' + (activeTab === 'dashboard'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5')}
+                >
+                  대시보드
+                </button>
+                <button
+                  onClick={() => handleTabChange('rest')}
+                  className={'flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-all duration-200 ' + (activeTab === 'rest'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5')}
+                >
+                  휴식 계산
+                </button>
+                <button
+                  onClick={() => handleTabChange('flightData')}
+                  className={'flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-all duration-200 ' + (activeTab === 'flightData'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5')}
+                >
+                  비행 데이터
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* 탭 내용 */}
-          <AnimatePresence mode="wait">
-            {activeTab === 'dashboard' && (
-              <motion.div
-                key="dashboard"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <section className="mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">월별 비행 시간 (Block)</h2>
-                      <button
-                        onClick={handleAnnualBlockTimeGraphClick}
-                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                        title="연간 비행시간 그래프"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setIsSearchModalOpen(true)}
-                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                        title="도시/CREW 검색"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={handleCalendarClick}
-                        className="flex items-center justify-center p-2 text-blue-600 hover:text-blue-700 transition-colors rounded-lg"
-                        title="전체 달력 보기"
-                      >
-                        <CalendarIcon className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                  <BlockTimeCard
-                    flights={flights}
-                    todayStr={todayStr}
-                    onMonthClick={handleMonthClick}
-                  />
-                </section>
-
-                <section className="mb-8">
-                  <div
-                    className="relative overflow-hidden"
-                    ref={sliderContainerRef}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                  >
-                    <div
-                      className="flex flex-nowrap gap-6 transition-transform duration-300 ease-in-out"
-                      style={{
-                        transform: cardItemWidth > 0
-                          ? `translateX(-${sliderOffsetPx}px)`
-                          : `translateX(-${currentCardIndex * 51.5}%)`,
-                        willChange: 'transform'
-                      }}
-                    >
-                      {cardData.map((card, index) => (
-                        <div
-                          key={`${card.type}-${index}`}
-                          className="flex-shrink-0"
-                          style={{ width: cardItemWidth > 0 ? `${cardItemWidth}px` : 'calc((100% - 24px)/2)' }}
-                        >
-                          <FlightCard
-                            flight={card.flight}
-                            type={card.type}
-                            onClick={handleFlightCardClick}
-                            todayStr={todayStr}
-                            onStatusChange={handleStatusChange}
-                            baseIata={baseIata}
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* 스와이프 인디케이터 */}
-                    {cardData.length > 2 && (
-                      <div className="flex justify-center mt-4 space-x-2">
-                        {Array.from({ length: cardData.length - 1 }, (_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setCurrentCardIndex(i)}
-                            className={`w-2 h-2 rounded-full transition-colors duration-200 ${i === currentCardIndex ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
-                              }`}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <section>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">자격 현황</h2>
-                      <button
-                        onClick={handleCurrencySettingsClick}
-                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                        title="자격 현황 설정"
-                      >
-                        <SettingsIcon className="w-5 h-5" />
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setIsCurrencyExpanded(!isCurrencyExpanded);
-                      }}
-                      className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                      title={isCurrencyExpanded ? "추가 카드 접기" : "추가 카드 펼치기"}
-                    >
-                      {isCurrencyExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <CurrencyCard title="이륙" currencyInfo={takeoffCurrency} onClick={() => handleCurrencyCardClick('takeoff', takeoffCurrency)} />
-                    <CurrencyCard title="착륙" currencyInfo={landingCurrency} onClick={() => handleCurrencyCardClick('landing', landingCurrency)} />
-                    {selectedCurrencyCards.map((cardType) => {
-                      // 임시 데이터 - 실제로는 각 카드 타입에 맞는 데이터를 가져와야 함
-                      const tempCurrencyInfo = {
-                        current: 0,
-                        required: 0,
-                        lastFlight: null,
-                        nextRequired: null
-                      };
-
-                      const cardNames: { [key: string]: string } = {
-                        'passport': '여권',
-                        'visa': '비자',
-                        'epta': 'EPTA',
-                        'radio': 'Radio',
-                        'whitecard': 'White Card',
-                        'crm': 'CRM'
-                      };
-
-                      // 카드가 긴급한지 확인
-                      const expiryDate = cardExpiryDates[cardType];
-                      let isUrgent = false;
-                      if (expiryDate) {
-                        const today = new Date();
-                        const expiry = new Date(expiryDate);
-                        const timeDiff = expiry.getTime() - today.getTime();
-                        const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24));
-
-                        // White Card는 30일 이하, 다른 카드는 90일 이하
-                        if (cardType === 'whitecard') {
-                          isUrgent = daysUntilExpiry <= 30;
-                        } else {
-                          isUrgent = daysUntilExpiry <= 90;
-                        }
-                      }
-
-                      // 긴급한 카드는 항상 표시, 일반 카드는 접기 상태에 따라 표시
-                      const shouldShow = isUrgent || isCurrencyExpanded;
-
-
-                      if (!shouldShow) return null;
-
-                      return (
-                        <CurrencyCard
-                          key={cardType}
-                          title={cardNames[cardType] || cardType}
-                          currencyInfo={tempCurrencyInfo}
-                          cardType={cardType}
-                          expiryDate={cardExpiryDates[cardType]}
-                          onClick={() => handleCardClick(cardType, cardNames[cardType] || cardType)}
-                        />
-                      );
-                    })}
-                  </div>
-                </section>
-              </motion.div>
-            )}
-
-            {activeTab === 'rest' && (
-              <motion.div
-                key="rest"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
-                className={`${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}
-              >
-                <RestCalculator key={`rest-calculator-${theme}`} isDark={isDarkMode} />
-              </motion.div>
-            )}
-
-            {activeTab === 'flightData' && (
-              <motion.div
-                key="flightData"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
-                className={`${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'} p-3 rounded-lg`}
-              >
-                {/* Flight Data 섹션 */}
-                <section className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">Flight Data</h2>
-                  </div>
-
-                  {/* 검색 카드 그리드 */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    {/* 항공편 검색 카드 */}
-                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-4 rounded-lg shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-md transition-shadow`}>
-                      <div className="mb-3">
-                        <div className="font-semibold text-gray-700 dark:text-gray-300">항공편 검색</div>
-                      </div>
-                      <div className="mb-3">
-                        <input
-                          type="text"
-                          placeholder="항공편명 입력 (예: OZ521)"
-                          value={flightSearchQuery}
-                          onChange={(e) => setFlightSearchQuery(e.target.value.toUpperCase())}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !isLoadingFlightData) {
-                              handleFlightHistorySearch();
-                            }
-                          }}
-                          className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ${isDarkMode
-                            ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
-                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                            }`}
-                        />
-                      </div>
-                      <button
-                        onClick={handleFlightHistorySearch}
-                        disabled={isLoadingFlightData}
-                        className={`w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ${isLoadingFlightData
-                          ? 'bg-gray-400 cursor-not-allowed'
-                          : 'bg-blue-500 hover:bg-blue-600'
-                          }`}
-                      >
-                        {isLoadingFlightData ? '검색 중...' : '검색'}
-                      </button>
-                    </div>
-
-                    {/* 항공사 정보 카드 */}
-                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-4 rounded-lg shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-md transition-shadow`}>
-                      <div className="mb-3">
-                        <div className="font-semibold text-gray-700 dark:text-gray-300">항공사 정보</div>
-                      </div>
-                      <div className="mb-3">
-                        <input
-                          type="text"
-                          placeholder="IATA/ICAO 코드 입력"
-                          value={airlineSearchQuery}
-                          onChange={(e) => setAirlineSearchQuery(e.target.value.toUpperCase())}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !isLoadingAirlineData) {
-                              handleAirlineSearch();
-                            }
-                          }}
-                          className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ${isDarkMode
-                            ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
-                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                            }`}
-                        />
-                      </div>
-                      <button
-                        onClick={handleAirlineSearch}
-                        disabled={isLoadingAirlineData}
-                        className={`w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ${isLoadingAirlineData
-                          ? 'bg-gray-400 cursor-not-allowed'
-                          : 'bg-blue-500 hover:bg-blue-600'
-                          }`}
-                      >
-                        {isLoadingAirlineData ? '로딩 중...' : '검색'}
-                      </button>
-                    </div>
-
-
-                  </div>
-
-                  {/* 항공편 검색 결과 섹션 */}
-                  {showFlightResults && (
-                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-4 mb-4 relative`}>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공편 검색 결과</h3>
+            {/* 탭 내용 */}
+            <AnimatePresence mode="wait">
+              {activeTab === 'dashboard' && (
+                <motion.div
+                  key="dashboard"
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <section className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">월별 비행 시간 (Block)</h2>
                         <button
-                          onClick={() => setShowFlightResults(false)}
-                          className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
-                          title="닫기"
+                          onClick={handleAnnualBlockTimeGraphClick}
+                          className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                          title="연간 비행시간 그래프"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                           </svg>
                         </button>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleCalendarClick}
+                          className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                          title="전체 달력 보기"
+                        >
+                          <CalendarIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
 
+                    {/* BlockTimeCard는 내부적으로 grid-cols-2를 사용하므로 외부 그리드 제거하여 너비 일치시킴 */}
+                    <div className="w-full">
+                      <BlockTimeCard
+                        flights={flights}
+                        todayStr={todayStr}
+                        onMonthClick={handleMonthClick}
+                      />
+                    </div>
+                  </section>
 
-
-
-                      {/* 항공편 검색 결과 */}
-                      {flightSearchResults.length > 0 ? (
-                        <div className="mb-4">
-                          <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                            총 {flightSearchResults.length}개의 항공편을 찾았습니다. 경로를 보려면 항목을 선택하세요.
+                  <section className="mb-8">
+                    <div
+                      className="relative overflow-hidden"
+                      ref={sliderContainerRef}
+                      onTouchStart={handleTouchStart}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                    >
+                      <div
+                        className="flex flex-nowrap gap-6 transition-transform duration-300 ease-in-out"
+                        style={{
+                          transform: cardItemWidth > 0
+                            ? 'translateX(0px)'
+                            : 'translateX(0%)',
+                          willChange: 'transform'
+                        }}
+                      >
+                        {cardData.map((card, index) => (
+                          <div
+                            key={index}
+                            className="flex-shrink-0"
+                            style={{ width: cardItemWidth > 0 ? '100px' : 'calc((100% - 24px)/2)' }}
+                          >
+                            <FlightCard
+                              flight={card.flight}
+                              type={card.type}
+                              onClick={handleFlightCardClick}
+                              todayStr={todayStr}
+                              onStatusChange={handleStatusChange}
+                              baseIata={baseIata}
+                            />
                           </div>
+                        ))}
+                      </div>
+
+                      {/* 스와이프 인디케이터 */}
+                      {cardData.length > 2 && (
+                        <div className="flex justify-center mt-4 space-x-2">
+                          {Array.from({ length: cardData.length - 1 }, (_, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setCurrentCardIndex(i)}
+                              className="w-2 h-2 rounded-full transition-colors duration-200"
+                            />
+                          ))}
                         </div>
-                      ) : null}
-                      {flightSearchResults.length > 0 ? (
-                        flightSearchResults.map((flight, index) => (
-                          <div key={index} className={`${isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white'} p-4 rounded-xl shadow-md border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all duration-300 mb-3`}>
-                            <div className="flex items-center justify-between mb-3">
-                              <div>
-                                <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">
-                                  {(() => {
-                                    const flightNumber = flight.flightNumber || '';
-                                    // 항공편 번호에서 항공사 코드와 번호 분리 (예: 7C1301 -> 7C, 1301)
-                                    const match = flightNumber.match(/^([A-Z0-9]+?)(\d+)$/);
-                                    const iata = match ? match[1] : flightNumber;
-                                    const number = match ? match[2] : '';
-                                    const icao = flight.airlineCode ? getICAOCode(flight.airlineCode) : getICAOCode(flight.airline);
-                                    return `${iata} ${number} (${icao} ${number})`;
-                                  })()}
-                                </h4>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {getAirlineName(flight.airline || flight.airlineCode || '')}
-                                </div>
-                              </div>
-                              <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-semibold rounded-full shadow-sm">
-                                {flight.type.includes('인천공항 API') ? '온라인' : flight.type}
-                              </span>
+                      )}
+                    </div>
+                  </section>
+
+                  <section>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">자격 현황</h2>
+                        <button
+                          onClick={handleCurrencySettingsClick}
+                          className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                          title="자격 현황 설정"
+                        >
+                          <SettingsIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setIsCurrencyExpanded(!isCurrencyExpanded);
+                        }}
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        title={isCurrencyExpanded ? "추가 카드 접기" : "추가 카드 펼치기"}
+                      >
+                        {isCurrencyExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <CurrencyCard title="이륙" currencyInfo={takeoffCurrency} onClick={() => handleCurrencyCardClick('takeoff', takeoffCurrency)} />
+                      <CurrencyCard title="착륙" currencyInfo={landingCurrency} onClick={() => handleCurrencyCardClick('landing', landingCurrency)} />
+                      {selectedCurrencyCards.map((cardType) => {
+                        // 임시 데이터 - 실제로는 각 카드 타입에 맞는 데이터를 가져와야 함
+                        const tempCurrencyInfo = {
+                          current: 0,
+                          required: 0,
+                          lastFlight: null,
+                          nextRequired: null
+                        };
+
+                        const cardNames: { [key: string]: string } = {
+                          'passport': '여권',
+                          'visa': '비자',
+                          'epta': 'EPTA',
+                          'radio': 'Radio',
+                          'whitecard': 'White Card',
+                          'crm': 'CRM'
+                        };
+
+                        // 카드가 긴급한지 확인
+                        const expiryDate = cardExpiryDates[cardType];
+                        let isUrgent = false;
+                        if (expiryDate) {
+                          const today = new Date();
+                          const expiry = new Date(expiryDate);
+                          const timeDiff = expiry.getTime() - today.getTime();
+                          const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+                          // White Card는 30일 이하, 다른 카드는 90일 이하
+                          if (cardType === 'whitecard') {
+                            isUrgent = daysUntilExpiry <= 30;
+                          } else {
+                            isUrgent = daysUntilExpiry <= 90;
+                          }
+                        }
+
+                        // 긴급한 카드는 항상 표시, 일반 카드는 접기 상태에 따라 표시
+                        const shouldShow = isUrgent || isCurrencyExpanded;
+                        if (!shouldShow) return null;
+
+                        return (
+                          <CurrencyCard
+                            key={cardType}
+                            title={cardNames[cardType] || cardType}
+                            currencyInfo={tempCurrencyInfo}
+                            cardType={cardType}
+                            expiryDate={cardExpiryDates[cardType]}
+                            onClick={() => handleCardClick(cardType, cardNames[cardType] || cardType)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
+                </motion.div>
+              )}
+
+              {activeTab === 'rest' && (
+                <motion.div
+                  key="rest"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className={isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}
+                >
+                  <RestCalculator key={'rest-calculator - ' + theme} isDark={isDarkMode} />
+                </motion.div>
+              )}
+
+              {activeTab === 'flightData' && (
+                <motion.div
+                  key="flightData"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className={(isDarkMode ? 'bg-gray-900' : 'bg-gray-100') + ' p-3 rounded-lg'}
+                >
+                  {/* Flight Data 섹션 */}
+                  <section className="mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300">Flight Data</h2>
+                    </div>
+
+                    {/* 검색 카드 그리드 */}
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      {/* 항공편 검색 카드 */}
+                      <div className={(isDarkMode ? 'bg-gray-800' : 'bg-white') + ' p-4 rounded-lg shadow-sm border ' + (isDarkMode ? 'border-gray-700' : 'border-gray-200') + ' hover:shadow-md transition-shadow'}>
+                        <div className="mb-3">
+                          <div className="font-semibold text-gray-700 dark:text-gray-300">항공편 검색</div>
+                        </div>
+                        <div className="mb-3">
+                          <input
+                            type="text"
+                            placeholder="항공편명 입력 (예: OZ521)"
+                            value={flightSearchQuery}
+                            onChange={(e) => setFlightSearchQuery(e.target.value.toUpperCase())}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !isLoadingFlightData) {
+                                handleFlightHistorySearch();
+                              }
+                            }}
+                            className={'w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ' + (isDarkMode
+                              ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500')}
+                          />
+                        </div>
+                        <button
+                          onClick={handleFlightHistorySearch}
+                          disabled={isLoadingFlightData}
+                          className={'w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ' + (isLoadingFlightData
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-500 hover:bg-blue-600')}
+                        >
+                          {isLoadingFlightData ? '검색 중...' : '검색'}
+                        </button>
+                      </div>
+
+                      {/* 항공사 정보 카드 */}
+                      <div className={(isDarkMode ? 'bg-gray-800' : 'bg-white') + ' p-4 rounded-lg shadow-sm border ' + (isDarkMode ? 'border-gray-700' : 'border-gray-200') + ' hover:shadow-md transition-shadow'}>
+                        <div className="mb-3">
+                          <div className="font-semibold text-gray-700 dark:text-gray-300">항공사 정보</div>
+                        </div>
+                        <div className="mb-3">
+                          <input
+                            type="text"
+                            placeholder="IATA/ICAO 코드 입력"
+                            value={airlineSearchQuery}
+                            onChange={(e) => setAirlineSearchQuery(e.target.value.toUpperCase())}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !isLoadingAirlineData) {
+                                handleAirlineSearch();
+                              }
+                            }}
+                            className={'w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase ' + (isDarkMode
+                              ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500')}
+                          />
+                        </div>
+                        <button
+                          onClick={handleAirlineSearch}
+                          disabled={isLoadingAirlineData}
+                          className={'w-full px-4 py-2 text-white text-sm rounded-lg transition-colors font-medium ' + (isLoadingAirlineData
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-500 hover:bg-blue-600')}
+                        >
+                          {isLoadingAirlineData ? '로딩 중...' : '검색'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 항공편 검색 결과 섹션 */}
+                    {showFlightResults && (
+                      <div className={(isDarkMode ? 'bg-gray-800' : 'bg-white') + ' rounded-xl shadow-lg border ' + (isDarkMode ? 'border-gray-700' : 'border-gray-200') + ' p-4 mb-4 relative'}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공편 검색 결과</h3>
+                          <button
+                            onClick={() => setShowFlightResults(false)}
+                            className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
+                            title="닫기"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        {/* 항공편 검색 결과 */}
+                        {flightSearchResults.length > 0 ? (
+                          <div className="mb-4">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                              총 {flightSearchResults.length}개의 항공편을 찾았습니다. 경로를 보려면 항목을 선택하세요.
                             </div>
-
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex-1 text-center">
-                                <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">출발</div>
-                                <div className="font-semibold text-gray-700 dark:text-gray-300 text-lg md:text-xl">{flight.origin || flight.departure}</div>
-                                <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                                  {getCityInfo(flight.origin || flight.departure)?.name || ''}
-                                </div>
-                                {/* 시간 표시 로직 개선 */}
-                                {(flight.planTime || flight.time || flight.scheduledTime) && (
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    {flight.planTime
-                                      ? `${flight.planTime}`
-                                      : flight.time
-                                        ? flight.time
-                                        : !isNaN(new Date(flight.scheduledTime).getTime())
-                                          ? new Date(flight.scheduledTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-                                          : ''}
+                          </div>
+                        ) : null}
+                        {flightSearchResults.length > 0 ? (
+                          flightSearchResults.map((flight, index) => (
+                            <div key={index} className={(isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white') + ' p-4 rounded-xl shadow-md border ' + (isDarkMode ? 'border-gray-600' : 'border-gray-200') + ' hover:shadow-lg transition-all duration-300 mb-3'}>
+                              <div className="flex items-center justify-between mb-3">
+                                <div>
+                                  <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">
+                                    {(() => {
+                                      const flightNumber = flight.flightNumber || '';
+                                      // 항공편 번호에서 항공사 코드와 번호 분리 (예: 7C1301 -> 7C, 1301)
+                                      const match = flightNumber.match(/^([A-Z0-9]+?)(\d+)$/);
+                                      const iata = match ? match[1] : flightNumber;
+                                      const number = match ? match[2] : '';
+                                      const icao = flight.airlineCode ? getICAOCode(flight.airlineCode) : getICAOCode(flight.airline);
+                                      return `${iata} ${number} (${icao} ${number})`;
+                                    })()}
+                                  </h4>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {getAirlineName(flight.airline || flight.airlineCode || '')}
                                   </div>
-                                )}
+                                </div>
+                                <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-semibold rounded-full shadow-sm">
+                                  {flight.type.includes('인천공항 API') ? '온라인' : flight.type}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex-1 text-center">
+                                  <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">출발</div>
+                                  <div className="font-semibold text-gray-700 dark:text-gray-300 text-lg md:text-xl">{flight.origin || flight.departure}</div>
+                                  <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                                    {getCityInfo(flight.origin || flight.departure)?.name || ''}
+                                  </div>
+                                  {/* 시간 표시 로직 개선 */}
+                                  {(flight.planTime || flight.time || flight.scheduledTime) && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      {flight.planTime
+                                        ? flight.planTime
+                                        : flight.time
+                                          ? flight.time
+                                          : !isNaN(new Date(flight.scheduledTime).getTime())
+                                            ? new Date(flight.scheduledTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+                                            : ''}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex-1 text-center">
+                                  <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">도착</div>
+                                  <div className="font-semibold text-gray-700 dark:text-gray-300 text-lg md:text-xl">{flight.destination || flight.arrival}</div>
+                                  <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                                    {getCityInfo(flight.destination || flight.arrival)?.name || ''}
+                                  </div>
+                                  {flight.actualTime && (
+                                    <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                      실제: {new Date(flight.actualTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
 
-                              <div className="flex-1 text-center">
-                                <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">도착</div>
-                                <div className="font-semibold text-gray-700 dark:text-gray-300 text-lg md:text-xl">{flight.destination || flight.arrival}</div>
-                                <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                                  {getCityInfo(flight.destination || flight.arrival)?.name || ''}
-                                </div>
-                                {flight.actualTime && (
-                                  <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                    실제: {new Date(flight.actualTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                              <div className="space-y-2 text-sm">
+                                {/* 기종 정보 (인천공항 API) */}
+                                {(() => {
+                                  // 일주일 데이터에서 모든 기종 추출
+                                  if (flight.weeklyData && flight.type.includes('인천공항 API')) {
+                                    const aircraftTypes = new Set<string>();
 
-                            <div className="space-y-2 text-sm">
-                              {/* 기종 정보 (인천공항 API) */}
-                              {(() => {
-                                // 일주일 데이터에서 모든 기종 추출
-                                if (flight.weeklyData && flight.type.includes('인천공항 API')) {
-                                  const aircraftTypes = new Set<string>();
+                                    Object.values(flight.weeklyData).forEach((dayFlights: any) => {
+                                      if (Array.isArray(dayFlights)) {
+                                        dayFlights.forEach((f: any) => {
+                                          const aircraftModel = f.aircraft?.model || f.aircraft;
+                                          if (aircraftModel && aircraftModel.trim()) {
+                                            aircraftTypes.add(aircraftModel.trim());
+                                          }
+                                        });
+                                      }
+                                    });
 
-                                  Object.values(flight.weeklyData).forEach((dayFlights: any) => {
-                                    if (Array.isArray(dayFlights)) {
-                                      dayFlights.forEach((f: any) => {
-                                        const aircraftModel = f.aircraft?.model || f.aircraft;
-                                        if (aircraftModel && aircraftModel.trim()) {
-                                          aircraftTypes.add(aircraftModel.trim());
-                                        }
-                                      });
-                                    }
-                                  });
-
-                                  if (aircraftTypes.size > 0) {
-                                    return (
-                                      <div className="flex items-start space-x-2">
-                                        <div className="w-2 h-2 bg-blue-400 rounded-full mt-1"></div>
-                                        <div className="flex-1">
-                                          <span className="text-gray-500 dark:text-gray-400">기종: </span>
-                                          <span className="font-medium text-gray-700 dark:text-gray-300">
-                                            {Array.from(aircraftTypes).map(type => simplifyAircraftType(type)).join(', ')}
-                                          </span>
+                                    if (aircraftTypes.size > 0) {
+                                      return (
+                                        <div className="flex items-start space-x-2">
+                                          <div className="w-2 h-2 bg-blue-400 rounded-full mt-1"></div>
+                                          <div className="flex-1">
+                                            <span className="text-gray-500 dark:text-gray-400">기종: </span>
+                                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                                              {Array.from(aircraftTypes).map(type => simplifyAircraftType(type)).join(', ')}
+                                            </span>
+                                          </div>
                                         </div>
+                                      );
+                                    }
+                                  }
+
+                                  // 단일 기종 정보 (모든 기종 표시)
+                                  if (flight.aircraft && flight.aircraft.trim()) {
+                                    // 여러 기종이 콤마로 구분되어 있는 경우 모두 표시
+                                    const aircraftTypes = flight.aircraft.split(',').map((type: string) => type.trim()).filter((type: string) => type);
+
+                                    return (
+                                      <div className="flex items-center space-x-2">
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                        <span className="text-gray-500 dark:text-gray-400">기종:</span>
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                                          {aircraftTypes.map(type => simplifyAircraftType(type)).join(', ')}
+                                        </span>
                                       </div>
                                     );
                                   }
-                                }
 
-                                // 단일 기종 정보 (모든 기종 표시)
-                                if (flight.aircraft && flight.aircraft.trim()) {
-                                  // 여러 기종이 콤마로 구분되어 있는 경우 모두 표시
-                                  const aircraftTypes = flight.aircraft.split(',').map((type: string) => type.trim()).filter((type: string) => type);
-
-                                  return (
-                                    <div className="flex items-center space-x-2">
-                                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                                      <span className="text-gray-500 dark:text-gray-400">기종:</span>
-                                      <span className="font-medium text-gray-700 dark:text-gray-300">
-                                        {aircraftTypes.map(type => simplifyAircraftType(type)).join(', ')}
-                                      </span>
-                                    </div>
-                                  );
-                                }
-
-                                return null;
-                              })()}
+                                  return null;
+                                })()}
 
 
-                              {/* 주간 스케줄 (인천공항 API의 weeklySchedule) */}
-                              {flight.weeklySchedule && flight.type.includes('인천공항 API') && (
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                                  <span className="text-gray-500 dark:text-gray-400">운항 요일:</span>
-                                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                                    {flight.weeklySchedule}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* ADS-B 경로 표시 버튼 */}
-                            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                              <button
-                                onClick={() => handleFlightPathTracking(flight)}
-                                disabled={isLoadingFlightPath}
-                                className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
-                              >
-                                {isLoadingFlightPath ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                    <span>경로 로딩 중...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                                    </svg>
-                                    <span>경로 보기</span>
-                                  </>
+                                {/* 주간 스케줄 (인천공항 API의 weeklySchedule) */}
+                                {flight.weeklySchedule && flight.type.includes('인천공항 API') && (
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                                    <span className="text-gray-500 dark:text-gray-400">운항 요일:</span>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                                      {flight.weeklySchedule}
+                                    </span>
+                                  </div>
                                 )}
-                              </button>
-                            </div>
+                              </div>
 
+                              {/* ADS-B 경로 표시 버튼 */}
+                              <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                <button
+                                  onClick={() => handleFlightPathTracking(flight)}
+                                  disabled={isLoadingFlightPath}
+                                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                                >
+                                  {isLoadingFlightPath ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                      <span>경로 로딩 중...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                      </svg>
+                                      <span>경로 보기</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+
+                            </div>
+                          ))
+                        ) : (
+                          <div className={(isDarkMode ? 'bg-gray-700' : 'bg-gray-100') + ' p-6 rounded-lg text-center'}>
+                            <p className={'text-sm ' + (isDarkMode ? 'text-gray-400' : 'text-gray-600')}>
+                              {flightSearchQuery.trim() ?
+                                '검색 결과가 없습니다.' :
+                                '항공편명, 항공사, 출발지, 도착지를 입력하고 검색하세요.'
+                              }
+                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-6 rounded-lg text-center`}>
-                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {flightSearchQuery.trim() ?
-                              '검색 결과가 없습니다.' :
-                              '항공편명, 항공사, 출발지, 도착지를 입력하고 검색하세요.'
-                            }
+                        )}
+
+                        {/* 주의사항 */}
+                        <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                          <p className="text-xs text-gray-400 dark:text-gray-500 text-right">
+                            주의 : 실제 정보와 다를 수 있습니다
                           </p>
                         </div>
-                      )}
-
-                      {/* 주의사항 */}
-                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                        <p className="text-xs text-gray-400 dark:text-gray-500 text-right">
-                          주의 : 실제 정보와 다를 수 있습니다
-                        </p>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* 항공사 정보 검색 결과 섹션 */}
-                  {showAirlineResults && (
-                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-4 relative`}>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공사 정보 검색 결과</h3>
-                        <button
-                          onClick={() => setShowAirlineResults(false)}
-                          className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
-                          title="닫기"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
+                    {/* 항공사 정보 검색 결과 섹션 */}
+                    {showAirlineResults && (
+                      <div className={(isDarkMode ? 'bg-gray-800' : 'bg-white') + ' rounded-xl shadow-lg border ' + (isDarkMode ? 'border-gray-700' : 'border-gray-200') + ' p-4 relative'}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">항공사 정보 검색 결과</h3>
+                          <button
+                            onClick={() => setShowAirlineResults(false)}
+                            className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
+                            title="닫기"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
 
-                      {/* 항공사 정보 결과 */}
-                      {airlineSearchResults.length > 0 ? (
-                        airlineSearchResults.map((airline, index) => (
-                          <div key={index} className={`${isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white'} p-4 rounded-xl shadow-md border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all duration-300 mb-3`}>
-                            <div className="flex items-center justify-between mb-4">
-                              <div>
-                                <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">{airline.name}</h4>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">{airline.koreanName}</p>
+                        {/* 항공사 정보 결과 */}
+                        {airlineSearchResults.length > 0 ? (
+                          airlineSearchResults.map((airline, index) => (
+                            <div key={index} className={(isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-white') + ' p-4 rounded-xl shadow-md border ' + (isDarkMode ? 'border-gray-600' : 'border-gray-200') + ' hover:shadow-lg transition-all duration-300 mb-3'}>
+                              <div className="flex items-center justify-between mb-4">
+                                <div>
+                                  <h4 className="text-lg font-bold text-gray-700 dark:text-gray-300">{airline.name}</h4>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">{airline.koreanName}</p>
+                                </div>
                               </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
-                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">IATA</div>
-                                <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words">{airline.iata}</div>
-                              </div>
-                              <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
-                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">ICAO</div>
-                                <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words">{airline.icao}</div>
-                              </div>
-                              <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
-                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">호출부호</div>
-                                <div className="font-bold text-gray-700 dark:text-gray-300 text-xs break-words leading-tight">{airline.callsign}</div>
-                              </div>
-                              <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
-                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">국가</div>
-                                <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words flex items-center justify-center gap-1">
-                                  <span>{getCountryFlag(airline.country)}</span>
-                                  <span>{airline.country}</span>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">IATA</div>
+                                  <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words">{airline.iata}</div>
+                                </div>
+                                <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">ICAO</div>
+                                  <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words">{airline.icao}</div>
+                                </div>
+                                <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">호출부호</div>
+                                  <div className="font-bold text-gray-700 dark:text-gray-300 text-xs break-words leading-tight">{airline.callsign}</div>
+                                </div>
+                                <div className="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg min-w-0">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">국가</div>
+                                  <div className="font-bold text-gray-700 dark:text-gray-300 text-sm break-words flex items-center justify-center gap-1">
+                                    <span>{getCountryFlag(airline.country)}</span>
+                                    <span>{airline.country}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
+                          ))
+                        ) : (
+                          <div className={(isDarkMode ? 'bg-gray-700' : 'bg-gray-100') + ' p-6 rounded-lg text-center'}>
+                            <p className={'text-sm ' + (isDarkMode ? 'text-gray-400' : 'text-gray-600')}>
+                              {airlineSearchQuery.trim() ? '검색 결과가 없습니다.' : 'IATA/ICAO 코드, 항공사명, 호출부호로 검색하세요.'}
+                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-6 rounded-lg text-center`}>
-                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {airlineSearchQuery.trim() ? '검색 결과가 없습니다.' : 'IATA/ICAO 코드, 항공사명, 호출부호로 검색하세요.'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </section>
-              </motion.div>
-            )}
-          </AnimatePresence >
+                        )}
+                      </div>
+                    )}
+                  </section>
+                </motion.div>
+              )}
+            </AnimatePresence >
 
-          <footer className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
-            <div className="flex justify-center items-center gap-4">
-              <p>My KneeBoard © 2025. v{DISPLAY_VERSION}</p>
-              <button
-                onClick={handleAboutClick}
-                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-              >
-                정보
-              </button>
-            </div>
-          </footer>
+            <footer className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex justify-center items-center gap-4">
+                <p>My KneeBoard © 2025. v{DISPLAY_VERSION}</p>
+                <button
+                  onClick={handleAboutClick}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                >
+                  정보
+                </button>
+              </div>
+            </footer>
+          </div>
+
+
         </div >
-      )}
+      )
+      }
 
       {/* ---------- 3. 모든 모달들은 공통으로 맨 마지막에 렌더링 ---------- */}
       <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">

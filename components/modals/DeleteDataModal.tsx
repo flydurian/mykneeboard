@@ -31,7 +31,7 @@ const DeleteDataModal: React.FC<DeleteDataModalProps> = ({
         monthSet.add(`${year}-${month}`);
       }
     });
-    
+
     return Array.from(monthSet)
       .map(dateStr => {
         const [year, month] = dateStr.split('-').map(Number);
@@ -94,19 +94,19 @@ const DeleteDataModal: React.FC<DeleteDataModalProps> = ({
   };
 
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe"
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 pt-safe"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="glass-panel rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <h2 className="text-xl font-semibold text-white">
             데이터 삭제
           </h2>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="text-slate-400 hover:text-white"
             disabled={isDeleting}
           >
             <XIcon className="w-6 h-6" />
@@ -117,19 +117,19 @@ const DeleteDataModal: React.FC<DeleteDataModalProps> = ({
           <>
             {/* Content */}
             <div className="p-6">
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-slate-400 mb-6">
                 삭제할 데이터의 년월을 선택하세요.
               </p>
 
               {/* Year Selection */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
                   년도
                 </label>
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="glass-input w-full p-3 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={isDeleting}
                 >
                   {availableYears.map(year => (
@@ -142,13 +142,13 @@ const DeleteDataModal: React.FC<DeleteDataModalProps> = ({
 
               {/* Month Selection */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
                   월
                 </label>
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="glass-input w-full p-3 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={isDeleting}
                 >
                   {availableMonthsForYear.map(month => (
@@ -160,18 +160,18 @@ const DeleteDataModal: React.FC<DeleteDataModalProps> = ({
               </div>
 
               {/* Data Count */}
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  선택된 기간: <span className="font-semibold">{selectedYear}년 {selectedMonth}월</span>
+              <div className="bg-black/20 rounded-lg p-4 mb-6 border border-white/10">
+                <p className="text-sm text-slate-400">
+                  선택된 기간: <span className="font-semibold text-white">{selectedYear}년 {selectedMonth}월</span>
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  삭제될 데이터: <span className="font-semibold text-red-600 dark:text-red-400">{selectedDataCount}개</span>
+                <p className="text-sm text-slate-400 mt-1">
+                  삭제될 데이터: <span className="font-semibold text-red-400">{selectedDataCount}개</span>
                 </p>
               </div>
 
               {selectedDataCount === 0 && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-yellow-200">
                     선택된 기간에 삭제할 데이터가 없습니다.
                   </p>
                 </div>
@@ -179,10 +179,10 @@ const DeleteDataModal: React.FC<DeleteDataModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end gap-3 p-6 border-t border-white/10">
               <button
                 onClick={handleClose}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                 disabled={isDeleting}
               >
                 취소
@@ -201,28 +201,28 @@ const DeleteDataModal: React.FC<DeleteDataModalProps> = ({
             {/* Confirmation */}
             <div className="p-6">
               <div className="text-center">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
-                  <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-500/20 mb-4">
+                  <svg className="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                <h3 className="text-lg font-medium text-white mb-2">
                   정말 삭제하시겠습니까?
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  <span className="font-semibold">{selectedYear}년 {selectedMonth}월</span>의 모든 데이터가 삭제됩니다.
+                <p className="text-sm text-slate-400 mb-4">
+                  <span className="font-semibold text-white">{selectedYear}년 {selectedMonth}월</span>의 모든 데이터가 삭제됩니다.
                 </p>
-                <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                <p className="text-sm text-red-400 font-medium">
                   이 작업은 되돌릴 수 없습니다.
                 </p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end gap-3 p-6 border-t border-white/10">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                 disabled={isDeleting}
               >
                 취소

@@ -15,6 +15,7 @@ export const useFlights = (userId: string | undefined) => {
         queryKey: flightKeys.list(userId || ''),
         queryFn: () => getAllFlights(userId || ''),
         enabled: !!userId, // userId가 있을 때만 쿼리 실행
+        staleTime: 1000 * 60 * 5, // 5분간 캐시 유지
     });
 };
 

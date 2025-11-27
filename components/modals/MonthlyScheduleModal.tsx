@@ -46,21 +46,21 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
     const [showScrollbar, setShowScrollbar] = useState(false);
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [localFlights, setLocalFlights] = useState<Flight[]>([]);
-    
+
     // data가 변경될 때마다 localFlights 업데이트
     useEffect(() => {
         if (data && data.flights) {
             setLocalFlights(data.flights);
         }
     }, [data]);
-    
+
     if (!data) {
         return null;
     }
-    
+
     const { month, flights, blockTime } = data;
     const flightsToUse = localFlights.length > 0 ? localFlights : flights;
-    
+
     // 중복 제거: 같은 ID를 가진 비행 데이터 중복 제거
     const uniqueFlights = flightsToUse.reduce((acc, current) => {
         const existingIndex = acc.findIndex(flight => flight.id === current.id);
@@ -76,15 +76,15 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
         // 날짜 비교
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
-        
+
         if (dateA.getTime() !== dateB.getTime()) {
             return dateA.getTime() - dateB.getTime();
         }
-        
+
         // 같은 날짜인 경우 STD 시간으로 정렬
         const stdA = a.std || '00:00';
         const stdB = b.std || '00:00';
-        
+
         // 시간 형식 변환 (HHMM -> HH:MM)
         const formatTime = (time: string) => {
             if (time.includes(':')) return time;
@@ -93,10 +93,10 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
             }
             return time;
         };
-        
+
         const formattedStdA = formatTime(stdA);
         const formattedStdB = formatTime(stdB);
-        
+
         return formattedStdA.localeCompare(formattedStdB);
     });
 
@@ -136,11 +136,11 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
     // 스크롤 이벤트 핸들러
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         setShowScrollbar(true);
-        
+
         if (scrollTimeoutRef.current) {
             clearTimeout(scrollTimeoutRef.current);
         }
-        
+
         scrollTimeoutRef.current = setTimeout(() => {
             setShowScrollbar(false);
         }, 1000);
@@ -151,7 +151,7 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
     try {
         const raw = localStorage.getItem('last_upload_changed_dates');
         if (raw) changedDatesPayload = JSON.parse(raw);
-    } catch {}
+    } catch { }
     const changedDatesSet = new Set<string>(changedDatesPayload?.dates || []);
 
     // 특정 날짜 그룹이 변경된 날짜인지 판단
@@ -164,8 +164,8 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
 
     return (
         <>
-            <div 
-                className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50" 
+            <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50"
                 style={{
                     paddingTop: 'max(1rem, env(safe-area-inset-top))',
                     paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
@@ -174,54 +174,54 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                 }}
                 onClick={onClose}
             >
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl p-4 md:p-6 relative animate-fade-in-up flex flex-col max-h-full" onClick={(e) => e.stopPropagation()}>
+                <div className="glass-panel rounded-2xl shadow-xl w-full max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl p-4 md:p-6 relative animate-fade-in-up flex flex-col max-h-full" onClick={(e) => e.stopPropagation()}>
                     {/* 헤더 영역 */}
                     <div className="flex items-center justify-between mb-4">
                         {/* 제목 */}
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                        <h2 className="text-xl font-bold text-white">
                             {month + 1}월 스케줄
-                            <span className="text-base font-medium text-gray-500 dark:text-gray-400 ml-2">
+                            <span className="text-base font-medium text-slate-400 ml-2">
                                 (총 {blockTime})
                             </span>
                         </h2>
-                        
+
                         {/* 네비게이션 및 닫기 버튼들 */}
                         <div className="flex items-center space-x-1">
-                            <button 
+                            <button
                                 onClick={handlePreviousMonth}
-                                className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
+                                className="p-1 text-slate-400 hover:text-white transition-colors"
                                 title="이전 월"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
                             </button>
-                            <button 
+                            <button
                                 onClick={handleNextMonth}
-                                className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
+                                className="p-1 text-slate-400 hover:text-white transition-colors"
                                 title="다음 월"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                             </button>
-                            <button 
-                                onClick={onClose} 
-                                className="p-1 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
+                            <button
+                                onClick={onClose}
+                                className="p-1 text-slate-400 hover:text-white transition-colors"
                                 title="닫기"
                             >
                                 <XIcon className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
-                    
-                    <div 
+
+                    <div
                         className={`flex-grow overflow-auto ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
                         onScroll={handleScroll}
                     >
                         {flights.length > 0 ? (
                             <table className={`text-center w-full ${isKESchedule ? 'text-xs md:text-sm lg:text-base' : 'text-sm md:text-base'}`}>
-                                <thead className="text-xs font-semibold text-gray-800 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+                                <thead className="text-xs font-semibold text-slate-300 uppercase bg-white/5 sticky top-0 z-10">
                                     <tr>
                                         <th className={`${isKESchedule ? 'px-2 py-1 md:px-3 md:py-2 lg:px-4' : 'px-4 py-2'} whitespace-nowrap`}>날짜</th>
                                         <th className={`${isKESchedule ? 'px-2 py-1 md:px-3 md:py-2 lg:px-4' : 'px-4 py-2'} whitespace-nowrap`}>편명</th>
@@ -262,24 +262,23 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                             flightsForDate.forEach((flight, flightIndex) => {
                                                 const isFirstFlight = flightIndex === 0;
                                                 const rowspan = isFirstFlight ? flightsForDate.length : undefined;
-                                                
+
                                                 rows.push(
-                                                    <tr 
-                                                        key={`${flight.id}-${date}-${flightIndex}`} 
-                                                        className={`border-b dark:border-gray-700 cursor-pointer ${
-                                                            isToday(flight.date) 
-                                                                ? 'relative' 
+                                                    <tr
+                                                        key={`${flight.id}-${date}-${flightIndex}`}
+                                                        className={`border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors ${isToday(flight.date)
+                                                                ? 'relative'
                                                                 : ''
-                                                        }`}
+                                                            }`}
                                                         onClick={() => handleFlightClick(flight)}
                                                     >
                                                         {isFirstFlight && (
-                                                            <td 
+                                                            <td
                                                                 rowSpan={rowspan}
-                                                                className={`${isKESchedule ? 'px-2 py-2 md:px-3 md:py-3 lg:px-4' : 'px-4 py-3'} font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap relative ${
+                                                                className={`${isKESchedule ? 'px-2 py-2 md:px-3 md:py-3 lg:px-4' : 'px-4 py-3'} font-medium text-white whitespace-nowrap relative ${
                                                                     // 기본 선은 초록색(변경) 선으로 두고
                                                                     showGreenBar ? 'border-l-4 border-green-500' : 'border-l-4 border-transparent'
-                                                                }`}
+                                                                    }`}
                                                             >
                                                                 {/* 오늘(마젠타 막대)은 같은 세로선 위에 오도록 absolute로 덮어쓰기 */}
                                                                 {isToday(flight.date) && (
@@ -288,211 +287,205 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                                                 {flight.date.substring(5)}
                                                             </td>
                                                         )}
-                                            <td className={`${isKESchedule ? 'px-2 py-2 md:px-3 md:py-3 lg:px-4' : 'px-4 py-3'} text-gray-900 dark:text-gray-200 max-w-[100px] break-words`}>
-                                                {flight.flightNumber}
-                                            </td>
-                                            <td className={`${isKESchedule ? 'px-2 py-2 md:px-3 md:py-3 lg:px-4' : 'px-4 py-3'} text-gray-900 dark:text-gray-200 max-w-[120px] break-words ${
-                                                isToday(flight.date) && !isKESchedule && !shouldShowTakeoffLandingButtons
-                                                    ? 'border-r-4 border-fuchsia-500' 
-                                                    : ''
-                                            }`}>
-                                                {isActualFlight(flight) 
-                                                    ? flight.route?.replace('/', ' → ') 
-                                                    : (flight.flightNumber === 'OTHRDUTY' || flight.flightNumber === 'HM SBY' || flight.flightNumber === 'STBY' ? flight.route : 
-                                                      flight.flightNumber === 'RESERVE' || flight.flightNumber === 'ALV' || flight.flightNumber === 'ALM' ? '' : '')
-                                                }
-                                            </td>
-                                            {/* KE 스케줄에만 A/C TYPE 컬럼 표시 */}
-                                            {isKESchedule && (
-                                                <td className={`px-2 py-2 md:px-3 md:py-3 lg:px-4 text-gray-900 dark:text-gray-200 text-center ${
-                                                    isToday(flight.date) && !shouldShowTakeoffLandingButtons
-                                                        ? 'border-r-4 border-fuchsia-500' 
-                                                        : ''
-                                                }`}>
-                                                    {flight.acType || ''}
-                                                </td>
-                                            )}
-                                            {/* SHOW UP 시간 (데이터베이스에서 가져온 값 사용) */}
-                                            <td className="px-4 py-3 md:px-3 md:py-3 lg:px-4 text-gray-900 dark:text-gray-200 whitespace-nowrap hidden md:table-cell">
-                                                {/* G/S STUDENT, STBY, FIXED SKD 스케줄은 SHOW UP 표시하지 않음 */}
-                                                {flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
-                                                 flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
-                                                 flight.flightNumber.toUpperCase().includes('STBY') ||
-                                                 flight.flightNumber.toUpperCase().includes('RESERVE') ||
-                                                 flight.flightNumber.toUpperCase().includes('FIXED SKD') ? '' : (
-                                                    flight.showUpDateTimeUtc ? (
-                                                        formatInTimeZone(new Date(flight.showUpDateTimeUtc), 'Asia/Seoul', 'HH:mm')
-                                                    ) : ''
-                                                )}
-                                            </td>
-                                            {/* md(768px) 이상 화면에서만 보이도록 수정 */}
-                                            <td className="px-4 py-3 md:px-3 md:py-3 lg:px-4 text-gray-900 dark:text-gray-200 whitespace-nowrap hidden md:table-cell">
-                                                {/* 특별 스케줄은 STD/STA 표시하지 않음 (단, A STBY/B STBY는 제외) */}
-                                                {flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
-                                                 flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
-                                                 (flight.flightNumber.toUpperCase().includes('STBY') && 
-                                                  !flight.flightNumber.includes('A STBY') && 
-                                                  !flight.flightNumber.includes('B STBY')) ||
-                                                 flight.flightNumber.toUpperCase().includes('RESERVE') ||
-                                                 flight.flightNumber.toUpperCase().includes('FIXED SKD') ||
-                                                 flight.flightNumber.toUpperCase().includes('ANNUAL LEAVE') ||
-                                                 flight.flightNumber.toUpperCase().includes('ALV') ||
-                                                 flight.flightNumber.toUpperCase().includes('ALM') ||
-                                                 flight.flightNumber.toUpperCase().includes('MEDICAL CHK') ||
-                                                 flight.flightNumber.toUpperCase().includes('MEDICAL') ||
-                                                 flight.flightNumber.toUpperCase().includes('ORAL') ||
-                                                 flight.flightNumber.toUpperCase().includes('안전회의') ||
-                                                 flight.flightNumber.toUpperCase().includes('SAFETY') ? (
-                                                    // A STBY/B STBY는 특별 시간 표시
-                                                    flight.flightNumber === 'A STBY' ? '04:00' :
-                                                    flight.flightNumber === 'B STBY' ? '09:00' : ''
-                                                 ) : (
-                                                    // A STBY/B STBY는 OZ 스케줄이면 하드코딩된 시간, 다른 스케줄은 실제 시간 사용
-                                                    flight.flightNumber === 'A STBY' || flight.flightNumber === 'B STBY' ? (
-                                                        userInfo?.company === 'OZ' ? (
-                                                            flight.flightNumber === 'A STBY' ? '04:00' : '09:00'
-                                                        ) : (
-                                                            flight.departureDateTimeUtc ? (
-                                                                (() => {
-                                                                    const depUtc = new Date(flight.departureDateTimeUtc);
-                                                                    return formatInTimeZone(depUtc, 'Asia/Seoul', 'HH:mm');
-                                                                })()
+                                                        <td className={`${isKESchedule ? 'px-2 py-2 md:px-3 md:py-3 lg:px-4' : 'px-4 py-3'} text-white max-w-[100px] break-words`}>
+                                                            {flight.flightNumber}
+                                                        </td>
+                                                        <td className={`${isKESchedule ? 'px-2 py-2 md:px-3 md:py-3 lg:px-4' : 'px-4 py-3'} text-white max-w-[120px] break-words ${isToday(flight.date) && !isKESchedule && !shouldShowTakeoffLandingButtons
+                                                                ? 'border-r-4 border-fuchsia-500'
+                                                                : ''
+                                                            }`}>
+                                                            {isActualFlight(flight)
+                                                                ? flight.route?.replace('/', ' → ')
+                                                                : (flight.flightNumber === 'OTHRDUTY' || flight.flightNumber === 'HM SBY' || flight.flightNumber === 'STBY' ? flight.route :
+                                                                    flight.flightNumber === 'RESERVE' || flight.flightNumber === 'ALV' || flight.flightNumber === 'ALM' ? '' : '')
+                                                            }
+                                                        </td>
+                                                        {/* KE 스케줄에만 A/C TYPE 컬럼 표시 */}
+                                                        {isKESchedule && (
+                                                            <td className={`px-2 py-2 md:px-3 md:py-3 lg:px-4 text-white text-center ${isToday(flight.date) && !shouldShowTakeoffLandingButtons
+                                                                    ? 'border-r-4 border-fuchsia-500'
+                                                                    : ''
+                                                                }`}>
+                                                                {flight.acType || ''}
+                                                            </td>
+                                                        )}
+                                                        {/* SHOW UP 시간 (데이터베이스에서 가져온 값 사용) */}
+                                                        <td className="px-4 py-3 md:px-3 md:py-3 lg:px-4 text-white whitespace-nowrap hidden md:table-cell">
+                                                            {/* G/S STUDENT, STBY, FIXED SKD 스케줄은 SHOW UP 표시하지 않음 */}
+                                                            {flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
+                                                                flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
+                                                                flight.flightNumber.toUpperCase().includes('STBY') ||
+                                                                flight.flightNumber.toUpperCase().includes('RESERVE') ||
+                                                                flight.flightNumber.toUpperCase().includes('FIXED SKD') ? '' : (
+                                                                flight.showUpDateTimeUtc ? (
+                                                                    formatInTimeZone(new Date(flight.showUpDateTimeUtc), 'Asia/Seoul', 'HH:mm')
+                                                                ) : ''
+                                                            )}
+                                                        </td>
+                                                        {/* md(768px) 이상 화면에서만 보이도록 수정 */}
+                                                        <td className="px-4 py-3 md:px-3 md:py-3 lg:px-4 text-white whitespace-nowrap hidden md:table-cell">
+                                                            {/* 특별 스케줄은 STD/STA 표시하지 않음 (단, A STBY/B STBY는 제외) */}
+                                                            {flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
+                                                                flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
+                                                                (flight.flightNumber.toUpperCase().includes('STBY') &&
+                                                                    !flight.flightNumber.includes('A STBY') &&
+                                                                    !flight.flightNumber.includes('B STBY')) ||
+                                                                flight.flightNumber.toUpperCase().includes('RESERVE') ||
+                                                                flight.flightNumber.toUpperCase().includes('FIXED SKD') ||
+                                                                flight.flightNumber.toUpperCase().includes('ANNUAL LEAVE') ||
+                                                                flight.flightNumber.toUpperCase().includes('ALV') ||
+                                                                flight.flightNumber.toUpperCase().includes('ALM') ||
+                                                                flight.flightNumber.toUpperCase().includes('MEDICAL CHK') ||
+                                                                flight.flightNumber.toUpperCase().includes('MEDICAL') ||
+                                                                flight.flightNumber.toUpperCase().includes('ORAL') ||
+                                                                flight.flightNumber.toUpperCase().includes('안전회의') ||
+                                                                flight.flightNumber.toUpperCase().includes('SAFETY') ? (
+                                                                // A STBY/B STBY는 특별 시간 표시
+                                                                flight.flightNumber === 'A STBY' ? '04:00' :
+                                                                    flight.flightNumber === 'B STBY' ? '09:00' : ''
                                                             ) : (
-                                                                flight.flightNumber === 'A STBY' ? '04:00' : '09:00'
-                                                            )
-                                                        )
-                                                    ) : (
-                                                        flight.departureDateTimeUtc && flight.route ? (
-                                                            (() => {
-                                                                const depUtc = new Date(flight.departureDateTimeUtc);
-                                                                const departureAirport = flight.route.split('/')[0];
-                                                                const departureTimezone = getAirportTimeZone(departureAirport);
-                                                                return formatInTimeZone(depUtc, departureTimezone, 'HH:mm');
-                                                            })()
-                                                        ) : ''
-                                                    )
-                                                )}
-                                            </td>
-                                            <td className={`px-4 py-3 md:px-3 md:py-3 lg:px-4 text-gray-900 dark:text-gray-200 whitespace-nowrap hidden md:table-cell ${
-                                                isToday(flight.date) && !shouldShowTakeoffLandingButtons
-                                                    ? 'border-r-4 border-fuchsia-500' 
-                                                    : ''
-                                            }`}>
-                                                {/* 특별 스케줄은 STD/STA 표시하지 않음 (단, A STBY/B STBY는 제외) */}
-                                                {flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
-                                                 flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
-                                                 (flight.flightNumber.toUpperCase().includes('STBY') && 
-                                                  !flight.flightNumber.includes('A STBY') && 
-                                                  !flight.flightNumber.includes('B STBY')) ||
-                                                 flight.flightNumber.toUpperCase().includes('RESERVE') ||
-                                                 flight.flightNumber.toUpperCase().includes('FIXED SKD') ||
-                                                 flight.flightNumber.toUpperCase().includes('ANNUAL LEAVE') ||
-                                                 flight.flightNumber.toUpperCase().includes('ALV') ||
-                                                 flight.flightNumber.toUpperCase().includes('ALM') ||
-                                                 flight.flightNumber.toUpperCase().includes('MEDICAL CHK') ||
-                                                 flight.flightNumber.toUpperCase().includes('MEDICAL') ||
-                                                 flight.flightNumber.toUpperCase().includes('ORAL') ||
-                                                 flight.flightNumber.toUpperCase().includes('안전회의') ||
-                                                 flight.flightNumber.toUpperCase().includes('SAFETY') ? (
-                                                    // A STBY/B STBY는 특별 시간 표시
-                                                    flight.flightNumber === 'A STBY' ? '16:00' :
-                                                    flight.flightNumber === 'B STBY' ? '21:00' : ''
-                                                 ) : (
-                                                    // A STBY/B STBY는 OZ 스케줄이면 하드코딩된 시간, 다른 스케줄은 실제 시간 사용
-                                                    flight.flightNumber === 'A STBY' || flight.flightNumber === 'B STBY' ? (
-                                                        userInfo?.company === 'OZ' ? (
-                                                            flight.flightNumber === 'A STBY' ? '16:00' : '21:00'
-                                                        ) : (
-                                                            flight.arrivalDateTimeUtc ? (
-                                                                (() => {
-                                                                    const arrUtc = new Date(flight.arrivalDateTimeUtc);
-                                                                    return formatInTimeZone(arrUtc, 'Asia/Seoul', 'HH:mm');
-                                                                })()
+                                                                // A STBY/B STBY는 OZ 스케줄이면 하드코딩된 시간, 다른 스케줄은 실제 시간 사용
+                                                                flight.flightNumber === 'A STBY' || flight.flightNumber === 'B STBY' ? (
+                                                                    userInfo?.company === 'OZ' ? (
+                                                                        flight.flightNumber === 'A STBY' ? '04:00' : '09:00'
+                                                                    ) : (
+                                                                        flight.departureDateTimeUtc ? (
+                                                                            (() => {
+                                                                                const depUtc = new Date(flight.departureDateTimeUtc);
+                                                                                return formatInTimeZone(depUtc, 'Asia/Seoul', 'HH:mm');
+                                                                            })()
+                                                                        ) : (
+                                                                            flight.flightNumber === 'A STBY' ? '04:00' : '09:00'
+                                                                        )
+                                                                    )
+                                                                ) : (
+                                                                    flight.departureDateTimeUtc && flight.route ? (
+                                                                        (() => {
+                                                                            const depUtc = new Date(flight.departureDateTimeUtc);
+                                                                            const departureAirport = flight.route.split('/')[0];
+                                                                            const departureTimezone = getAirportTimeZone(departureAirport);
+                                                                            return formatInTimeZone(depUtc, departureTimezone, 'HH:mm');
+                                                                        })()
+                                                                    ) : ''
+                                                                )
+                                                            )}
+                                                        </td>
+                                                        <td className={`px-4 py-3 md:px-3 md:py-3 lg:px-4 text-white whitespace-nowrap hidden md:table-cell ${isToday(flight.date) && !shouldShowTakeoffLandingButtons
+                                                                ? 'border-r-4 border-fuchsia-500'
+                                                                : ''
+                                                            }`}>
+                                                            {/* 특별 스케줄은 STD/STA 표시하지 않음 (단, A STBY/B STBY는 제외) */}
+                                                            {flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
+                                                                flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
+                                                                (flight.flightNumber.toUpperCase().includes('STBY') &&
+                                                                    !flight.flightNumber.includes('A STBY') &&
+                                                                    !flight.flightNumber.includes('B STBY')) ||
+                                                                flight.flightNumber.toUpperCase().includes('RESERVE') ||
+                                                                flight.flightNumber.toUpperCase().includes('FIXED SKD') ||
+                                                                flight.flightNumber.toUpperCase().includes('ANNUAL LEAVE') ||
+                                                                flight.flightNumber.toUpperCase().includes('ALV') ||
+                                                                flight.flightNumber.toUpperCase().includes('ALM') ||
+                                                                flight.flightNumber.toUpperCase().includes('MEDICAL CHK') ||
+                                                                flight.flightNumber.toUpperCase().includes('MEDICAL') ||
+                                                                flight.flightNumber.toUpperCase().includes('ORAL') ||
+                                                                flight.flightNumber.toUpperCase().includes('안전회의') ||
+                                                                flight.flightNumber.toUpperCase().includes('SAFETY') ? (
+                                                                // A STBY/B STBY는 특별 시간 표시
+                                                                flight.flightNumber === 'A STBY' ? '16:00' :
+                                                                    flight.flightNumber === 'B STBY' ? '21:00' : ''
                                                             ) : (
-                                                                flight.flightNumber === 'A STBY' ? '16:00' : '21:00'
-                                                            )
-                                                        )
-                                                    ) : (
-                                                        flight.arrivalDateTimeUtc && flight.route ? (
-                                                            (() => {
-                                                                const arrUtc = new Date(flight.arrivalDateTimeUtc);
-                                                                const arrivalAirport = flight.route.split('/')[1];
-                                                                const arrivalTimezone = getAirportTimeZone(arrivalAirport);
-                                                                return formatInTimeZone(arrUtc, arrivalTimezone, 'HH:mm');
-                                                            })()
-                                                        ) : ''
-                                                    )
-                                                )}
-                                            </td>
-                                            {shouldShowTakeoffLandingButtons && (
-                                                <td className={`px-4 py-3 md:px-3 md:py-3 lg:px-4 whitespace-nowrap hidden md:table-cell ${
-                                                    isToday(flight.date) 
-                                                        ? 'border-r-4 border-fuchsia-500' 
-                                                        : ''
-                                                }`}>
-                                                    {isActualFlight(flight) && flight.route && (
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    // 로컬 상태 즉시 업데이트
-                                                                    setLocalFlights(prevFlights => 
-                                                                        prevFlights.map(f => 
-                                                                            f.id === flight.id 
-                                                                                ? { ...f, status: { ...f.status, departed: !f.status?.departed } }
-                                                                                : f
+                                                                // A STBY/B STBY는 OZ 스케줄이면 하드코딩된 시간, 다른 스케줄은 실제 시간 사용
+                                                                flight.flightNumber === 'A STBY' || flight.flightNumber === 'B STBY' ? (
+                                                                    userInfo?.company === 'OZ' ? (
+                                                                        flight.flightNumber === 'A STBY' ? '16:00' : '21:00'
+                                                                    ) : (
+                                                                        flight.arrivalDateTimeUtc ? (
+                                                                            (() => {
+                                                                                const arrUtc = new Date(flight.arrivalDateTimeUtc);
+                                                                                return formatInTimeZone(arrUtc, 'Asia/Seoul', 'HH:mm');
+                                                                            })()
+                                                                        ) : (
+                                                                            flight.flightNumber === 'A STBY' ? '16:00' : '21:00'
                                                                         )
-                                                                    );
-                                                                    // 부모 컴포넌트 상태도 업데이트
-                                                                    onStatusChange?.(flight.id, { departed: !flight.status?.departed });
-                                                                }}
-                                                                title="이륙 완료"
-                                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white transition-colors cursor-pointer ${
-                                                                    flight.status?.departed 
-                                                                        ? 'bg-blue-500 hover:bg-blue-600' 
-                                                                        : 'bg-gray-300 dark:bg-gray-600 hover:bg-blue-400 dark:hover:bg-blue-500'
-                                                                }`}
-                                                            >
-                                                                T
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    // 로컬 상태 즉시 업데이트
-                                                                    setLocalFlights(prevFlights => 
-                                                                        prevFlights.map(f => 
-                                                                            f.id === flight.id 
-                                                                                ? { ...f, status: { ...f.status, landed: !f.status?.landed } }
-                                                                                : f
-                                                                        )
-                                                                    );
-                                                                    // 부모 컴포넌트 상태도 업데이트
-                                                                    onStatusChange?.(flight.id, { landed: !flight.status?.landed });
-                                                                }}
-                                                                title="착륙 완료"
-                                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white transition-colors cursor-pointer ${
-                                                                    flight.status?.landed 
-                                                                        ? 'bg-green-500 hover:bg-green-600' 
-                                                                        : 'bg-gray-300 dark:bg-gray-600 hover:bg-green-400 dark:hover:bg-green-500'
-                                                                }`}
-                                                            >
-                                                                L
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                                    )
+                                                                ) : (
+                                                                    flight.arrivalDateTimeUtc && flight.route ? (
+                                                                        (() => {
+                                                                            const arrUtc = new Date(flight.arrivalDateTimeUtc);
+                                                                            const arrivalAirport = flight.route.split('/')[1];
+                                                                            const arrivalTimezone = getAirportTimeZone(arrivalAirport);
+                                                                            return formatInTimeZone(arrUtc, arrivalTimezone, 'HH:mm');
+                                                                        })()
+                                                                    ) : ''
+                                                                )
+                                                            )}
+                                                        </td>
+                                                        {shouldShowTakeoffLandingButtons && (
+                                                            <td className={`px-4 py-3 md:px-3 md:py-3 lg:px-4 whitespace-nowrap hidden md:table-cell ${isToday(flight.date)
+                                                                    ? 'border-r-4 border-fuchsia-500'
+                                                                    : ''
+                                                                }`}>
+                                                                {isActualFlight(flight) && flight.route && (
+                                                                    <div className="flex items-center justify-center gap-2">
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                // 로컬 상태 즉시 업데이트
+                                                                                setLocalFlights(prevFlights =>
+                                                                                    prevFlights.map(f =>
+                                                                                        f.id === flight.id
+                                                                                            ? { ...f, status: { ...f.status, departed: !f.status?.departed } }
+                                                                                            : f
+                                                                                    )
+                                                                                );
+                                                                                // 부모 컴포넌트 상태도 업데이트
+                                                                                onStatusChange?.(flight.id, { departed: !flight.status?.departed });
+                                                                            }}
+                                                                            title="이륙 완료"
+                                                                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white transition-colors cursor-pointer ${flight.status?.departed
+                                                                                    ? 'bg-blue-600 hover:bg-blue-500'
+                                                                                    : 'bg-white/20 hover:bg-blue-500/50'
+                                                                                }`}
+                                                                        >
+                                                                            T
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                // 로컬 상태 즉시 업데이트
+                                                                                setLocalFlights(prevFlights =>
+                                                                                    prevFlights.map(f =>
+                                                                                        f.id === flight.id
+                                                                                            ? { ...f, status: { ...f.status, landed: !f.status?.landed } }
+                                                                                            : f
+                                                                                    )
+                                                                                );
+                                                                                // 부모 컴포넌트 상태도 업데이트
+                                                                                onStatusChange?.(flight.id, { landed: !flight.status?.landed });
+                                                                            }}
+                                                                            title="착륙 완료"
+                                                                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white transition-colors cursor-pointer ${flight.status?.landed
+                                                                                    ? 'bg-emerald-600 hover:bg-emerald-500'
+                                                                                    : 'bg-white/20 hover:bg-emerald-500/50'
+                                                                                }`}
+                                                                        >
+                                                                            L
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </td>
                                                         )}
                                                     </tr>
                                                 );
                                             });
                                         });
-                                        
+
                                         return rows;
                                     })()}
                                 </tbody>
                             </table>
                         ) : (
-                            <p className="text-gray-500 dark:text-gray-400 text-center py-8">해당 월의 스케줄이 없습니다.</p>
+                            <p className="text-slate-400 text-center py-8">해당 월의 스케줄이 없습니다.</p>
                         )}
                     </div>
                 </div>

@@ -17,10 +17,10 @@ const CARD_OPTIONS = [
     { id: 'whitecard', name: 'White Card', description: '화이트카드 자격 관리' }
 ];
 
-const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({ 
-    isOpen, 
-    onClose, 
-    selectedCards, 
+const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
+    isOpen,
+    onClose,
+    selectedCards,
     onCardToggle,
     onCardReorder
 }) => {
@@ -61,15 +61,15 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
+            <div className="glass-panel rounded-2xl shadow-xl w-full max-w-md p-6 relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
                     <XIcon className="w-6 h-6" />
                 </button>
 
                 <div className="mb-6">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">자격 현황 카드 설정</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <h2 className="text-xl font-bold text-white mb-2">자격 현황 카드 설정</h2>
+                    <p className="text-sm text-slate-400">
                         표시할 자격 현황 카드를 선택하세요.
                     </p>
                 </div>
@@ -77,7 +77,7 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
                 {/* 선택된 카드들 - 드래그 앤 드롭으로 순서 변경 */}
                 {selectedCards.length > 0 && (
                     <div className="mb-6">
-                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">선택된 카드 (드래그하여 순서 변경)</h3>
+                        <h3 className="text-sm font-medium text-slate-300 mb-3">선택된 카드 (드래그하여 순서 변경)</h3>
                         <div className="space-y-2">
                             {selectedCards.map((cardId, index) => {
                                 const card = CARD_OPTIONS.find(c => c.id === cardId);
@@ -93,13 +93,12 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
                                         onDragLeave={handleDragLeave}
                                         onDrop={(e) => handleDrop(e, index)}
                                         onDragEnd={handleDragEnd}
-                                        className={`p-3 rounded-lg border-2 cursor-move transition-all ${
-                                            draggedIndex === index
-                                                ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/30 opacity-50'
+                                        className={`p-3 rounded-lg border-2 cursor-move transition-all ${draggedIndex === index
+                                                ? 'border-blue-500 bg-blue-500/20 opacity-50'
                                                 : dragOverIndex === index
-                                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                                                : 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                        }`}
+                                                    ? 'border-green-500 bg-green-500/20'
+                                                    : 'border-blue-500 bg-blue-500/10'
+                                            }`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="text-gray-400">
@@ -108,10 +107,10 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
                                                 </svg>
                                             </div>
                                             <div className="flex-1">
-                                                <h4 className="font-semibold text-gray-800 dark:text-white">
+                                                <h4 className="font-semibold text-white">
                                                     {card.name}
                                                 </h4>
-                                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                <p className="text-sm text-slate-400">
                                                     {card.description}
                                                 </p>
                                             </div>
@@ -120,7 +119,7 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
                                                     e.stopPropagation();
                                                     onCardToggle(cardId);
                                                 }}
-                                                className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                                className="p-1 text-red-400 hover:text-red-300 transition-colors"
                                                 title="제거"
                                             >
                                                 <XIcon className="w-4 h-4" />
@@ -135,23 +134,23 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
 
                 {/* 선택 가능한 카드들 */}
                 <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">카드 추가</h3>
+                    <h3 className="text-sm font-medium text-slate-300 mb-3">카드 추가</h3>
                     {CARD_OPTIONS.filter(card => !selectedCards.includes(card.id)).map((card) => (
                         <div
                             key={card.id}
-                            className="p-4 rounded-lg border-2 cursor-pointer transition-all border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                            className="p-4 rounded-lg border-2 cursor-pointer transition-all border-white/10 hover:border-white/30 bg-black/20"
                             onClick={() => onCardToggle(card.id)}
                         >
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h3 className="font-semibold text-gray-800 dark:text-white">
+                                    <h3 className="font-semibold text-white">
                                         {card.name}
                                     </h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    <p className="text-sm text-slate-400">
                                         {card.description}
                                     </p>
                                 </div>
-                                <div className="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                                <div className="w-5 h-5 rounded border-2 border-slate-600 flex items-center justify-center">
                                     <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                                     </svg>
@@ -164,7 +163,7 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
                 <div className="flex justify-end mt-6">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="glass-button px-4 py-2 text-white rounded-lg transition-colors"
                     >
                         확인
                     </button>
