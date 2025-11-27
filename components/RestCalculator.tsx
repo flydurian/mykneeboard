@@ -163,7 +163,7 @@ const DisplayInput = memo(({ label, value, onClick, warning, isDark }: { label: 
     <div>
         <label className="block text-sm font-medium mb-1 text-slate-300">{label}</label>
         <div
-            className={`w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] hover:bg-white/10 transition-colors ${warning ? 'border-rose-500/50 ring-1 ring-rose-500/30' : ''}`}
+            className={`w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] hover:bg-white/10 transition-colors ${warning ? 'border-rose-500/50 ring-1 ring-rose-500/30' : ''}`}
             onClick={onClick}
             role="button"
         >
@@ -177,7 +177,7 @@ const ReadOnlyDisplay = memo(({ label, value, isDark }: { label: string; value: 
     <div>
         <label className="block text-sm font-medium mb-1 text-slate-400">{label}</label>
         <div
-            className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed opacity-60"
+            className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed opacity-60"
         >
             {value}
         </div>
@@ -1538,7 +1538,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                 <button
                                     key={tab.id}
                                     onClick={() => handleViewTabChange(tab.id)}
-                                    className={`relative flex-1 py-1.5 px-4 rounded-lg text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                                    className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${isActive
                                         ? 'text-white'
                                         : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                                         }`}
@@ -1546,7 +1546,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                     {isActive && (
                                         <motion.div
                                             layoutId="activeViewTab"
-                                            className="absolute inset-0 rounded-lg bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                                            className="absolute inset-0 rounded-xl bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
                                             transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                         />
                                     )}
@@ -1628,7 +1628,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <button
                                                 key={mode.id}
                                                 onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { twoSetMode: mode.id } })}
-                                                className={`relative flex-1 py-1.5 px-4 rounded-lg text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                                                className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${isActive
                                                     ? 'text-white'
                                                     : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                                                     }`}
@@ -1636,7 +1636,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 {isActive && (
                                                     <motion.div
                                                         layoutId="activeTwoSetTab"
-                                                        className="absolute inset-0 rounded-lg bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                                                        className="absolute inset-0 rounded-xl bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
                                                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                                     />
                                                 )}
@@ -1664,7 +1664,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         <button
                                             key={c.id}
                                             onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { threePilotMode: c.id } })}
-                                            className={`relative flex-1 py-1.5 px-4 rounded-lg text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                                            className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${isActive
                                                 ? 'text-white'
                                                 : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                                                 }`}
@@ -1672,7 +1672,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             {isActive && (
                                                 <motion.div
                                                     layoutId="activeThreePilotTab"
-                                                    className="absolute inset-0 rounded-lg bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                                                    className="absolute inset-0 rounded-xl bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
                                                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                                 />
                                             )}
@@ -1721,7 +1721,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                             <div className="p-6 sm:p-8 relative">
                                 <button
                                     onClick={handleCancelEdit}
-                                    className={`absolute top-4 right-4 transition-colors z-10 ${isDark
+                                    className={`absolute top-4 right-4 transition-colors z-10 p-2 rounded-full hover:bg-white/10 ${isDark
                                         ? 'text-gray-500 hover:text-white'
                                         : 'text-gray-600 hover:text-gray-900'
                                         }`}
@@ -1753,7 +1753,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                     </div>
 
                                                     {/* 드럼이 남은 공간을 모두 차지하도록 설정 */}
-                                                    <div className="p-1 rounded-lg shadow-lg flex-grow min-w-0 bg-black/20 backdrop-blur-sm" style={{ minWidth: '60px' }}>
+                                                    <div className="p-1 rounded-xl shadow-lg flex-grow min-w-0 bg-black/20 backdrop-blur-sm" style={{ minWidth: '60px' }}>
                                                         <div className="relative h-32 overflow-hidden">
                                                             {/* 중앙 선택 영역 하이라이트 */}
 
@@ -1802,7 +1802,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="flex justify-center gap-2">
                                                 <button
                                                     onClick={() => setShowTimeZonePicker(false)}
-                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isDark
+                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isDark
                                                         ? 'bg-gray-600 text-white hover:bg-gray-700'
                                                         : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
                                                         }`}
@@ -1815,7 +1815,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         setShowTimeZonePicker(false);
                                                     }}
                                                     disabled={isSyncing}
-                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isSyncing
+                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isSyncing
                                                         ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                                                         : 'bg-blue-500 text-white hover:bg-blue-600'
                                                         }`}
@@ -1842,7 +1842,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </div>
 
                                             <div className="flex justify-center mb-4">
-                                                <div className="p-1 rounded-lg shadow-lg w-full bg-black/20 backdrop-blur-sm">
+                                                <div className="p-1 rounded-xl shadow-lg w-full bg-black/20 backdrop-blur-sm">
                                                     <div className="relative h-32 overflow-hidden">
                                                         {/* 중앙 선택 영역 하이라이트 */}
 
@@ -1898,7 +1898,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="flex justify-center gap-2">
                                                 <button
                                                     onClick={() => setShowCrz1Picker(false)}
-                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isDark
+                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isDark
                                                         ? 'bg-gray-600 text-white hover:bg-gray-700'
                                                         : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
                                                         }`}
@@ -1911,7 +1911,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         setShowCrz1Picker(false);
                                                     }}
                                                     disabled={isSyncing}
-                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isSyncing
+                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isSyncing
                                                         ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                                                         : 'bg-blue-500 text-white hover:bg-blue-600'
                                                         }`}
@@ -1938,7 +1938,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </div>
 
                                             <div className="flex justify-center mb-4">
-                                                <div className="p-1 rounded-lg shadow-lg w-full bg-black/20 backdrop-blur-sm">
+                                                <div className="p-1 rounded-xl shadow-lg w-full bg-black/20 backdrop-blur-sm">
                                                     <div className="relative h-32 overflow-hidden">
                                                         {/* 중앙 선택 영역 하이라이트 */}
 
@@ -2010,7 +2010,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="flex justify-center gap-2">
                                                 <button
                                                     onClick={() => setShowAfterTakeoffPicker(false)}
-                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isDark
+                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isDark
                                                         ? 'bg-gray-600 text-white hover:bg-gray-700'
                                                         : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
                                                         }`}
@@ -2023,7 +2023,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         setShowAfterTakeoffPicker(false);
                                                     }}
                                                     disabled={isSyncing}
-                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isSyncing
+                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isSyncing
                                                         ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                                                         : 'bg-blue-500 text-white hover:bg-blue-600'
                                                         }`}
@@ -2054,7 +2054,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </div>
 
                                             <div className="flex justify-center mb-4">
-                                                <div className="p-1 rounded-lg shadow-lg w-full bg-black/20 backdrop-blur-sm">
+                                                <div className="p-1 rounded-xl shadow-lg w-full bg-black/20 backdrop-blur-sm">
                                                     <div className="relative h-32 overflow-hidden">
                                                         {/* 중앙 선택 영역 하이라이트 */}
 
@@ -2111,7 +2111,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="flex justify-center gap-2">
                                                 <button
                                                     onClick={() => setShowBeforeLandingPicker(false)}
-                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isDark
+                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isDark
                                                         ? 'bg-gray-600 text-white hover:bg-gray-700'
                                                         : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
                                                         }`}
@@ -2124,7 +2124,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         setShowBeforeLandingPicker(false);
                                                     }}
                                                     disabled={isSyncing}
-                                                    className={`px-4 py-2 rounded-lg transition-colors text-sm ${isSyncing
+                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isSyncing
                                                         ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                                                         : 'bg-blue-500 text-white hover:bg-blue-600'
                                                         }`}
@@ -2152,7 +2152,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 <button
                                                     key={tab.id}
                                                     onClick={() => handleInputTabChange(tab.id)}
-                                                    className={`relative flex-1 py-1.5 px-4 rounded-lg text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                                                    className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${isActive
                                                         ? 'text-white'
                                                         : (isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                                                         }`}
@@ -2160,7 +2160,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                     {isActive && (
                                                         <motion.div
                                                             layoutId="activeInputTab"
-                                                            className="absolute inset-0 rounded-lg bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                                                            className="absolute inset-0 rounded-xl bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
                                                             transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                                         />
                                                     )}
@@ -2220,7 +2220,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 onChange={handleTimeInputChange(
                                                     inputTab === '3pilot' ? 'flightTime3Pilot' : inputTab === '5p' ? 'flightTime5P' : 'flightTime'
                                                 )}
-                                                className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                                                className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                                 maxLength={isFlightTimeInputFocused ? 4 : 7}
                                             />
                                             <div className={`text-center text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -2251,7 +2251,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         inputMode="numeric"
                                                         value={departureTime}
                                                         onChange={handleTimeInputChange('departureTime')}
-                                                        className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                                                        className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                                         maxLength={4}
                                                     />
                                                 </div>
@@ -2319,7 +2319,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                                 const rawValue = e.target.value.replace(/\D/g, '').slice(0, 4);
                                                                 dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff5P: rawValue } });
                                                             }}
-                                                            className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none min-h-[44px] transition-all"
+                                                            className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none min-h-[44px] transition-all"
                                                             maxLength={isAfterTakeoff5PInputFocused ? 4 : 7}
                                                         />
                                                     </div>
