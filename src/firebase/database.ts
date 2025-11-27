@@ -519,9 +519,7 @@ export const addFlight = async (flightData: any, userId: string) => {
   // crew/cabinCrew를 인덱스 객체로 변환하여 저장
   const dataForWrite = transformCrewFieldsForWrite(cleanedFlightData);
 
-  // ✨ REG NO 디버깅
-  if (flightData.regNo) {
-  }
+
 
   const monthPath = getMonthPath(flightData.date, userId);
   const newKey = await pushData(monthPath, dataForWrite);
@@ -605,10 +603,7 @@ export const deleteFlight = async (flightId: string, storagePath: { year: string
 // 여러 비행 데이터 일괄 추가
 export const addMultipleFlights = async (flights: any[], userId: string) => {
   try {
-    // ✨ REG NO 디버깅
-    const regNoFlights = flights.filter(flight => flight.regNo);
-    if (regNoFlights.length > 0) {
-    }
+
 
     const promises = flights.map(flight => addFlight(flight, userId));
     const results = await Promise.all(promises);
