@@ -1802,12 +1802,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="flex justify-center gap-2">
                                                 <button
                                                     onClick={() => setShowTimeZonePicker(false)}
-                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isDark
-                                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
-                                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                                                        }`}
+                                                    className="relative px-4 py-2 rounded-xl text-sm transition-colors group"
                                                 >
-                                                    취소
+                                                    <div className={`absolute inset-0 rounded-xl transition-colors ${isDark ? 'bg-gray-600 group-hover:bg-gray-700' : 'bg-gray-300 group-hover:bg-gray-400'}`} />
+                                                    <span className={`relative z-10 ${isDark ? 'text-white' : 'text-gray-700'}`}>취소</span>
                                                 </button>
                                                 <button
                                                     onClick={async () => {
@@ -1815,12 +1813,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         setShowTimeZonePicker(false);
                                                     }}
                                                     disabled={isSyncing}
-                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isSyncing
-                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                                                        }`}
+                                                    className="relative px-4 py-2 rounded-xl text-sm transition-colors group"
                                                 >
-                                                    {isSyncing ? '저장 중...' : '완료'}
+                                                    <div className={`absolute inset-0 rounded-xl transition-colors ${isSyncing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 group-hover:bg-blue-600'}`} />
+                                                    <span className={`relative z-10 ${isSyncing ? 'text-gray-200' : 'text-white'}`}>{isSyncing ? '저장 중...' : '완료'}</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -1898,12 +1894,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="flex justify-center gap-2">
                                                 <button
                                                     onClick={() => setShowCrz1Picker(false)}
-                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isDark
-                                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
-                                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                                                        }`}
+                                                    className="relative px-4 py-2 rounded-xl text-sm transition-colors group"
                                                 >
-                                                    취소
+                                                    <div className={`absolute inset-0 rounded-xl transition-colors ${isDark ? 'bg-gray-600 group-hover:bg-gray-700' : 'bg-gray-300 group-hover:bg-gray-400'}`} />
+                                                    <span className={`relative z-10 ${isDark ? 'text-white' : 'text-gray-700'}`}>취소</span>
                                                 </button>
                                                 <button
                                                     onClick={async () => {
@@ -1911,12 +1905,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         setShowCrz1Picker(false);
                                                     }}
                                                     disabled={isSyncing}
-                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isSyncing
-                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                                                        }`}
+                                                    className="relative px-4 py-2 rounded-xl text-sm transition-colors group"
                                                 >
-                                                    {isSyncing ? '저장 중...' : '완료'}
+                                                    <div className={`absolute inset-0 rounded-xl transition-colors ${isSyncing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 group-hover:bg-blue-600'}`} />
+                                                    <span className={`relative z-10 ${isSyncing ? 'text-gray-200' : 'text-white'}`}>{isSyncing ? '저장 중...' : '완료'}</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -2010,12 +2002,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="flex justify-center gap-2">
                                                 <button
                                                     onClick={() => setShowAfterTakeoffPicker(false)}
-                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isDark
-                                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
-                                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                                                        }`}
+                                                    className="relative px-4 py-2 rounded-xl text-sm transition-colors group"
                                                 >
-                                                    취소
+                                                    <div className={`absolute inset-0 rounded-xl transition-colors ${isDark ? 'bg-gray-600 group-hover:bg-gray-700' : 'bg-gray-300 group-hover:bg-gray-400'}`} />
+                                                    <span className={`relative z-10 ${isDark ? 'text-white' : 'text-gray-700'}`}>취소</span>
                                                 </button>
                                                 <button
                                                     onClick={async () => {
@@ -2023,12 +2013,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         setShowAfterTakeoffPicker(false);
                                                     }}
                                                     disabled={isSyncing}
-                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isSyncing
-                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                                                        }`}
+                                                    className="relative px-4 py-2 rounded-xl text-sm transition-colors group"
                                                 >
-                                                    {isSyncing ? '저장 중...' : '완료'}
+                                                    <div className={`absolute inset-0 rounded-xl transition-colors ${isSyncing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 group-hover:bg-blue-600'}`} />
+                                                    <span className={`relative z-10 ${isSyncing ? 'text-gray-200' : 'text-white'}`}>{isSyncing ? '저장 중...' : '완료'}</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -2111,12 +2099,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <div className="flex justify-center gap-2">
                                                 <button
                                                     onClick={() => setShowBeforeLandingPicker(false)}
-                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isDark
-                                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
-                                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                                                        }`}
+                                                    className="relative px-4 py-2 rounded-xl text-sm transition-colors group"
                                                 >
-                                                    취소
+                                                    <div className={`absolute inset-0 rounded-xl transition-colors ${isDark ? 'bg-gray-600 group-hover:bg-gray-700' : 'bg-gray-300 group-hover:bg-gray-400'}`} />
+                                                    <span className={`relative z-10 ${isDark ? 'text-white' : 'text-gray-700'}`}>취소</span>
                                                 </button>
                                                 <button
                                                     onClick={async () => {
@@ -2124,12 +2110,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         setShowBeforeLandingPicker(false);
                                                     }}
                                                     disabled={isSyncing}
-                                                    className={`px-4 py-2 rounded-xl transition-colors text-sm ${isSyncing
-                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                                                        }`}
+                                                    className="relative px-4 py-2 rounded-xl text-sm transition-colors group"
                                                 >
-                                                    {isSyncing ? '저장 중...' : '완료'}
+                                                    <div className={`absolute inset-0 rounded-xl transition-colors ${isSyncing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 group-hover:bg-blue-600'}`} />
+                                                    <span className={`relative z-10 ${isSyncing ? 'text-gray-200' : 'text-white'}`}>{isSyncing ? '저장 중...' : '완료'}</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -2258,7 +2242,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 <div>
                                                     <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>Time Zone</label>
                                                     <div
-                                                        className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer hover:bg-white/10 transition-colors"
+                                                        className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer hover:bg-white/10 transition-colors"
                                                         onClick={() => setShowTimeZonePicker(true)}
                                                     >
                                                         UTC {timeZone >= 0 ? '+' : ''}{timeZone}
@@ -2393,12 +2377,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         <button
                                             onClick={handleCompleteEditing}
                                             disabled={isSyncing}
-                                            className={`py-2 px-6 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200 transform active:scale-95 ${isSyncing
-                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 hover:shadow-blue-500/30'
-                                                }`}
+                                            className="relative py-2 px-6 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200 transform active:scale-95 group"
                                         >
-                                            {isSyncing ? '저장 중...' : '완료'}
+                                            <div className={`absolute inset-0 rounded-xl transition-colors ${isSyncing ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-blue-600 group-hover:from-blue-600 group-hover:to-blue-700 group-hover:shadow-blue-500/30'}`} />
+                                            <span className="relative z-10">{isSyncing ? '저장 중...' : '완료'}</span>
                                         </button>
                                     </div>
                                 </div>

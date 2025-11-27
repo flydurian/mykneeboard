@@ -7,6 +7,8 @@ import { Flight, CurrencyInfo, CurrencyModalData, MonthlyModalData, FlightStatus
 import { getTodayString } from './constants';
 import { calculateCurrency, findLastAndNextFlights, isActualFlight, mergeFlightDataWithStatusPreservation, replaceMonthDataWithStatusPreservation } from './utils/helpers';
 import { toZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns';
+import pkg from './package.json';
 import { UploadCloudIcon, CalendarIcon, AirlineLogo, SettingsIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon, RefreshCwIcon } from './components/icons';
 import FlightCard from './components/FlightCard';
 import CurrencyCard from './components/CurrencyCard';
@@ -329,7 +331,7 @@ const getCountryFlag = (country: string | null): string => {
   return flagMap[country] || '🏳️';
 };
 
-const DISPLAY_VERSION = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_APP_DISPLAY_VERSION) ? (import.meta as any).env.VITE_APP_DISPLAY_VERSION : '1.0.0';
+const DISPLAY_VERSION = pkg.version;
 
 const App: React.FC = () => {
   // React 18 Concurrent Features

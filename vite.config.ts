@@ -63,7 +63,6 @@ export default defineConfig({
   // Enable WebSocket for HMR with CSP bypass
   define: {
     __VITE_HMR_DISABLE__: false,
-    'import.meta.env.VITE_APP_DISPLAY_VERSION': JSON.stringify(pkg.version),
   },
   // esbuild 설정 (개발 시 console.log 유지)
   // 임시로 console.log 제거 비활성화 (디버깅용)
