@@ -60,8 +60,8 @@ const INPUT_TABS: { id: TabKey; label: string }[] = [
     { id: '3pilot', label: '3PILOT' },
 ];
 const TWO_SET_MODES = [
-    { id: '2교대', label: '2SET 2교대' },
-    { id: '1교대', label: '2SET 1교대' },
+    { id: '2교대', label: '2교대' },
+    { id: '1교대', label: '1교대' },
 ];
 
 const THREE_PILOT_MODES = [
@@ -163,7 +163,7 @@ const DisplayInput = memo(({ label, value, onClick, warning, isDark }: { label: 
     <div>
         <label className="block text-sm font-medium mb-1 text-slate-300">{label}</label>
         <div
-            className={`w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] hover:bg-white/10 transition-colors ${warning ? 'border-rose-500/50 ring-1 ring-rose-500/30' : ''}`}
+            className={`w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] hover:bg-white/10 transition-colors ${warning ? 'border-rose-500/50 ring-1 ring-rose-500/30' : ''}`}
             onClick={onClick}
             role="button"
         >
@@ -177,7 +177,7 @@ const ReadOnlyDisplay = memo(({ label, value, isDark }: { label: string; value: 
     <div>
         <label className="block text-sm font-medium mb-1 text-slate-400">{label}</label>
         <div
-            className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed opacity-60"
+            className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed opacity-60"
         >
             {value}
         </div>
@@ -2220,7 +2220,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 onChange={handleTimeInputChange(
                                                     inputTab === '3pilot' ? 'flightTime3Pilot' : inputTab === '5p' ? 'flightTime5P' : 'flightTime'
                                                 )}
-                                                className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                                                className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                                 maxLength={isFlightTimeInputFocused ? 4 : 7}
                                             />
                                             <div className={`text-center text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -2251,14 +2251,14 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         inputMode="numeric"
                                                         value={departureTime}
                                                         onChange={handleTimeInputChange('departureTime')}
-                                                        className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                                                        className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                                         maxLength={4}
                                                     />
                                                 </div>
                                                 <div>
                                                     <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>Time Zone</label>
                                                     <div
-                                                        className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer hover:bg-white/10 transition-colors"
+                                                        className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer hover:bg-white/10 transition-colors"
                                                         onClick={() => setShowTimeZonePicker(true)}
                                                     >
                                                         UTC {timeZone >= 0 ? '+' : ''}{timeZone}
@@ -2319,7 +2319,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                                 const rawValue = e.target.value.replace(/\D/g, '').slice(0, 4);
                                                                 dispatch({ type: 'UPDATE_STATE', payload: { afterTakeoff5P: rawValue } });
                                                             }}
-                                                            className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none min-h-[44px] transition-all"
+                                                            className="w-full px-3 py-2 glass-input rounded-2xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none min-h-[44px] transition-all"
                                                             maxLength={isAfterTakeoff5PInputFocused ? 4 : 7}
                                                         />
                                                     </div>
@@ -2393,7 +2393,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         <button
                                             onClick={handleCompleteEditing}
                                             disabled={isSyncing}
-                                            className={`py-3 px-8 rounded-xl font-bold text-white shadow-lg transition-all duration-200 transform active:scale-95 ${isSyncing
+                                            className={`py-2 px-6 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200 transform active:scale-95 ${isSyncing
                                                 ? 'bg-gray-400 cursor-not-allowed'
                                                 : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 hover:shadow-blue-500/30'
                                                 }`}
