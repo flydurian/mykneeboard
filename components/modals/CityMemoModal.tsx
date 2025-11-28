@@ -958,23 +958,41 @@ const CityMemoModal: React.FC<CityMemoModalProps> = ({ isOpen, onClose, cityCode
                         <>
                             <button
                                 onClick={handleDelete}
-                                className="px-3 py-1.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 py-1.5 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled={isSaving || !memo.trim()}
+                                style={{
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                    maskImage: '-webkit-radial-gradient(white, black)'
+                                }}
                             >
                                 삭제
                             </button>
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleCancelEdit}
-                                    className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                    className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                                     disabled={isSaving}
+                                    style={{
+                                        borderRadius: '12px',
+                                        overflow: 'hidden',
+                                        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                        maskImage: '-webkit-radial-gradient(white, black)'
+                                    }}
                                 >
                                     취소
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     disabled={isSaving}
+                                    style={{
+                                        borderRadius: '12px',
+                                        overflow: 'hidden',
+                                        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                        maskImage: '-webkit-radial-gradient(white, black)'
+                                    }}
                                 >
                                     {isSaving ? '저장 중...' : '저장'}
                                 </button>
@@ -988,8 +1006,14 @@ const CityMemoModal: React.FC<CityMemoModalProps> = ({ isOpen, onClose, cityCode
                                     e.stopPropagation();
                                     handleEdit();
                                 }}
-                                className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                                className="glass-button py-2 px-6 rounded-xl font-bold text-sm transition-all duration-200 transform active:scale-95 text-white"
                                 type="button"
+                                style={{
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                    maskImage: '-webkit-radial-gradient(white, black)'
+                                }}
                             >
                                 편집
                             </button>

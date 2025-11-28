@@ -3660,12 +3660,24 @@ const App: React.FC = () => {
                                 }
                               }}
                               className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all uppercase"
+                              style={{
+                                borderRadius: '12px',
+                                overflow: 'hidden',
+                                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                maskImage: '-webkit-radial-gradient(white, black)'
+                              }}
                             />
                           </div>
                           <button
                             onClick={handleFlightHistorySearch}
                             disabled={isLoadingFlightData}
                             className={`w-full glass-button py-2 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingFlightData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            style={{
+                              borderRadius: '12px',
+                              overflow: 'hidden',
+                              WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                              maskImage: '-webkit-radial-gradient(white, black)'
+                            }}
                           >
                             {isLoadingFlightData ? '검색 중...' : '검색'}
                           </button>
@@ -3694,12 +3706,24 @@ const App: React.FC = () => {
                                 }
                               }}
                               className="w-full px-3 py-2 glass-input rounded-xl text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all uppercase"
+                              style={{
+                                borderRadius: '12px',
+                                overflow: 'hidden',
+                                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                maskImage: '-webkit-radial-gradient(white, black)'
+                              }}
                             />
                           </div>
                           <button
                             onClick={handleAirlineSearch}
                             disabled={isLoadingAirlineData}
                             className={`w-full glass-button py-2 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingAirlineData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            style={{
+                              borderRadius: '12px',
+                              overflow: 'hidden',
+                              WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                              maskImage: '-webkit-radial-gradient(white, black)'
+                            }}
                           >
                             {isLoadingAirlineData ? '로딩 중...' : '검색'}
                           </button>
@@ -3859,7 +3883,13 @@ const App: React.FC = () => {
                                 <button
                                   onClick={() => handleFlightPathTracking(flight)}
                                   disabled={isLoadingFlightPath}
-                                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-2 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
+                                  style={{
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                    maskImage: '-webkit-radial-gradient(white, black)'
+                                  }}
                                 >
                                   {isLoadingFlightPath ? (
                                     <>

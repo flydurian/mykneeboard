@@ -166,6 +166,12 @@ const DisplayInput = memo(({ label, value, onClick, warning, isDark }: { label: 
             className={`w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg cursor-pointer flex items-center justify-center min-h-[44px] hover:bg-white/10 transition-colors ${warning ? 'border-rose-500/50 ring-1 ring-rose-500/30' : ''}`}
             onClick={onClick}
             role="button"
+            style={{
+                borderRadius: '12px',
+                overflow: 'hidden',
+                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                maskImage: '-webkit-radial-gradient(white, black)'
+            }}
         >
             {value}
         </div>
@@ -178,6 +184,12 @@ const ReadOnlyDisplay = memo(({ label, value, isDark }: { label: string; value: 
         <label className="block text-sm font-medium mb-1 text-slate-400">{label}</label>
         <div
             className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-not-allowed opacity-60"
+            style={{
+                borderRadius: '12px',
+                overflow: 'hidden',
+                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                maskImage: '-webkit-radial-gradient(white, black)'
+            }}
         >
             {value}
         </div>
@@ -1559,6 +1571,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                     <div
                         className="relative p-6 rounded-2xl mb-6 cursor-pointer transition-all duration-300 glass-input hover:bg-white/10 group overflow-hidden"
                         onClick={() => { preEditStateRef.current = { ...state }; setShowTimeline(false); }}
+                        style={{
+                            borderRadius: '16px',
+                            overflow: 'hidden',
+                            WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                            maskImage: '-webkit-radial-gradient(white, black)'
+                        }}
                     >
                         {/* 배경 장식 효과 */}
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -2165,6 +2183,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         ? 'bg-fuchsia-500/10 border-fuchsia-500 text-fuchsia-600 dark:text-fuchsia-400'
                                                         : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                                                         }`}
+                                                    style={{
+                                                        borderRadius: '12px',
+                                                        overflow: 'hidden',
+                                                        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                        maskImage: '-webkit-radial-gradient(white, black)'
+                                                    }}
                                                 >
                                                     {mode.id}
                                                 </button>
@@ -2183,6 +2207,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         ? 'bg-fuchsia-500/10 border-fuchsia-500 text-fuchsia-600 dark:text-fuchsia-400'
                                                         : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                                                         }`}
+                                                    style={{
+                                                        borderRadius: '12px',
+                                                        overflow: 'hidden',
+                                                        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                        maskImage: '-webkit-radial-gradient(white, black)'
+                                                    }}
                                                 >
                                                     {mode.id}
                                                 </button>
@@ -2206,6 +2236,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 )}
                                                 className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                                 maxLength={isFlightTimeInputFocused ? 4 : 7}
+                                                style={{
+                                                    borderRadius: '12px',
+                                                    overflow: 'hidden',
+                                                    WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                    maskImage: '-webkit-radial-gradient(white, black)'
+                                                }}
                                             />
                                             <div className={`text-center text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                                                 {(() => {
@@ -2237,6 +2273,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                         onChange={handleTimeInputChange('departureTime')}
                                                         className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                                         maxLength={4}
+                                                        style={{
+                                                            borderRadius: '12px',
+                                                            overflow: 'hidden',
+                                                            WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                            maskImage: '-webkit-radial-gradient(white, black)'
+                                                        }}
                                                     />
                                                 </div>
                                                 <div>
@@ -2244,6 +2286,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                     <div
                                                         className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg flex items-center justify-center min-h-[44px] cursor-pointer hover:bg-white/10 transition-colors"
                                                         onClick={() => setShowTimeZonePicker(true)}
+                                                        style={{
+                                                            borderRadius: '12px',
+                                                            overflow: 'hidden',
+                                                            WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                            maskImage: '-webkit-radial-gradient(white, black)'
+                                                        }}
                                                     >
                                                         UTC {timeZone >= 0 ? '+' : ''}{timeZone}
                                                     </div>
@@ -2305,6 +2353,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                             }}
                                                             className="w-full px-3 py-2 glass-input rounded-xl appearance-none text-center font-mono text-lg focus:ring-2 focus:ring-blue-500/50 outline-none min-h-[44px] transition-all"
                                                             maxLength={isAfterTakeoff5PInputFocused ? 4 : 7}
+                                                            style={{
+                                                                borderRadius: '12px',
+                                                                overflow: 'hidden',
+                                                                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                                maskImage: '-webkit-radial-gradient(white, black)'
+                                                            }}
                                                         />
                                                     </div>
                                                     <ReadOnlyDisplay

@@ -1339,6 +1339,12 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                                         ? '!bg-none !bg-blue-600 !border-blue-500/50 !shadow-blue-500/30 hover:!bg-blue-500 text-white'
                                                                         : '!bg-none !bg-slate-800/50 text-slate-400 hover:!bg-slate-700/50 border-white/10'
                                                                         } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                                                                    style={{
+                                                                        borderRadius: '12px',
+                                                                        overflow: 'hidden',
+                                                                        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                                        maskImage: '-webkit-radial-gradient(white, black)'
+                                                                    }}
                                                                 >
                                                                     {isUpdating ? '처리중...' : '이륙'}
                                                                 </button>
@@ -1357,6 +1363,12 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                                         ? '!bg-none !bg-lime-600 !border-lime-500/50 !shadow-lime-500/30 hover:!bg-lime-500 text-white'
                                                                         : '!bg-none !bg-slate-800/50 text-slate-400 hover:!bg-slate-700/50 border-white/10'
                                                                         } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                                                                    style={{
+                                                                        borderRadius: '12px',
+                                                                        overflow: 'hidden',
+                                                                        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                                        maskImage: '-webkit-radial-gradient(white, black)'
+                                                                    }}
                                                                 >
                                                                     {isUpdating ? '처리중...' : '착륙'}
                                                                 </button>
@@ -1396,6 +1408,12 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                             <button
                                 onClick={handleDeleteCancel}
                                 className="px-4 py-2 glass-button text-slate-300 rounded-xl hover:text-white transition-colors"
+                                style={{
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                    maskImage: '-webkit-radial-gradient(white, black)'
+                                }}
                             >
                                 취소
                             </button>
@@ -1405,6 +1423,12 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                     ? '!from-red-600/40 !to-red-900/40 !border-red-500/50 hover:!from-red-500/50 hover:!to-red-800/50'
                                     : '!from-red-700/60 !to-red-900/60 !border-red-500/80 hover:!from-red-600/70 hover:!to-red-900/70 animate-pulse'
                                     }`}
+                                style={{
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                    maskImage: '-webkit-radial-gradient(white, black)'
+                                }}
                             >
                                 {deleteConfirmCount === 0 ? '삭제 확인' : '정말 삭제'}
                             </button>
