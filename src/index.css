@@ -46,6 +46,8 @@ body {
   @apply text-white font-medium shadow-lg transition-all duration-200 border border-white/10 transform-gpu overflow-hidden isolate;
   -webkit-appearance: none;
   appearance: none;
+  /* iOS WebKit Fix */
+  transform: translateZ(0);
 }
 
 .glass-button:hover {
@@ -60,6 +62,8 @@ body {
   @apply bg-black/20 border border-white/10 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-200 transform-gpu overflow-hidden isolate;
   -webkit-appearance: none;
   appearance: none;
+  /* iOS WebKit Fix */
+  transform: translateZ(0);
 }
 
 .glass-input:focus {
