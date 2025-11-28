@@ -307,18 +307,11 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
                 <button
                   key={mode}
                   onClick={() => switchMapMode(mode)}
-                  className={`relative px-4 py-1.5 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${isActive
-                    ? 'text-white'
-                    : 'text-slate-400 hover:text-slate-200'
+                  className={`relative px-4 py-1.5 rounded-xl text-sm font-bold transition-all duration-300 z-10 ${isActive
+                    ? 'bg-teal-600 text-white shadow-md shadow-teal-500/30'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                     }`}
                 >
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeMapMode"
-                      className="absolute inset-0 rounded-xl bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
                   {labels[mode]}
                 </button>
               );

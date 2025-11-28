@@ -200,3 +200,6 @@ body.pwa-standalone {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+/* Leaflet Map Container Background */
+.leaflet-container {
+}
