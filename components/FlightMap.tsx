@@ -36,6 +36,8 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
   const [mapMode, setMapMode] = useState<'street' | 'satellite' | 'terrain'>('street');
   const mapInstance = useRef<L.Map | null>(null);
 
+  const [mapReady, setMapReady] = useState(false);
+
   useEffect(() => {
     if (!isVisible || !mapRef.current) return;
 
@@ -80,6 +82,12 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
         addTileLayer(map, mapMode);
 
         mapInstance.current = map;
+
+        // 지도 로드 이벤트 감지
+        map.whenReady(() => {
+          console.log('✅ Leaflet 지도 준비 완료 (whenReady)');
+          setMapReady(true);
+        });
 
         if (flightPath) {
           console.log('🛫 경로 데이터:', {
@@ -222,6 +230,7 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
 
     return () => {
       // 지도 정리
+      setMapReady(false); // 정리 시 상태 초기화
       resizeObserver.disconnect();
       if (mapInstance.current) {
         try {
@@ -329,10 +338,10 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
         <div className="flex-1 p-4 sm:p-6 pt-2 sm:pt-4 overflow-hidden relative">
           <div
             ref={mapRef}
-            className="w-full h-full rounded-xl border border-white/10 overflow-hidden"
+            className="w-full h-full rounded-xl border border-white/10 overflow-hidden bg-slate-900"
             style={{ position: 'absolute', inset: '16px 24px 24px 24px', touchAction: 'none' }}
           >
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm z-10" style={{ display: mapInstance.current ? 'none' : 'flex' }}>
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm z-10" style={{ display: mapReady ? 'none' : 'flex' }}>
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
                 <p className="text-slate-300">지도를 불러오는 중...</p>
