@@ -2378,6 +2378,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             onClick={handleCompleteEditing}
                                             disabled={isSyncing}
                                             className="glass-button py-2 px-6 rounded-xl font-bold text-sm transition-all duration-200 transform active:scale-95"
+                                            style={{
+                                                borderRadius: '12px',
+                                                overflow: 'hidden',
+                                                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                maskImage: '-webkit-radial-gradient(white, black)'
+                                            }}
                                         >
                                             {isSyncing ? '저장 중...' : '완료'}
                                         </button>
