@@ -48,6 +48,8 @@ body {
   appearance: none;
   /* iOS WebKit Fix */
   transform: translateZ(0);
+  /* Stronger iOS Border Radius Fix */
+  clip-path: inset(0 round 0.75rem);
 }
 
 .glass-button:hover {
@@ -64,6 +66,8 @@ body {
   appearance: none;
   /* iOS WebKit Fix */
   transform: translateZ(0);
+  /* Stronger iOS Border Radius Fix */
+  clip-path: inset(0 round 0.75rem);
 }
 
 .glass-input:focus {
