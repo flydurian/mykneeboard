@@ -163,7 +163,7 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
                 <div className="flex justify-end mt-6">
                     <button
                         onClick={onClose}
-                        className="glass-button px-4 py-2 text-white rounded-lg transition-colors"
+                        className="glass-button px-4 py-2 text-white rounded-xl transition-colors"
                     >
                         확인
                     </button>

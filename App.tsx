@@ -3220,18 +3220,18 @@ const App: React.FC = () => {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 text-center mb-6">
+          <div className="glass-panel rounded-2xl p-8 w-full max-w-md">
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 text-center mb-6">
               로그인
             </h2>
             <button
               onClick={handleLoginClick}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="w-full glass-button py-3 px-4 rounded-xl font-medium text-lg"
             >
               로그인하기
             </button>
             <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-4">
-              계정이 없으신가요? <button onClick={handleShowRegister} className="text-blue-600 hover:text-blue-700 underline">회원가입</button>
+              계정이 없으신가요? <button onClick={handleShowRegister} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium">회원가입</button>
             </p>
           </div>
 
@@ -3665,10 +3665,7 @@ const App: React.FC = () => {
                           <button
                             onClick={handleFlightHistorySearch}
                             disabled={isLoadingFlightData}
-                            className={`w-full py-2 px-4 rounded-xl font-semibold transition-colors ${isLoadingFlightData
-                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                              : 'bg-blue-500 text-white hover:bg-blue-600'
-                              }`}
+                            className={`w-full glass-button py-2 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingFlightData ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             {isLoadingFlightData ? '검색 중...' : '검색'}
                           </button>
@@ -3702,10 +3699,7 @@ const App: React.FC = () => {
                           <button
                             onClick={handleAirlineSearch}
                             disabled={isLoadingAirlineData}
-                            className={`w-full py-2 px-4 rounded-xl font-semibold transition-colors ${isLoadingAirlineData
-                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                              : 'bg-blue-500 text-white hover:bg-blue-600'
-                              }`}
+                            className={`w-full glass-button py-2 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingAirlineData ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             {isLoadingAirlineData ? '로딩 중...' : '검색'}
                           </button>

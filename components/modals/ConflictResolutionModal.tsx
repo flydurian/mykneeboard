@@ -306,13 +306,13 @@ const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = ({
         <div className="bg-black/20 p-4 flex justify-end gap-3 flex-shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-slate-300 border border-white/20 rounded hover:bg-white/10 transition-colors"
+            className="px-4 py-2 glass-button text-slate-300 rounded-xl hover:text-white transition-colors"
           >
             취소
           </button>
           <button
             onClick={handleResolveAll}
-            className="px-6 py-2 bg-red-500 text-white rounded"
+            className="px-6 py-2 glass-button !from-red-600/40 !to-red-900/40 !border-red-500/50 hover:!from-red-500/50 hover:!to-red-800/50 text-white rounded-xl"
           >
             업데이트 ({conflicts.length}개)
           </button>

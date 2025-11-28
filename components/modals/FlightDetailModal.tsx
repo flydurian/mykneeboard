@@ -620,7 +620,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                         <div
                             className={`flex-1 overflow-y-auto px-4 sm:px-6 pb-4 sm:pb-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent`}
                         >
-                            <div className={`${isSpecialSchedule ? '' : 'mb-6'}`}>
+                            <div className={`${isSpecialSchedule ? '' : 'mb-1'}`}>
                                 <div className="space-y-2 text-base">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center">
@@ -1335,9 +1335,9 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                                         }
                                                                     }}
                                                                     disabled={isUpdating}
-                                                                    className={`flex-1 font-bold py-2 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${flight.status?.departed
-                                                                        ? 'bg-blue-500 text-white shadow-lg'
-                                                                        : 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500'
+                                                                    className={`flex-1 font-bold py-2 px-4 glass-button rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 ${flight.status?.departed
+                                                                        ? '!bg-none !bg-blue-600 !border-blue-500/50 !shadow-blue-500/30 hover:!bg-blue-500 text-white'
+                                                                        : '!bg-none !bg-slate-800/50 text-slate-400 hover:!bg-slate-700/50 border-white/10'
                                                                         } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                                                                 >
                                                                     {isUpdating ? '처리중...' : '이륙'}
@@ -1353,9 +1353,9 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                                         }
                                                                     }}
                                                                     disabled={isUpdating}
-                                                                    className={`flex-1 font-bold py-2 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${flight.status?.landed
-                                                                        ? 'bg-green-500 text-white shadow-lg'
-                                                                        : 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500'
+                                                                    className={`flex-1 font-bold py-2 px-4 glass-button rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 ${flight.status?.landed
+                                                                        ? '!bg-none !bg-lime-600 !border-lime-500/50 !shadow-lime-500/30 hover:!bg-lime-500 text-white'
+                                                                        : '!bg-none !bg-slate-800/50 text-slate-400 hover:!bg-slate-700/50 border-white/10'
                                                                         } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                                                                 >
                                                                     {isUpdating ? '처리중...' : '착륙'}
@@ -1395,15 +1395,15 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                         <div className="flex space-x-3 justify-end">
                             <button
                                 onClick={handleDeleteCancel}
-                                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200 rounded-md transition-colors"
+                                className="px-4 py-2 glass-button text-slate-300 rounded-xl hover:text-white transition-colors"
                             >
                                 취소
                             </button>
                             <button
                                 onClick={handleDeleteConfirmClick}
-                                className={`px-4 py-2 text-white rounded-md transition-colors ${deleteConfirmCount === 0
-                                    ? 'bg-red-500 hover:bg-red-600'
-                                    : 'bg-red-600 hover:bg-red-700 animate-pulse'
+                                className={`px-4 py-2 glass-button text-white rounded-xl transition-colors ${deleteConfirmCount === 0
+                                    ? '!from-red-600/40 !to-red-900/40 !border-red-500/50 hover:!from-red-500/50 hover:!to-red-800/50'
+                                    : '!from-red-700/60 !to-red-900/60 !border-red-500/80 hover:!from-red-600/70 hover:!to-red-900/70 animate-pulse'
                                     }`}
                             >
                                 {deleteConfirmCount === 0 ? '삭제 확인' : '정말 삭제'}

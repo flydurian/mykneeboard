@@ -125,7 +125,7 @@ const PassportVisaWarningModal: React.FC<PassportVisaWarningModalProps> = ({
                 <div className="flex gap-3">
                     <button
                         onClick={handleClose}
-                        className="flex-1 px-4 py-2 glass-button text-white rounded-lg transition-colors font-medium"
+                        className="flex-1 px-4 py-2 glass-button text-white rounded-xl transition-colors font-medium"
                     >
                         확인
                     </button>

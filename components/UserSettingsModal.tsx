@@ -326,7 +326,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                         <button
                             onClick={handleNameUpdate}
                             disabled={isLoading}
-                            className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            className="w-full glass-button text-white font-bold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
                         >
                             {isLoading ? '변경 중...' : '정보 변경'}
                         </button>
@@ -375,7 +375,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                         <button
                             onClick={handlePasswordUpdate}
                             disabled={isLoading}
-                            className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            className="w-full glass-button text-white font-bold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
                         >
                             {isLoading ? '변경 중...' : '비밀번호 변경'}
                         </button>
@@ -410,7 +410,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                         <button
                             onClick={handleAirlineUpdate}
                             disabled={isLoading}
-                            className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            className="w-full glass-button text-white font-bold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
                         >
                             {isLoading ? '적용 중...' : '확인'}
                         </button>
@@ -502,7 +502,7 @@ const BaseSettings: React.FC<{ currentUser: any; onSettingsUpdate?: (userId: str
                 <button
                     onClick={handleSave}
                     disabled={isLoading}
-                    className="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="mt-4 w-full glass-button text-white font-bold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
                 >
                     {isLoading ? '저장 중...' : '저장'}
                 </button>

@@ -2161,7 +2161,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 <button
                                                     key={mode.id}
                                                     onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { twoSetMode: mode.id } })}
-                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border ${twoSetMode === mode.id
+                                                    className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-all duration-200 border ${twoSetMode === mode.id
                                                         ? 'bg-fuchsia-500/10 border-fuchsia-500 text-fuchsia-600 dark:text-fuchsia-400'
                                                         : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                                                         }`}
@@ -2179,7 +2179,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 <button
                                                     key={mode.id}
                                                     onClick={() => dispatch({ type: 'UPDATE_STATE', payload: { threePilotMode: mode.id } })}
-                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border ${threePilotMode === mode.id
+                                                    className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-all duration-200 border ${threePilotMode === mode.id
                                                         ? 'bg-fuchsia-500/10 border-fuchsia-500 text-fuchsia-600 dark:text-fuchsia-400'
                                                         : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                                                         }`}
@@ -2377,10 +2377,9 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                         <button
                                             onClick={handleCompleteEditing}
                                             disabled={isSyncing}
-                                            className="relative py-2 px-6 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200 transform active:scale-95 group"
+                                            className="glass-button py-2 px-6 rounded-xl font-bold text-sm transition-all duration-200 transform active:scale-95"
                                         >
-                                            <div className={`absolute inset-0 rounded-xl transition-colors ${isSyncing ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-blue-600 group-hover:from-blue-600 group-hover:to-blue-700 group-hover:shadow-blue-500/30'}`} />
-                                            <span className="relative z-10">{isSyncing ? '저장 중...' : '완료'}</span>
+                                            {isSyncing ? '저장 중...' : '완료'}
                                         </button>
                                     </div>
                                 </div>

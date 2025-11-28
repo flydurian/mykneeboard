@@ -97,7 +97,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                 <div className="flex-shrink-0 flex justify-end mt-4">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                        className="px-4 py-2 glass-button text-white rounded-xl transition-colors"
                     >
                         확인
                     </button>
