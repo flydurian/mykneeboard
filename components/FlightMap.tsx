@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -207,8 +208,21 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
     // 즉시 초기화
     initializeMap();
 
+    // ResizeObserver 설정
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapInstance.current) {
+        console.log('📏 지도 컨테이너 크기 변경 감지, invalidateSize 호출');
+        mapInstance.current.invalidateSize();
+      }
+    });
+
+    if (mapRef.current) {
+      resizeObserver.observe(mapRef.current);
+    }
+
     return () => {
       // 지도 정리
+      resizeObserver.disconnect();
       if (mapInstance.current) {
         try {
           mapInstance.current.remove();
@@ -276,45 +290,35 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
           </h2>
 
           {/* 지도 모드 전환 버튼들 */}
-          <div className="flex items-center space-x-2">
-            <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
-              <button
-                onClick={() => switchMapMode('street')}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${mapMode === 'street'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                title="일반 지도"
-              >
-                지도
-              </button>
-              <button
-                onClick={() => switchMapMode('satellite')}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${mapMode === 'satellite'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                title="위성 이미지"
-              >
-                위성
-              </button>
-              <button
-                onClick={() => switchMapMode('terrain')}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${mapMode === 'terrain'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                title="지형 지도"
-              >
-                지형
-              </button>
-            </div>
-
+          <div className="glass-panel rounded-xl p-1 flex">
+            {(['street', 'satellite', 'terrain'] as const).map((mode) => {
+              const isActive = mapMode === mode;
+              const labels = { street: '지도', satellite: '위성', terrain: '지형' };
+              return (
+                <button
+                  key={mode}
+                  onClick={() => switchMapMode(mode)}
+                  className={`relative px-4 py-1.5 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${isActive
+                    ? 'text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeMapMode"
+                      className="absolute inset-0 rounded-xl bg-teal-600 shadow-md shadow-teal-500/30 -z-10"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  {labels[mode]}
+                </button>
+              );
+            })}
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white transition-colors"
+              className="ml-2 p-1.5 text-slate-400 hover:text-white transition-colors rounded-xl hover:bg-white/10"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
