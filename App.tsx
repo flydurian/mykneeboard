@@ -3671,7 +3671,7 @@ const App: React.FC = () => {
                           <button
                             onClick={handleFlightHistorySearch}
                             disabled={isLoadingFlightData}
-                            className={`w-full glass-button py-2 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingFlightData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full glass-button py-1.5 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingFlightData ? 'opacity-50 cursor-not-allowed' : ''}`}
                             style={{
                               borderRadius: '12px',
                               overflow: 'hidden',
@@ -3717,7 +3717,7 @@ const App: React.FC = () => {
                           <button
                             onClick={handleAirlineSearch}
                             disabled={isLoadingAirlineData}
-                            className={`w-full glass-button py-2 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingAirlineData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full glass-button py-1.5 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingAirlineData ? 'opacity-50 cursor-not-allowed' : ''}`}
                             style={{
                               borderRadius: '12px',
                               overflow: 'hidden',

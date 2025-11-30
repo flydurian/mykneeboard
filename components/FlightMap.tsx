@@ -328,11 +328,11 @@ const FlightMap: React.FC<FlightMapProps> = ({ flightPath, isVisible, onClose })
         </div>
 
         {/* 지도 컨테이너 */}
-        <div className="flex-1 p-4 sm:p-6 pt-2 sm:pt-4 overflow-hidden relative">
+        <div className="flex-1 p-4 sm:p-6 pt-2 sm:pt-4 overflow-hidden flex flex-col">
           <div
             ref={mapRef}
-            className="w-full h-full rounded-xl border border-white/10 overflow-hidden bg-slate-900"
-            style={{ position: 'absolute', inset: '16px 24px 24px 24px', touchAction: 'none' }}
+            className="w-full flex-1 rounded-xl border border-white/10 overflow-hidden bg-slate-900"
+            style={{ touchAction: 'none' }}
           >
             <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm z-10" style={{ display: mapReady ? 'none' : 'flex' }}>
               <div className="text-center">
