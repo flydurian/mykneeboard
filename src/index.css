@@ -200,6 +200,44 @@ body.pwa-standalone {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
-/* Leaflet Map Container Background */
-.leaflet-container {
+
+/* 자동 숨김 스크롤바 - 스크롤 시에만 표시 */
+.scrollbar-autohide {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
 }
+
+.scrollbar-autohide:hover,
+.scrollbar-autohide:active,
+.scrollbar-autohide:focus-within {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.scrollbar-autohide::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-autohide::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-autohide::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.scrollbar-autohide:hover::-webkit-scrollbar-thumb,
+.scrollbar-autohide:active::-webkit-scrollbar-thumb,
+.scrollbar-autohide:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.scrollbar-autohide::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Leaflet Map Container Background */
+.leaflet-container {}

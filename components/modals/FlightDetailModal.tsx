@@ -641,7 +641,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                         </div>
                         {/* 스크롤 가능한 본문 영역 */}
                         <div
-                            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-10 sm:pb-12 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent`}
+                            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-10 sm:pb-12 scrollbar-autohide`}
                             style={{
                                 WebkitOverflowScrolling: 'touch',
                                 touchAction: 'pan-y'
