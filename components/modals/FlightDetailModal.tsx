@@ -584,8 +584,8 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
 
     return (
         <>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center overflow-y-auto z-[70] p-2 sm:p-4 pt-safe" onClick={onClose}>
-                <div className={containerClasses} style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-[70] p-2 sm:p-4 pt-safe" onClick={onClose}>
+                <div className={containerClasses} style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)' }} onClick={(e) => e.stopPropagation()}>
                     {/* 헤더 영역 - 고정 */}
                     <div className="flex-shrink-0 p-4 sm:p-6 pb-2 sm:pb-4 border-b border-white/10">
                         <div className="flex items-center justify-between mb-4">
@@ -631,7 +631,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                         </div>
                         {/* 스크롤 가능한 본문 영역 */}
                         <div
-                            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-4 sm:pb-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent`}
+                            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-10 sm:pb-12 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent`}
                         >
                             <div className={`${isSpecialSchedule ? '' : 'mb-1'}`}>
                                 <div className="space-y-2 text-base">
