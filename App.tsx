@@ -60,7 +60,7 @@ const PassportVisaWarningModal = lazy(() => import('./components/modals/Passport
 const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal'));
 const DeleteDataModal = lazy(() => import('./components/modals/DeleteDataModal'));
 const SearchModal = lazy(() => import('./components/modals/SearchModal'));
-const FlightMap = lazy(() => import('./components/FlightMap'));
+
 import { fetchAirlineData, fetchAirlineDataWithInfo, searchAirline, getAirlineByCode, AirlineInfo, AirlineDataInfo, convertFlightNumberToIATA } from './utils/airlineData';
 import { getCityInfo, getFlightTime } from './utils/cityData';
 import { calculateWarnings, dismissWarningForWeek, isWarningDismissed, getSamplePassportVisaData, WarningData } from './utils/passportVisaWarning';
@@ -560,9 +560,7 @@ const App: React.FC = () => {
   const [isLoadingFlightData, setIsLoadingFlightData] = useState(false);
 
   // 항공편 경로 추적 관련 상태
-  const [isFlightMapOpen, setIsFlightMapOpen] = useState(false);
-  const [selectedFlightPath, setSelectedFlightPath] = useState<any>(null);
-  const [isLoadingFlightPath, setIsLoadingFlightPath] = useState(false);
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
@@ -1320,77 +1318,6 @@ const App: React.FC = () => {
       setIsLoadingFlightData(false);
     }
   }, [flightSearchQuery]);
-
-  // 항공편 경로 추적 함수
-  const handleFlightPathTracking = async (flight: any) => {
-    // 출발지/도착지 코드 추출 (모든 가능한 속성 확인)
-    const departureCode = flight.origin || flight.departure || flight.departureName;
-    const arrivalCode = flight.destination || flight.arrival || flight.arrivalName;
-
-    console.log('🛫 경로 추적 요청 (전체 flight 객체):', flight);
-    console.log('🛫 추출된 코드:', {
-      flightNumber: flight.flightNumber,
-      departureCode: departureCode,
-      arrivalCode: arrivalCode,
-      '모든 출발지 속성': {
-        origin: flight.origin,
-        departure: flight.departure,
-        departureName: flight.departureName
-      },
-      '모든 도착지 속성': {
-        destination: flight.destination,
-        arrival: flight.arrival,
-        arrivalName: flight.arrivalName
-      }
-    });
-
-    if (!departureCode || !arrivalCode) {
-      alert('출발지와 도착지 정보가 필요합니다.');
-      console.error('❌ 출발지/도착지 정보 누락:', flight);
-      return;
-    }
-
-    setIsLoadingFlightPath(true);
-    try {
-      const requestBody = {
-        callsign: flight.flightNumber || (flight.airline + flight.flightNumber),
-        departure: departureCode.toUpperCase(),
-        arrival: arrivalCode.toUpperCase(),
-        date: flight.date || new Date().toISOString().split('T')[0]
-      };
-
-      console.log('📡 flight-tracking API 요청 데이터:', requestBody);
-
-      const response = await fetch('/api/flight-tracking', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        throw new Error('항공편 경로를 가져올 수 없습니다.');
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        setSelectedFlightPath(result.data);
-        setIsFlightMapOpen(true);
-      } else {
-        throw new Error(result.error || '항공편 경로를 가져올 수 없습니다.');
-      }
-    } catch (error) {
-      console.error('항공편 경로 추적 오류:', error);
-      alert('항공편 경로를 가져오는 중 오류가 발생했습니다.');
-    } finally {
-      setIsLoadingFlightPath(false);
-    }
-  };
-
-
-
-
 
   // 오프라인 데이터 로드 로직 제거 (TanStack Query Persister가 처리)
 
@@ -3878,34 +3805,6 @@ const App: React.FC = () => {
                                 )}
                               </div>
 
-                              {/* ADS-B 경로 표시 버튼 */}
-                              <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                                <button
-                                  onClick={() => handleFlightPathTracking(flight)}
-                                  disabled={isLoadingFlightPath}
-                                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-2 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
-                                  style={{
-                                    borderRadius: '12px',
-                                    overflow: 'hidden',
-                                    WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-                                    maskImage: '-webkit-radial-gradient(white, black)'
-                                  }}
-                                >
-                                  {isLoadingFlightPath ? (
-                                    <>
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                      <span>경로 로딩 중...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                                      </svg>
-                                      <span>경로 보기</span>
-                                    </>
-                                  )}
-                                </button>
-                              </div>
 
                             </div>
                           ))
@@ -4146,11 +4045,7 @@ const App: React.FC = () => {
           initialMemo={cityMemos[selectedCityForMemo] || ''}
           onSave={handleCityMemoSave}
         />
-        <FlightMap
-          isVisible={isFlightMapOpen}
-          onClose={() => setIsFlightMapOpen(false)}
-          flightPath={selectedFlightPath}
-        />
+
       </Suspense>
       <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
