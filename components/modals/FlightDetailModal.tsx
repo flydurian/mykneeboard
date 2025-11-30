@@ -82,16 +82,28 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
         }
     }, [flight?.cabinCrew, flight?.id]);
 
-    // 모달 오픈 시 배경 스크롤 방지
+    // 모달 오픈 시 배경 스크롤 방지 (iOS 특화)
     useEffect(() => {
-        // 현재 overflow 스타일 저장
-        const originalStyle = window.getComputedStyle(document.body).overflow;
-        // 배경 스크롤 막기
+        // 현재 스타일 저장
+        const originalOverflow = document.body.style.overflow;
+        const originalPosition = document.body.style.position;
+        const originalTop = document.body.style.top;
+        const originalWidth = document.body.style.width;
+        const scrollY = window.scrollY;
+
+        // iOS Safari에서 더 강력한 스크롤 방지
         document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
 
         return () => {
             // 언마운트 시 원래 스타일 복구
-            document.body.style.overflow = originalStyle;
+            document.body.style.overflow = originalOverflow;
+            document.body.style.position = originalPosition;
+            document.body.style.top = originalTop;
+            document.body.style.width = originalWidth;
+            window.scrollTo(0, scrollY);
         };
     }, []);
 
@@ -584,8 +596,20 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
 
     return (
         <>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-[70] p-2 sm:p-4 pt-safe" onClick={onClose}>
-                <div className={containerClasses} style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)' }} onClick={(e) => e.stopPropagation()}>
+            <div
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-[70] p-2 sm:p-4 pt-safe"
+                onClick={onClose}
+                onTouchMove={(e) => e.preventDefault()}
+            >
+                <div
+                    className={containerClasses}
+                    style={{
+                        maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)',
+                        touchAction: 'pan-y'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                >
                     {/* 헤더 영역 - 고정 */}
                     <div className="flex-shrink-0 p-4 sm:p-6 pb-2 sm:pb-4 border-b border-white/10">
                         <div className="flex items-center justify-between mb-4">
@@ -632,6 +656,10 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                         {/* 스크롤 가능한 본문 영역 */}
                         <div
                             className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-10 sm:pb-12 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent`}
+                            style={{
+                                WebkitOverflowScrolling: 'touch',
+                                touchAction: 'pan-y'
+                            }}
                         >
                             <div className={`${isSpecialSchedule ? '' : 'mb-1'}`}>
                                 <div className="space-y-2 text-base">
