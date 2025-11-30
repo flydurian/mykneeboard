@@ -82,6 +82,19 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
         }
     }, [flight?.cabinCrew, flight?.id]);
 
+    // 모달 오픈 시 배경 스크롤 방지
+    useEffect(() => {
+        // 현재 overflow 스타일 저장
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        // 배경 스크롤 막기
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            // 언마운트 시 원래 스타일 복구
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
+
     if (!flight) return null;
 
     const isStandby = flight.flightNumber.includes('STBY') ||
@@ -618,7 +631,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                         </div>
                         {/* 스크롤 가능한 본문 영역 */}
                         <div
-                            className={`flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 pb-4 sm:pb-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent`}
+                            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-4 sm:pb-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent`}
                         >
                             <div className={`${isSpecialSchedule ? '' : 'mb-1'}`}>
                                 <div className="space-y-2 text-base">
