@@ -607,7 +607,6 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                         touchAction: 'pan-y'
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    onTouchMove={(e) => e.stopPropagation()}
                 >
                     {/* 헤더 영역 - 고정 */}
                     <div className="flex-shrink-0 p-4 sm:p-6 pb-2 sm:pb-4 border-b border-white/10">
