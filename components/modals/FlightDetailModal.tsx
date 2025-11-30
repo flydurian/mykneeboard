@@ -82,28 +82,17 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
         }
     }, [flight?.cabinCrew, flight?.id]);
 
-    // 모달 오픈 시 배경 스크롤 방지 (iOS 특화)
+    // 모달 오픈 시 배경 스크롤 방지 (단순화)
     useEffect(() => {
         // 현재 스타일 저장
         const originalOverflow = document.body.style.overflow;
-        const originalPosition = document.body.style.position;
-        const originalTop = document.body.style.top;
-        const originalWidth = document.body.style.width;
-        const scrollY = window.scrollY;
 
-        // iOS Safari에서 더 강력한 스크롤 방지
+        // 배경 스크롤 차단 (overflow:hidden만 사용)
         document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${scrollY}px`;
-        document.body.style.width = '100%';
 
         return () => {
             // 언마운트 시 원래 스타일 복구
             document.body.style.overflow = originalOverflow;
-            document.body.style.position = originalPosition;
-            document.body.style.top = originalTop;
-            document.body.style.width = originalWidth;
-            window.scrollTo(0, scrollY);
         };
     }, []);
 
@@ -603,8 +592,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                 <div
                     className={containerClasses}
                     style={{
-                        maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)',
-                        touchAction: 'pan-y'
+                        maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)'
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
