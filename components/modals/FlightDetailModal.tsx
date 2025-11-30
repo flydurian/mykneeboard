@@ -599,7 +599,6 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
             <div
                 className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-[70] p-2 sm:p-4 pt-safe"
                 onClick={onClose}
-                onTouchMove={(e) => e.preventDefault()}
             >
                 <div
                     className={containerClasses}
