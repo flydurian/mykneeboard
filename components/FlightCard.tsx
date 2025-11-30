@@ -181,28 +181,31 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
         return 'text-slate-500';
     };
 
+    const showUpTimeStr = useMemo(() => {
+        if (type !== 'next' || !flight?.showUpDateTimeUtc || !flight?.route) return null;
+
+        try {
+            const [depAirport] = flight.route.split('/');
+            const cityInfo = getCityInfo(depAirport);
+            const timezone = cityInfo?.timezone || 'Asia/Seoul';
+            const showUpUtc = new Date(flight.showUpDateTimeUtc);
+            return formatInTimeZone(showUpUtc, timezone, 'HH:mm');
+        } catch (e) {
+            return null;
+        }
+    }, [flight, type]);
+
     return (
         <motion.div
             onClick={handleClick}
-            className="relative glass-card rounded-2xl p-4 sm:p-6 text-center flex flex-col justify-between items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer hover:bg-white/10 transition-colors"
+            className="relative glass-card rounded-2xl p-4 sm:p-6 text-center flex flex-col justify-center gap-1 items-center h-full min-h-[120px] sm:min-h-[140px] cursor-pointer hover:bg-white/10 transition-colors"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
         >
-            {/* 이륙/착륙 배지를 카드 안쪽 상단에 배치 */}
-            {flight && type === 'last' && (
-                <StatusBadge
-                    key={`status-${flight.id}-${flight.status?.departed}-${flight.status?.landed}`}
-                    status={flight.status}
-                    flightNumber={flight.flightNumber}
-                    isActualFlight={isActualFlight(flight)}
-                    onStatusChange={onStatusChange}
-                    flightId={flight.id}
-                    type={type}
-                />
-            )}
+
 
             <div className="flex flex-col items-center">
                 <p className={`text-sm font-medium mb-1 ${type === 'next' ? 'text-blue-400' : type === 'nextNext' ? 'text-purple-400' : 'text-emerald-400'}`}>
@@ -210,16 +213,31 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
                 </p>
 
                 {ddayInfo && (
-                    <p className={`text-4xl sm:text-4xl md:text-5xl font-bold mb-3 whitespace-nowrap ${type === 'next' ? 'text-blue-400' : type === 'nextNext' ? 'text-purple-400' : 'text-emerald-400'}`}>
+                    <p className={`text-4xl sm:text-4xl md:text-5xl font-bold whitespace-nowrap ${type === 'next' ? 'text-blue-400' : type === 'nextNext' ? 'text-purple-400' : 'text-emerald-400'}`}>
                         {ddayInfo.text}
                     </p>
                 )}
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center w-full">
                 <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-1 whitespace-nowrap drop-shadow-md">
                     {getAirportCode()}
                 </p>
+                {type === 'last' ? (
+                    <StatusBadge
+                        key={`status-${flight.id}-${flight.status?.departed}-${flight.status?.landed}`}
+                        status={flight.status}
+                        flightNumber={flight.flightNumber}
+                        isActualFlight={isActualFlight(flight)}
+                        onStatusChange={onStatusChange}
+                        flightId={flight.id}
+                        type={type}
+                    />
+                ) : (
+                    <p className={`text-sm font-medium text-slate-400 mt-1 ${showUpTimeStr ? '' : 'invisible'}`}>
+                        {showUpTimeStr ? `SHOW UP ${showUpTimeStr}` : 'SHOW UP 00:00'}
+                    </p>
+                )}
             </div>
         </motion.div>
     );
