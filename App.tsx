@@ -1547,8 +1547,8 @@ const App: React.FC = () => {
 
           if (!result.success) {
             console.error('❌ 데이터베이스 연결 실패:', result.error);
-            // 사용자에게 알림 (옵션)
-            alert('데이터베이스 연결 실패: ' + (result.error) + '\n네트워크 상태나 권한을 확인해주세요.');
+            // 사용자에게 알림 (옵션) - 오프라인 모드로 자연스럽게 전환
+            // alert('데이터베이스 연결 실패: ' + (result.error) + '\n네트워크 상태나 권한을 확인해주세요.');
           } else {
             console.log('✅ 데이터베이스 연결 성공');
           }

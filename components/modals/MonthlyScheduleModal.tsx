@@ -221,7 +221,7 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                     >
                         {flights.length > 0 ? (
                             <table className={`text-center w-full ${isKESchedule ? 'text-xs md:text-sm lg:text-base' : 'text-sm md:text-base'}`}>
-                                <thead className="text-xs font-semibold text-slate-300 uppercase bg-white/5 sticky top-0 z-10">
+                                <thead className="text-xs font-semibold text-slate-300 uppercase bg-slate-900/95 backdrop-blur-sm sticky top-0 z-20">
                                     <tr>
                                         <th className={`${isKESchedule ? 'px-2 py-1 md:px-3 md:py-2 lg:px-4' : 'px-4 py-2'} whitespace-nowrap`}>날짜</th>
                                         <th className={`${isKESchedule ? 'px-2 py-1 md:px-3 md:py-2 lg:px-4' : 'px-4 py-2'} whitespace-nowrap`}>편명</th>
