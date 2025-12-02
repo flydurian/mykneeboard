@@ -15,7 +15,13 @@ export const useFlights = (userId: string | undefined) => {
         queryKey: flightKeys.list(userId || ''),
         queryFn: () => getAllFlights(userId || ''),
         enabled: !!userId, // userId가 있을 때만 쿼리 실행
-        staleTime: 1000 * 60 * 5, // 5분간 캐시 유지
+        staleTime: 1000 * 60 * 60, // 1시간으로 증가 (오프라인 대응)
+        gcTime: 1000 * 60 * 60 * 24, // 24시간 (구 cacheTime)
+        retry: (failureCount, error: any) => {
+            // 오프라인 에러는 재시도하지 않음
+            if (error?.message === 'OFFLINE_MODE') return false;
+            return failureCount < 3;
+        },
     });
 };
 

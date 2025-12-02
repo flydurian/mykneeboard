@@ -342,8 +342,8 @@ export const getAllFlights = async (userId: string) => {
   try {
     // 오프라인 상태 체크
     if (isFirebaseOffline()) {
-      console.log('❌ getAllFlights: 오프라인 모드임');
-      return [];
+      console.log('⚠️ getAllFlights: 오프라인 모드 - 캐시된 데이터 사용');
+      throw new Error('OFFLINE_MODE');
     }
 
     if (!userId) {
