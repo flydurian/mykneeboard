@@ -68,9 +68,15 @@ body {
   @apply border-indigo-500/50 ring-2 ring-indigo-500/20 bg-black/30 outline-none;
 }
 
-/* 커스텀 스크롤바 스타일 */
+/* 커스텀 스크롤바 스타일 - Auto-hide */
 .custom-scrollbar {
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.custom-scrollbar:hover,
+.custom-scrollbar.scrolling {
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
 }
 
@@ -83,13 +89,14 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.3);
+  background: transparent;
   border-radius: 3px;
-  transition: background 0.2s ease;
+  transition: background 0.3s ease;
 }
 
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.5);
+.custom-scrollbar:hover::-webkit-scrollbar-thumb,
+.custom-scrollbar.scrolling::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
@@ -97,12 +104,13 @@ body {
 }
 
 /* 다크모드 커스텀 스크롤바 */
-.dark .custom-scrollbar:hover {
-  -webkit-scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+.dark .custom-scrollbar:hover,
+.dark .custom-scrollbar.scrolling {
   scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
 }
 
-.dark .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+.dark .custom-scrollbar:hover::-webkit-scrollbar-thumb,
+.dark .custom-scrollbar.scrolling::-webkit-scrollbar-thumb {
   background: rgba(75, 85, 99, 0.5);
 }
 

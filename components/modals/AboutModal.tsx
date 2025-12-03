@@ -49,11 +49,14 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                         <div>
                             <h3 className="font-semibold text-white mb-2">기능</h3>
                             <ul className="text-sm space-y-1 list-disc list-inside">
-                                <li>비행 스케줄 관리</li>
-                                <li>비행 자격 현황 관리</li>
-                                <li>휴식 시간 계산</li>
-                                <li>월별 스케줄 조회</li>
-                                <li>날씨 정보 및 일출/일몰 시간</li>
+                                <li>비행 스케줄 관리 (Excel/PDF 업로드)</li>
+                                <li>비행 자격 현황 관리 (Landing Currency)</li>
+                                <li>휴식 시간 계산 (2SET/5P/3PILOT)</li>
+                                <li>월별 스케줄 조회 및 Block Time 집계</li>
+                                <li>CREW 검색 및 도시 검색</li>
+                                <li>항공편 스케줄 DB 검색</li>
+                                <li>DATIS 정보 조회</li>
+                                <li>오프라인 모드 지원</li>
                             </ul>
                         </div>
 
@@ -62,27 +65,23 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                             <div className="space-y-2 text-sm">
                                 <div>
                                     <span className="font-medium text-slate-200">항공편 정보:</span>
-                                    <p className="text-slate-400">AeroDataBox, 인천공항 API</p>
+                                    <p className="text-slate-400">인천공항 API, Firebase DB</p>
                                 </div>
                                 <div>
-                                    <span className="font-medium text-slate-200">지도 정보:</span>
-                                    <p className="text-slate-400">OpenStreetMap, ESRI 위성</p>
+                                    <span className="font-medium text-slate-200">스케줄 파싱:</span>
+                                    <p className="text-slate-400">대한항공(KE), 아시아나(OZ), 제주항공(7C) 지원</p>
                                 </div>
                                 <div>
                                     <span className="font-medium text-slate-200">기상 정보:</span>
-                                    <p className="text-slate-400">CheckWX, OpenWeatherMap</p>
+                                    <p className="text-slate-400">CheckWX METAR/TAF, DATIS</p>
                                 </div>
                                 <div>
-                                    <span className="font-medium text-slate-200">환율 정보:</span>
-                                    <p className="text-slate-400">ExchangeRate-API</p>
-                                </div>
-                                <div>
-                                    <span className="font-medium text-slate-200">대기질(AQI):</span>
-                                    <p className="text-slate-400">AQICN</p>
+                                    <span className="font-medium text-slate-200">데이터 저장:</span>
+                                    <p className="text-slate-400">Firebase Realtime Database</p>
                                 </div>
                                 <div>
                                     <span className="font-medium text-slate-200">기타 정보:</span>
-                                    <p className="text-slate-400">내장 오프라인 DB</p>
+                                    <p className="text-slate-400">내장 오프라인 DB (공항, 도시, 항공사)</p>
                                 </div>
                             </div>
                         </div>

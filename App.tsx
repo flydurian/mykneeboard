@@ -9,7 +9,7 @@ import { calculateCurrency, findLastAndNextFlights, isActualFlight, mergeFlightD
 import { toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 import pkg from './package.json';
-import { UploadCloudIcon, CalendarIcon, AirlineLogo, SettingsIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon, RefreshCwIcon } from './components/icons';
+import { UploadCloudIcon, CalendarIcon, AirlineLogo, SettingsIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon, RefreshCwIcon, SearchIcon } from './components/icons';
 import FlightCard from './components/FlightCard';
 import CurrencyCard from './components/CurrencyCard';
 import BlockTimeCard from './components/BlockTimeCard';
@@ -3380,6 +3380,13 @@ const App: React.FC = () => {
                         </button>
                       </div>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setIsSearchModalOpen(true)}
+                          className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                          title="CREW 검색 / 도시 검색"
+                        >
+                          <SearchIcon className="w-5 h-5" />
+                        </button>
                         <button
                           onClick={handleCalendarClick}
                           className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"

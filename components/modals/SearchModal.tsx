@@ -22,8 +22,31 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const resultsRef = React.useRef<HTMLDivElement>(null);
 
   const isDarkMode = document.documentElement.classList.contains('dark');
+
+  // Auto-hide scrollbar
+  React.useEffect(() => {
+    if (!resultsRef.current) return;
+
+    let scrollTimeout: NodeJS.Timeout | null = null;
+
+    const handleScroll = () => {
+      resultsRef.current?.classList.add('scrolling');
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        resultsRef.current?.classList.remove('scrolling');
+      }, 1000);
+    };
+
+    resultsRef.current.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      resultsRef.current?.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+    };
+  }, [showResults]);
 
   // 도시/항공편 검색 함수 (Firebase DB 포함)
   const searchCities = async (query: string) => {
@@ -347,41 +370,39 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
 
         {/* 검색 타입 선택 */}
         <div className="p-4 border-b border-white/10">
-          <div className="flex justify-center">
-            <div className="flex w-full max-w-xs">
-              <button
-                onClick={() => {
-                  setSearchType('city');
-                  setSearchResults([]);
-                  setShowResults(false);
-                }}
-                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative ${searchType === 'city'
-                  ? 'text-blue-400'
-                  : 'text-slate-400 hover:text-slate-200'
-                  }`}
-              >
-                도시 검색
-                {searchType === 'city' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setSearchType('crew');
-                  setSearchResults([]);
-                  setShowResults(false);
-                }}
-                className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative ${searchType === 'crew'
-                  ? 'text-blue-400'
-                  : 'text-slate-400 hover:text-slate-200'
-                  }`}
-              >
-                CREW 검색
-                {searchType === 'crew' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
-                )}
-              </button>
-            </div>
+          <div className="glass-panel rounded-xl p-1 flex">
+            <button
+              onClick={() => {
+                setSearchType('city');
+                setSearchResults([]);
+                setShowResults(false);
+              }}
+              className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${searchType === 'city'
+                ? 'text-white'
+                : (isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                }`}
+            >
+              {searchType === 'city' && (
+                <div className="absolute inset-0 rounded-xl bg-teal-600 shadow-md shadow-teal-500/30 -z-10"></div>
+              )}
+              도시 검색
+            </button>
+            <button
+              onClick={() => {
+                setSearchType('crew');
+                setSearchResults([]);
+                setShowResults(false);
+              }}
+              className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${searchType === 'crew'
+                ? 'text-white'
+                : (isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                }`}
+            >
+              {searchType === 'crew' && (
+                <div className="absolute inset-0 rounded-xl bg-teal-600 shadow-md shadow-teal-500/30 -z-10"></div>
+              )}
+              CREW 검색
+            </button>
           </div>
         </div>
 
@@ -415,7 +436,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
 
         {/* 검색 결과 */}
         {showResults && (
-          <div className="px-4 pb-4 max-h-96 overflow-y-auto border-t border-white/10">
+          <div ref={resultsRef} className="px-4 pb-4 max-h-96 overflow-y-auto border-t border-white/10 custom-scrollbar">
             {searchResults.length > 0 ? (
               <div className="space-y-3 pt-4">
                 {searchResults.map((result, index) => (
