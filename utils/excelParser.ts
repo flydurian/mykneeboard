@@ -1,4 +1,5 @@
 import * as ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
 import { Flight } from '../types';
 import { parseOZExcel } from './companyParsers/ozParser';
 import { parseKEExcel } from './companyParsers/keParser';
@@ -7,8 +8,9 @@ import { auth } from '../src/firebase/config';
 // Excel 파일에서 비행 데이터를 추출하고 정리하는 함수
 export const parseExcelFile = (file: File, userCompany?: string, userName?: string, empl?: string): Promise<Flight[]> => {
   return new Promise(async (resolve, reject) => {
-    console.log('🚀 Excel 파서 시작 (ExcelJS):', {
+    console.log('🚀 Excel 파서 시작:', {
       fileName: file.name,
+      fileType: file.type,
       userCompany,
       userName,
       empl
@@ -16,27 +18,48 @@ export const parseExcelFile = (file: File, userCompany?: string, userName?: stri
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(arrayBuffer);
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
-      console.log('📖 Excel 파일 읽기 완료');
+      let jsonData: any[][] = [];
 
-      // 첫 번째 시트 사용
-      const worksheet = workbook.worksheets[0];
-      if (!worksheet) {
-        throw new Error('Excel 파일에 시트가 없습니다.');
+      // .xls 파일 처리 (xlsx 라이브러리 사용)
+      if (fileExtension === 'xls') {
+        console.log('📖 .xls 파일 읽기 (xlsx 라이브러리)');
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        if (!worksheet) {
+          throw new Error('Excel 파일에 시트가 없습니다.');
+        }
+
+        console.log('📊 시트 정보:', { sheetName: workbook.SheetNames[0] });
+
+        // JSON으로 변환 (header: 1 옵션으로 2D 배열 생성)
+        jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+        console.log('✅ .xls 파일 읽기 완료');
       }
+      // .xlsx 파일 처리 (ExcelJS 사용)
+      else {
+        console.log('📖 .xlsx 파일 읽기 (ExcelJS)');
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
 
-      console.log('📊 시트 정보:', { sheetName: worksheet.name });
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
+          throw new Error('Excel 파일에 시트가 없습니다.');
+        }
 
-      // JSON으로 변환 (2D 배열)
-      const jsonData: any[][] = [];
-      worksheet.eachRow({ includeEmpty: true }, (row, _rowNumber) => {
-        // ExcelJS의 row.values는 1-based index로 인해 0번 인덱스가 비어있거나 undefined일 수 있음
-        // 배열로 변환 후 0번 인덱스 제거 (만약 존재한다면)
-        const values = Array.isArray(row.values) ? row.values.slice(1) : [];
-        jsonData.push(values);
-      });
+        console.log('📊 시트 정보:', { sheetName: worksheet.name });
+
+        // JSON으로 변환 (2D 배열)
+        worksheet.eachRow({ includeEmpty: true }, (row, _rowNumber) => {
+          // ExcelJS의 row.values는 1-based index로 인해 0번 인덱스가 비어있거나 undefined일 수 있음
+          // 배열로 변환 후 0번 인덱스 제거 (만약 존재한다면)
+          const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+          jsonData.push(values);
+        });
+        console.log('✅ .xlsx 파일 읽기 완료');
+      }
 
       console.log('📋 JSON 변환 완료:', {
         totalRows: jsonData.length,

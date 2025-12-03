@@ -1938,13 +1938,8 @@ const App: React.FC = () => {
         });
 
 
-        // 브리핑 정보 파일인지 감지 (route가 비어있고 승무원 정보만 있는 경우)
-        const isBriefingFile = monthFlights.some(flight =>
-          flight.route === '' &&
-          (flight.crew.length > 0 || flight.cabinCrew.length > 0) &&
-          flight.flightNumber &&
-          flight.date
-        );
+        // 브리핑 정보 파일인지 감지 (isBriefingInfo 플래그 확인)
+        const isBriefingFile = monthFlights.some(flight => flight.isBriefingInfo === true);
 
         // 스마트 병합 실행
         // - 브리핑 정보 파일인 경우: 기존 데이터 삭제하지 않고 추가/갱신만 수행

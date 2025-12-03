@@ -34,6 +34,7 @@ export interface Flight {
   scheduleType?: string; // 스케줄 타입 (FLIGHT, RDO, OTHRDUTY, STANDBY 등)
   acType?: string; // 항공기 타입 (A/C Type)
   regNo?: string; // 등록 번호 (Registration Number)
+  isBriefingInfo?: boolean; // 브리핑 인포 파일 여부
   _storagePath?: { // Firebase 저장 경로 정보
     year: number;
     month: string;
@@ -42,28 +43,28 @@ export interface Flight {
 }
 
 export interface DDayInfo {
-    text: string;
-    days: number;
+  text: string;
+  days: number;
 }
 
 export interface CurrencyInfo {
-    count: number;
-    isCurrent: boolean;
-    expiryDate: string | null;
-    daysUntilExpiry: number | null;
-    recentEvents: Flight[];
+  count: number;
+  isCurrent: boolean;
+  expiryDate: string | null;
+  daysUntilExpiry: number | null;
+  recentEvents: Flight[];
 }
 
 export interface CurrencyModalData {
-    title: string;
-    events: Flight[];
-    graphEvents?: Flight[]; // 그래프용 6개월 데이터
+  title: string;
+  events: Flight[];
+  graphEvents?: Flight[]; // 그래프용 6개월 데이터
 }
 
 export interface MonthlyModalData {
-    month: number;
-    flights: Flight[];
-    blockTime: string;
+  month: number;
+  flights: Flight[];
+  blockTime: string;
 }
 
 // 항공편 스케줄 데이터 타입

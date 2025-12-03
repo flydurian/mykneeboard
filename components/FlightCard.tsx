@@ -119,6 +119,20 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
         return { text: '날짜 오류', days: 0 };
     }, [flight, type, todayStr]);
 
+    const showUpTimeStr = useMemo(() => {
+        if (type !== 'next' || !flight?.showUpDateTimeUtc || !flight?.route) return null;
+
+        try {
+            const [depAirport] = flight.route.split('/');
+            const cityInfo = getCityInfo(depAirport);
+            const timezone = cityInfo?.timezone || 'Asia/Seoul';
+            const showUpUtc = new Date(flight.showUpDateTimeUtc);
+            return formatInTimeZone(showUpUtc, timezone, 'HH:mm');
+        } catch (e) {
+            return null;
+        }
+    }, [flight, type]);
+
     if (!flight) {
         return (
             <motion.div
@@ -180,20 +194,6 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
         if (ddayInfo.days === -1) return 'text-amber-400';
         return 'text-slate-500';
     };
-
-    const showUpTimeStr = useMemo(() => {
-        if (type !== 'next' || !flight?.showUpDateTimeUtc || !flight?.route) return null;
-
-        try {
-            const [depAirport] = flight.route.split('/');
-            const cityInfo = getCityInfo(depAirport);
-            const timezone = cityInfo?.timezone || 'Asia/Seoul';
-            const showUpUtc = new Date(flight.showUpDateTimeUtc);
-            return formatInTimeZone(showUpUtc, timezone, 'HH:mm');
-        } catch (e) {
-            return null;
-        }
-    }, [flight, type]);
 
     return (
         <motion.div
