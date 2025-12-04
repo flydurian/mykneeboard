@@ -268,115 +268,121 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-2 sm:p-4" onClick={onClose}>
-            <div className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col max-h-[96vh] sm:max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-                {/* Compact Header - Fixed */}
-                <div className="flex items-center justify-between p-3 sm:p-6 border-b border-white/10 flex-shrink-0">
-                    <h2 className="text-lg sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={onClose}>
+            <div
+                className="glass-panel rounded-3xl shadow-2xl w-full max-w-5xl p-4 sm:p-6 md:p-8 relative animate-fade-in-up overflow-hidden"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)'
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* 배경 그라데이션 효과 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-fuchsia-500/5 pointer-events-none" />
+
+                {/* 헤더 영역 */}
+                <div className="relative flex items-center justify-between mb-4 sm:mb-6">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
                         {year}년 {month}월
                     </h2>
 
-                    <div className="flex items-center gap-1.5 sm:gap-3">
-                        {/* Compact Month Navigation */}
-                        <div className="flex gap-1 bg-white/5 rounded-lg sm:rounded-xl p-0.5 sm:p-1">
-                            <button
-                                onClick={goToPreviousMonth}
-                                className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-all duration-200"
-                                title="이전 달"
-                            >
-                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-                                </svg>
-                            </button>
-                            <button
-                                onClick={goToNextMonth}
-                                className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-all duration-200"
-                                title="다음 달"
-                            >
-                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* Close Button */}
+                    <div className="flex items-center gap-2">
+                        {/* 월 이동 버튼들 */}
+                        <button
+                            onClick={goToPreviousMonth}
+                            className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
+                            title="이전 달"
+                        >
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <button
+                            onClick={goToNextMonth}
+                            className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
+                            title="다음 달"
+                        >
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
                         <button
                             onClick={onClose}
-                            className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-all duration-200"
+                            className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-slate-300 hover:text-red-400 transition-all hover:scale-105 active:scale-95"
                         >
-                            <XIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                            <XIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                     </div>
                 </div>
 
-                {/* Scrollable Calendar Content */}
-                <div className="overflow-y-auto flex-1 p-2 sm:p-4 md:p-6">
-                    {/* Compact Weekday Headers */}
-                    <div className="grid grid-cols-7 gap-0.5 sm:gap-1 md:gap-2 mb-1 sm:mb-2">
-                        {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => {
-                            const isSunday = index === 0;
-                            const isSaturday = index === 6;
-                            return (
-                                <div
-                                    key={day}
-                                    className={`
-                                        text-center text-[10px] sm:text-xs md:text-sm font-semibold py-1 sm:py-2 md:py-3 rounded-md sm:rounded-lg md:rounded-xl border backdrop-blur-sm
-                                        ${isSunday
-                                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                                            : isSaturday
-                                                ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-                                                : 'bg-white/5 border-white/10 text-slate-300'
-                                        }
-                                    `}
-                                >
-                                    {day}
-                                </div>
-                            );
-                        })}
-                    </div>
+                {/* 요일 헤더 */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 sm:mb-3">
+                    {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => {
+                        const isSunday = index === 0;
+                        const isSaturday = index === 6;
+                        return (
+                            <div
+                                key={day}
+                                className={`
+                                    text-center text-xs sm:text-sm font-bold py-2 sm:py-3 rounded-xl border backdrop-blur-sm
+                                    ${isSunday
+                                        ? 'bg-gradient-to-br from-rose-500/20 to-rose-600/10 border-rose-500/30 text-rose-300 shadow-lg shadow-rose-500/10'
+                                        : isSaturday
+                                            ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/10 border-blue-500/30 text-blue-300 shadow-lg shadow-blue-500/10'
+                                            : 'bg-white/5 border-white/10 text-slate-300'
+                                    }
+                                `}
+                            >
+                                {day}
+                            </div>
+                        );
+                    })}
+                </div>
 
-                    {/* Compact Calendar Grid */}
-                    <div className="grid grid-cols-7 gap-0.5 sm:gap-1 md:gap-2">
-                        {calendarData.map((day, index) => (
+                {/* 달력 그리드 */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                    {calendarData.map((day, index) => {
+                        const isToday = (() => {
+                            const today = new Date();
+                            const todayKst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+                            const todayYear = todayKst.getUTCFullYear();
+                            const todayMonth = todayKst.getUTCMonth() + 1;
+                            const todayDate = todayKst.getUTCDate();
+                            return day.day === todayDate && year === todayYear && month === todayMonth && day.isCurrentMonth;
+                        })();
+
+                        return (
                             <div
                                 key={index}
                                 className={`
-                                    min-h-[45px] sm:min-h-[60px] md:min-h-[80px] lg:min-h-[100px] p-0.5 sm:p-1.5 md:p-2 lg:p-3 rounded-md sm:rounded-lg md:rounded-xl border backdrop-blur-sm transition-all duration-200
+                                    min-h-[70px] sm:min-h-[90px] md:min-h-[110px] lg:min-h-[130px] p-1.5 sm:p-2 rounded-xl border backdrop-blur-sm transition-all duration-200
                                     ${day.isCurrentMonth
-                                        ? (day.isHoliday
-                                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
-                                            : day.isSunday
-                                                ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
-                                                : day.isSaturday
-                                                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20'
-                                                    : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                                        ? (day.isHoliday || day.isSunday
+                                            ? 'bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-500/20 hover:border-rose-500/40 hover:shadow-lg hover:shadow-rose-500/10'
+                                            : day.isSaturday
+                                                ? 'bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10'
+                                                : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-lg'
                                         )
-                                        : 'bg-black/20 border-black/30 text-slate-600'
+                                        : 'bg-black/20 border-white/5 text-slate-600'
                                     }
-                                    ${(() => {
-                                        const today = new Date();
-                                        const todayKst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
-                                        const todayYear = todayKst.getUTCFullYear();
-                                        const todayMonth = todayKst.getUTCMonth() + 1;
-                                        const todayDate = todayKst.getUTCDate();
-
-                                        return day.day === todayDate &&
-                                            year === todayYear &&
-                                            month === todayMonth &&
-                                            day.isCurrentMonth
-                                            ? 'ring-1 sm:ring-2 ring-purple-400 bg-purple-500/10'
-                                            : '';
-                                    })()}
+                                    ${isToday ? 'ring-2 ring-fuchsia-500 ring-offset-2 ring-offset-slate-900 bg-gradient-to-br from-fuchsia-500/20 to-indigo-500/10 shadow-xl shadow-fuchsia-500/20' : ''}
                                 `}
                             >
-                                <div className="text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold mb-0.5 sm:mb-1">
+                                <div className={`
+                                    text-sm sm:text-base md:text-lg font-bold mb-1
+                                    ${day.isCurrentMonth
+                                        ? (day.isHoliday || day.isSunday ? 'text-rose-300' : day.isSaturday ? 'text-blue-300' : 'text-slate-200')
+                                        : 'text-slate-600'
+                                    }
+                                    ${isToday ? 'text-fuchsia-300' : ''}
+                                `}>
                                     {day.day}
                                 </div>
 
-                                {/* Compact Events */}
-                                <div className="space-y-[2px] sm:space-y-0.5">
-                                    {day.events.map((event, eventIndex) => {
-                                        // STBY, SIM, 휴가스케줄, 특별스케줄 판별
+                                {/* 이벤트 표시 - 최대 3개 + 나머지 카운트 */}
+                                <div className="space-y-0.5 sm:space-y-1">
+                                    {day.events.slice(0, 3).map((event, eventIndex) => {
                                         const isStandby = event.flight.flightNumber.includes('STBY') ||
                                             event.flight.flightNumber.includes('OTHRDUTY') ||
                                             event.flight.flightNumber.includes('RESERVE') ||
@@ -407,7 +413,6 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                                             event.flight.flightNumber.toUpperCase().includes('INSPECTION') ||
                                             event.flight.flightNumber.toUpperCase().includes('검사');
 
-                                        // 항공사 구분
                                         const isKESchedule = event.flight.flightNumber.startsWith('KE') ||
                                             event.flight.flightNumber.match(/^\d+$/) &&
                                             event.flight.scheduleType === 'FLIGHT';
@@ -420,38 +425,57 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                                         const is7CSchedule = event.flight.scheduleType === '7C' &&
                                             !isSpecialSchedule && !isSimSchedule && !isVacationSchedule;
 
-                                        // Solid colors for mobile (better performance)
-                                        let bgColor, hoverColor;
+                                        let bgGradient, borderColor, shadowColor;
                                         if (isVacationSchedule) {
-                                            bgColor = 'bg-rose-600';
-                                            hoverColor = 'hover:bg-rose-500';
+                                            bgGradient = 'from-rose-600 to-rose-700';
+                                            borderColor = 'border-rose-400/30';
+                                            shadowColor = 'hover:shadow-rose-500/50';
                                         } else if (isStandby) {
-                                            bgColor = 'bg-amber-600';
-                                            hoverColor = 'hover:bg-amber-500';
+                                            bgGradient = 'from-amber-600 to-amber-700';
+                                            borderColor = 'border-amber-400/30';
+                                            shadowColor = 'hover:shadow-amber-500/50';
                                         } else if (isSimSchedule) {
-                                            bgColor = 'bg-emerald-600';
-                                            hoverColor = 'hover:bg-emerald-500';
+                                            bgGradient = 'from-emerald-600 to-emerald-700';
+                                            borderColor = 'border-emerald-400/30';
+                                            shadowColor = 'hover:shadow-emerald-500/50';
                                         } else if (isSpecialSchedule) {
-                                            bgColor = 'bg-purple-600';
-                                            hoverColor = 'hover:bg-purple-500';
+                                            bgGradient = 'from-purple-600 to-purple-700';
+                                            borderColor = 'border-purple-400/30';
+                                            shadowColor = 'hover:shadow-purple-500/50';
                                         } else if (is7CSchedule) {
-                                            bgColor = 'bg-orange-600';
-                                            hoverColor = 'hover:bg-orange-500';
+                                            bgGradient = 'from-orange-600 to-orange-700';
+                                            borderColor = 'border-orange-400/30';
+                                            shadowColor = 'hover:shadow-orange-500/50';
                                         } else if (isOZSchedule) {
-                                            bgColor = 'bg-indigo-600';
-                                            hoverColor = 'hover:bg-indigo-500';
+                                            bgGradient = 'from-indigo-600 to-indigo-700';
+                                            borderColor = 'border-indigo-400/30';
+                                            shadowColor = 'hover:shadow-indigo-500/50';
                                         } else if (isKESchedule) {
-                                            bgColor = 'bg-sky-600';
-                                            hoverColor = 'hover:bg-sky-500';
+                                            bgGradient = 'from-sky-600 to-sky-700';
+                                            borderColor = 'border-sky-400/30';
+                                            shadowColor = 'hover:shadow-sky-500/50';
                                         } else {
-                                            bgColor = 'bg-slate-600';
-                                            hoverColor = 'hover:bg-slate-500';
+                                            bgGradient = 'from-slate-600 to-slate-700';
+                                            borderColor = 'border-slate-400/30';
+                                            shadowColor = 'hover:shadow-slate-500/50';
                                         }
 
                                         return (
                                             <div
                                                 key={eventIndex}
-                                                className={`text-[8px] sm:text-[10px] md:text-xs ${bgColor} ${hoverColor} text-white px-0.5 sm:px-1 md:px-1.5 py-[2px] sm:py-0.5 md:py-1 rounded-sm sm:rounded md:rounded-md cursor-pointer break-words leading-tight font-medium truncate`}
+                                                className={`
+                                                    text-[9px] sm:text-[10px] md:text-xs
+                                                    bg-gradient-to-r ${bgGradient}
+                                                    text-white font-medium
+                                                    px-1.5 sm:px-2 py-1 sm:py-1.5
+                                                    rounded-lg border ${borderColor}
+                                                    cursor-pointer break-words leading-tight
+                                                    shadow-md ${shadowColor}
+                                                    transition-all duration-200
+                                                    hover:scale-105 hover:shadow-lg
+                                                    active:scale-95
+                                                    backdrop-blur-sm
+                                                `}
                                                 onClick={() => onFlightClick(event.flight)}
                                                 title={event.title}
                                             >
@@ -459,16 +483,19 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                                             </div>
                                         );
                                     })}
+                                    {day.events.length > 3 && (
+                                        <div className="text-[9px] sm:text-[10px] text-slate-400 font-medium px-1.5 sm:px-2 py-0.5 text-center bg-white/5 rounded-md border border-white/10">
+                                            +{day.events.length - 3}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>
     );
-
-
 };
 
 export default CalendarModal;
