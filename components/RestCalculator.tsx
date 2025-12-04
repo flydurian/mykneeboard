@@ -2585,14 +2585,16 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             </span>
                                             <button
                                                 onClick={handleToggleNotifications}
-                                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none ${notificationsEnabled
+                                                className={`relative inline-flex h-7 w-12 items-center transition-colors duration-200 focus:outline-none ${notificationsEnabled
                                                         ? 'bg-teal-600'
                                                         : 'bg-gray-400'
                                                     }`}
+                                                style={{ borderRadius: '9999px' }}
                                             >
                                                 <span
-                                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${notificationsEnabled ? 'translate-x-[26px]' : 'translate-x-[2px]'
+                                                    className={`inline-block h-5 w-5 transform bg-white shadow-md transition-transform duration-200 ease-in-out ${notificationsEnabled ? 'translate-x-[26px]' : 'translate-x-[2px]'
                                                         }`}
+                                                    style={{ borderRadius: '9999px' }}
                                                 />
                                             </button>
                                         </div>
