@@ -2,6 +2,17 @@ import React, { useState, useEffect, useMemo, useRef, memo, useCallback, useRedu
 import { motion } from 'framer-motion';
 import { saveRestInfo, getRestInfo, subscribeToRestInfo, RestInfo } from '../src/firebase/database';
 import { getCurrentUser } from '../src/firebase/auth';
+import {
+    requestNotificationPermission,
+    canShowNotifications,
+    calculateRestSchedule,
+    scheduleRestNotifications,
+    activateNotifications,
+    cancelNotifications,
+    getNotificationStatus,
+    formatNotificationTime,
+    type RestNotification
+} from '../utils/restNotifications';
 
 // --- 타입 정의 ---
 interface TimelineSegment {
@@ -429,6 +440,14 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isSyncing, setIsSyncing] = useState(false);
 
+    // 알림 관련 상태
+    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
+        typeof Notification !== 'undefined' ? Notification.permission : 'denied'
+    );
+    const [scheduledNotifications, setScheduledNotifications] = useState<RestNotification[]>([]);
+    const scheduledNotificationsRef = useRef<RestNotification[]>([]);
+
 
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showTimeline, setShowTimeline] = useState(true);
@@ -717,6 +736,137 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             setIsSyncing(false);
         }
     }, [currentUser, state]);
+
+    // 알림 권한 요청 핸들러
+    const handleRequestNotificationPermission = useCallback(async () => {
+        const permission = await requestNotificationPermission();
+        setNotificationPermission(permission);
+
+        if (permission === 'granted') {
+            setNotificationsEnabled(true);
+        } else if (permission === 'denied') {
+            setNotificationsEnabled(false);
+            alert('알림 권한이 거부되었습니다. 브라우저 설정에서 알림을 허용해주세요.');
+        }
+    }, []);
+
+    // 알림 토글 핸들러
+    const handleToggleNotifications = useCallback(async () => {
+        if (!notificationsEnabled) {
+            // 알림 활성화
+            if (notificationPermission !== 'granted') {
+                await handleRequestNotificationPermission();
+            } else {
+                setNotificationsEnabled(true);
+            }
+        } else {
+            // 알림 비활성화
+            setNotificationsEnabled(false);
+            // 기존 알림 취소
+            if (scheduledNotificationsRef.current.length > 0) {
+                cancelNotifications(scheduledNotificationsRef.current);
+                scheduledNotificationsRef.current = [];
+                setScheduledNotifications([]);
+            }
+        }
+    }, [notificationsEnabled, notificationPermission, handleRequestNotificationPermission]);
+
+    // 알림 스케줄링 함수
+    const scheduleNotificationsForRestPeriod = useCallback(() => {
+        // 기존 알림 취소
+        if (scheduledNotificationsRef.current.length > 0) {
+            cancelNotifications(scheduledNotificationsRef.current);
+        }
+
+        if (!notificationsEnabled || !canShowNotifications()) {
+            scheduledNotificationsRef.current = [];
+            setScheduledNotifications([]);
+            return;
+        }
+
+        try {
+            // 비행 시간 계산
+            const flightTimeMinutes2Set = timeToMinutes(flightTime);
+            const flightTimeMinutes3Pilot = timeToMinutes(flightTime3Pilot);
+
+            // 현재 활성 탭에 따라 적절한 값 사용
+            let afterTakeoffMinutes = 0;
+            let restDurationMinutes = 0;
+            let beforeLandingMinutes = 0;
+
+            if (activeTab === '2set' && twoSetMode === '2교대') {
+                afterTakeoffMinutes = timeToMinutes(afterTakeoff);
+                const crz1Minutes = timeToMinutes(crz1Time);
+                const crz2Minutes = Math.max(0, flightTimeMinutes2Set - afterTakeoffMinutes - crz1Minutes - timeToMinutes(beforeLanding));
+                restDurationMinutes = crz1Minutes;
+                beforeLandingMinutes = timeToMinutes(beforeLanding);
+            } else if (activeTab === '2set' && twoSetMode === '1교대') {
+                afterTakeoffMinutes = timeToMinutes(afterTakeoff1교대);
+                restDurationMinutes = Math.floor(flightTimeMinutes2Set / 2);
+                beforeLandingMinutes = Math.max(0, restDurationMinutes - afterTakeoffMinutes);
+            } else if (activeTab === '3pilot') {
+                afterTakeoffMinutes = threePilotMode === 'CASE2'
+                    ? timeToMinutes(afterTakeoff3PilotCase2)
+                    : timeToMinutes(afterTakeoff3Pilot);
+                restDurationMinutes = Math.floor(flightTimeMinutes3Pilot / 3);
+                beforeLandingMinutes = timeToMinutes(beforeLanding);
+            } else {
+                // 5P 모드나 기타
+                return;
+            }
+
+            // 휴식 스케줄 계산
+            const schedule = calculateRestSchedule(
+                departureTime,
+                afterTakeoffMinutes,
+                restDurationMinutes,
+                beforeLandingMinutes
+            );
+
+            // 알림 생성
+            const notifications = scheduleRestNotifications(schedule);
+
+            // 알림 활성화
+            const activeNotifications = activateNotifications(notifications, (notification) => {
+                console.log('Notification shown:', notification.title);
+            });
+
+            scheduledNotificationsRef.current = activeNotifications;
+            setScheduledNotifications(activeNotifications);
+
+            console.log(`Scheduled ${activeNotifications.length} notifications for rest period`);
+        } catch (error) {
+            console.error('Failed to schedule notifications:', error);
+        }
+    }, [
+        notificationsEnabled,
+        activeTab,
+        twoSetMode,
+        departureTime,
+        flightTime,
+        flightTime3Pilot,
+        afterTakeoff,
+        afterTakeoff1교대,
+        afterTakeoff3Pilot,
+        afterTakeoff3PilotCase2,
+        beforeLanding,
+        crz1Time,
+        threePilotMode
+    ]);
+
+    // 알림 활성화 시 스케줄링
+    useEffect(() => {
+        if (notificationsEnabled) {
+            scheduleNotificationsForRestPeriod();
+        }
+
+        // 컴포넌트 언마운트 시 알림 취소
+        return () => {
+            if (scheduledNotificationsRef.current.length > 0) {
+                cancelNotifications(scheduledNotificationsRef.current);
+            }
+        };
+    }, [notificationsEnabled, scheduleNotificationsForRestPeriod]);
 
     const handleCompleteEditing = useCallback(async () => {
         setShowTimeline(true);
@@ -2427,7 +2577,27 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
 
 
-                                    <div className="flex justify-end mt-8">
+                                    <div className="flex justify-between items-center mt-8">
+                                        {/* 알림 토글 */}
+                                        <div className="flex items-center gap-3">
+                                            <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                알림
+                                            </span>
+                                            <button
+                                                onClick={handleToggleNotifications}
+                                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none ${notificationsEnabled
+                                                        ? 'bg-teal-600'
+                                                        : 'bg-gray-400'
+                                                    }`}
+                                            >
+                                                <span
+                                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${notificationsEnabled ? 'translate-x-[26px]' : 'translate-x-[2px]'
+                                                        }`}
+                                                />
+                                            </button>
+                                        </div>
+
+                                        {/* 완료 버튼 */}
                                         <button
                                             onClick={handleCompleteEditing}
                                             disabled={isSyncing}
