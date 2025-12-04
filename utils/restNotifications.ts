@@ -105,6 +105,9 @@ export const scheduleRestNotifications = (schedule: RestSchedule): RestNotificat
     const notifications: RestNotification[] = [];
     const now = Date.now();
 
+    // Calculate flight end time (landing time)
+    const flightEndTime = schedule.landingTime.getTime();
+
     // Helper to format time in UTC (HHMM format)
     const formatUTC = (date: Date): string => {
         const hours = date.getUTCHours().toString().padStart(2, '0');
@@ -130,6 +133,12 @@ export const scheduleRestNotifications = (schedule: RestSchedule): RestNotificat
 
         // Don't schedule notifications in the past
         if (scheduledTime <= now) {
+            return null;
+        }
+
+        // Don't schedule notifications after flight end time
+        if (scheduledTime > flightEndTime) {
+            console.log(`⏭️ Skipping notification after flight end: ${title} (scheduled: ${formatUTC(time)}Z, flight ends: ${formatUTC(schedule.landingTime)}Z)`);
             return null;
         }
 
