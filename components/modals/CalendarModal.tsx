@@ -268,197 +268,207 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
-            <div className="glass-panel rounded-2xl shadow-xl w-full max-w-4xl p-6 relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
-                {/* 월 이동 버튼들 */}
-                <div className="absolute top-4 right-16 flex gap-2">
-                    <button
-                        onClick={goToPreviousMonth}
-                        className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                        title="이전 달"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={goToNextMonth}
-                        className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                        title="다음 달"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-2 sm:p-4" onClick={onClose}>
+            <div className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col max-h-[96vh] sm:max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                {/* Compact Header - Fixed */}
+                <div className="flex items-center justify-between p-3 sm:p-6 border-b border-white/10 flex-shrink-0">
+                    <h2 className="text-lg sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        {year}년 {month}월
+                    </h2>
+
+                    <div className="flex items-center gap-1.5 sm:gap-3">
+                        {/* Compact Month Navigation */}
+                        <div className="flex gap-1 bg-white/5 rounded-lg sm:rounded-xl p-0.5 sm:p-1">
+                            <button
+                                onClick={goToPreviousMonth}
+                                className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-all duration-200"
+                                title="이전 달"
+                            >
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={goToNextMonth}
+                                className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-all duration-200"
+                                title="다음 달"
+                            >
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Close Button */}
+                        <button
+                            onClick={onClose}
+                            className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-all duration-200"
+                        >
+                            <XIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    </div>
                 </div>
 
-                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
-                    <XIcon className="w-6 h-6" />
-                </button>
+                {/* Scrollable Calendar Content */}
+                <div className="overflow-y-auto flex-1 p-2 sm:p-4 md:p-6">
+                    {/* Compact Weekday Headers */}
+                    <div className="grid grid-cols-7 gap-0.5 sm:gap-1 md:gap-2 mb-1 sm:mb-2">
+                        {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => {
+                            const isSunday = index === 0;
+                            const isSaturday = index === 6;
+                            return (
+                                <div
+                                    key={day}
+                                    className={`
+                                        text-center text-[10px] sm:text-xs md:text-sm font-semibold py-1 sm:py-2 md:py-3 rounded-md sm:rounded-lg md:rounded-xl border backdrop-blur-sm
+                                        ${isSunday
+                                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                                            : isSaturday
+                                                ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+                                                : 'bg-white/5 border-white/10 text-slate-300'
+                                        }
+                                    `}
+                                >
+                                    {day}
+                                </div>
+                            );
+                        })}
+                    </div>
 
-                <h2 className="text-2xl font-bold text-white mb-6">
-                    {year}년 {month}월
-                </h2>
-
-                {/* 요일 헤더 */}
-                <div className="grid grid-cols-7 gap-1 mb-2">
-                    {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => {
-                        const isSunday = index === 0;
-                        const isSaturday = index === 6;
-                        return (
+                    {/* Compact Calendar Grid */}
+                    <div className="grid grid-cols-7 gap-0.5 sm:gap-1 md:gap-2">
+                        {calendarData.map((day, index) => (
                             <div
-                                key={day}
+                                key={index}
                                 className={`
-                                    text-center text-sm font-medium py-2 border border-white/10 rounded-lg
-                                    ${isSunday
-                                        ? 'bg-rose-500/20 text-rose-400' // 일요일: 연한 빨간색
-                                        : isSaturday
-                                            ? 'bg-blue-500/20 text-blue-400' // 토요일: 연한 파란색
-                                            : 'bg-white/5 text-slate-200' // 평일: 기본색
+                                    min-h-[45px] sm:min-h-[60px] md:min-h-[80px] lg:min-h-[100px] p-0.5 sm:p-1.5 md:p-2 lg:p-3 rounded-md sm:rounded-lg md:rounded-xl border backdrop-blur-sm transition-all duration-200
+                                    ${day.isCurrentMonth
+                                        ? (day.isHoliday
+                                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
+                                            : day.isSunday
+                                                ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
+                                                : day.isSaturday
+                                                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20'
+                                                    : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                                        )
+                                        : 'bg-black/20 border-black/30 text-slate-600'
                                     }
+                                    ${(() => {
+                                        const today = new Date();
+                                        const todayKst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+                                        const todayYear = todayKst.getUTCFullYear();
+                                        const todayMonth = todayKst.getUTCMonth() + 1;
+                                        const todayDate = todayKst.getUTCDate();
+
+                                        return day.day === todayDate &&
+                                            year === todayYear &&
+                                            month === todayMonth &&
+                                            day.isCurrentMonth
+                                            ? 'ring-1 sm:ring-2 ring-purple-400 bg-purple-500/10'
+                                            : '';
+                                    })()}
                                 `}
                             >
-                                {day}
+                                <div className="text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold mb-0.5 sm:mb-1">
+                                    {day.day}
+                                </div>
+
+                                {/* Compact Events */}
+                                <div className="space-y-[2px] sm:space-y-0.5">
+                                    {day.events.map((event, eventIndex) => {
+                                        // STBY, SIM, 휴가스케줄, 특별스케줄 판별
+                                        const isStandby = event.flight.flightNumber.includes('STBY') ||
+                                            event.flight.flightNumber.includes('OTHRDUTY') ||
+                                            event.flight.flightNumber.includes('RESERVE') ||
+                                            event.flight.scheduleType === 'STANDBY';
+                                        const isSimSchedule = event.flight.flightNumber.toUpperCase().includes('SIM');
+                                        const isVacationSchedule = event.flight.flightNumber.toUpperCase().includes('ANNUAL LEAVE') ||
+                                            event.flight.flightNumber.toUpperCase().includes('ALV') ||
+                                            event.flight.flightNumber.toUpperCase().includes('ALM') ||
+                                            event.flight.flightNumber.toUpperCase().includes('VAC_R') ||
+                                            event.flight.flightNumber.toUpperCase().includes('VAC');
+                                        const isSpecialSchedule = event.flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
+                                            event.flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
+                                            event.flight.flightNumber.toUpperCase().includes('G/S') ||
+                                            event.flight.flightNumber.toUpperCase().includes('GS') ||
+                                            event.flight.flightNumber.toUpperCase().includes('GROUND SCHOOL') ||
+                                            event.flight.flightNumber.toUpperCase().includes('MEDICAL CHK') ||
+                                            event.flight.flightNumber.toUpperCase().includes('MEDICAL') ||
+                                            event.flight.flightNumber.toUpperCase().includes('안전회의') ||
+                                            event.flight.flightNumber.toUpperCase().includes('SAFETY') ||
+                                            event.flight.flightNumber.toUpperCase().includes('TRAINING') ||
+                                            event.flight.flightNumber.toUpperCase().includes('교육') ||
+                                            event.flight.flightNumber.toUpperCase().includes('BRIEFING') ||
+                                            event.flight.flightNumber.toUpperCase().includes('브리핑') ||
+                                            event.flight.flightNumber.toUpperCase().includes('MEETING') ||
+                                            event.flight.flightNumber.toUpperCase().includes('회의') ||
+                                            event.flight.flightNumber.toUpperCase().includes('CHECK') ||
+                                            event.flight.flightNumber.toUpperCase().includes('점검') ||
+                                            event.flight.flightNumber.toUpperCase().includes('INSPECTION') ||
+                                            event.flight.flightNumber.toUpperCase().includes('검사');
+
+                                        // 항공사 구분
+                                        const isKESchedule = event.flight.flightNumber.startsWith('KE') ||
+                                            event.flight.flightNumber.match(/^\d+$/) &&
+                                            event.flight.scheduleType === 'FLIGHT';
+                                        const isOZSchedule = event.flight.scheduleType === 'OZ' ||
+                                            (event.flight.flightNumber.match(/^\d+$/) &&
+                                                event.flight.scheduleType !== '7C' &&
+                                                event.flight.scheduleType !== 'FLIGHT') ||
+                                            event.flight.flightNumber.toUpperCase().includes('FIXED SKD') ||
+                                            event.flight.flightNumber.toUpperCase().includes('ORAL');
+                                        const is7CSchedule = event.flight.scheduleType === '7C' &&
+                                            !isSpecialSchedule && !isSimSchedule && !isVacationSchedule;
+
+                                        // Solid colors for mobile (better performance)
+                                        let bgColor, hoverColor;
+                                        if (isVacationSchedule) {
+                                            bgColor = 'bg-rose-600';
+                                            hoverColor = 'hover:bg-rose-500';
+                                        } else if (isStandby) {
+                                            bgColor = 'bg-amber-600';
+                                            hoverColor = 'hover:bg-amber-500';
+                                        } else if (isSimSchedule) {
+                                            bgColor = 'bg-emerald-600';
+                                            hoverColor = 'hover:bg-emerald-500';
+                                        } else if (isSpecialSchedule) {
+                                            bgColor = 'bg-purple-600';
+                                            hoverColor = 'hover:bg-purple-500';
+                                        } else if (is7CSchedule) {
+                                            bgColor = 'bg-orange-600';
+                                            hoverColor = 'hover:bg-orange-500';
+                                        } else if (isOZSchedule) {
+                                            bgColor = 'bg-indigo-600';
+                                            hoverColor = 'hover:bg-indigo-500';
+                                        } else if (isKESchedule) {
+                                            bgColor = 'bg-sky-600';
+                                            hoverColor = 'hover:bg-sky-500';
+                                        } else {
+                                            bgColor = 'bg-slate-600';
+                                            hoverColor = 'hover:bg-slate-500';
+                                        }
+
+                                        return (
+                                            <div
+                                                key={eventIndex}
+                                                className={`text-[8px] sm:text-[10px] md:text-xs ${bgColor} ${hoverColor} text-white px-0.5 sm:px-1 md:px-1.5 py-[2px] sm:py-0.5 md:py-1 rounded-sm sm:rounded md:rounded-md cursor-pointer break-words leading-tight font-medium truncate`}
+                                                onClick={() => onFlightClick(event.flight)}
+                                                title={event.title}
+                                            >
+                                                {event.title}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        );
-                    })}
-                </div>
-
-                {/* 달력 그리드 */}
-                <div className="grid grid-cols-7 gap-1">
-                    {calendarData.map((day, index) => (
-                        <div
-                            key={index}
-                            className={`
-                                min-h-[60px] sm:min-h-[80px] md:min-h-[100px] lg:min-h-[120px] p-1 sm:p-2 border border-white/10 rounded-lg transition-colors
-                                ${day.isCurrentMonth
-                                    ? (day.isHoliday
-                                        ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20' // 공휴일
-                                        : day.isSunday
-                                            ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20' // 일요일
-                                            : day.isSaturday
-                                                ? 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20' // 토요일
-                                                : 'bg-white/5 text-slate-200 hover:bg-white/10' // 평일
-                                    )
-                                    : 'bg-black/20 text-slate-600'
-                                }
-                                ${(() => {
-                                    const today = new Date();
-                                    const todayKst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
-                                    const todayYear = todayKst.getUTCFullYear();
-                                    const todayMonth = todayKst.getUTCMonth() + 1;
-                                    const todayDate = todayKst.getUTCDate();
-
-                                    return day.day === todayDate &&
-                                        year === todayYear &&
-                                        month === todayMonth &&
-                                        day.isCurrentMonth
-                                        ? 'ring-2 ring-fuchsia-500 bg-fuchsia-500/10'
-                                        : '';
-                                })()}
-                            `}
-                        >
-                            <div className="text-xs sm:text-sm md:text-base font-medium mb-1">
-                                {day.day}
-                            </div>
-
-                            {/* 이벤트 표시 */}
-                            <div className="space-y-0.5 sm:space-y-1">
-                                {day.events.map((event, eventIndex) => {
-                                    // STBY, SIM, 휴가스케줄, 특별스케줄 판별
-                                    const isStandby = event.flight.flightNumber.includes('STBY') ||
-                                        event.flight.flightNumber.includes('OTHRDUTY') ||
-                                        event.flight.flightNumber.includes('RESERVE') ||
-                                        event.flight.scheduleType === 'STANDBY';
-                                    const isSimSchedule = event.flight.flightNumber.toUpperCase().includes('SIM');
-                                    const isVacationSchedule = event.flight.flightNumber.toUpperCase().includes('ANNUAL LEAVE') ||
-                                        event.flight.flightNumber.toUpperCase().includes('ALV') ||
-                                        event.flight.flightNumber.toUpperCase().includes('ALM') ||
-                                        event.flight.flightNumber.toUpperCase().includes('VAC_R') ||
-                                        event.flight.flightNumber.toUpperCase().includes('VAC');
-                                    const isSpecialSchedule = event.flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
-                                        event.flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
-                                        event.flight.flightNumber.toUpperCase().includes('G/S') ||
-                                        event.flight.flightNumber.toUpperCase().includes('GS') ||
-                                        event.flight.flightNumber.toUpperCase().includes('GROUND SCHOOL') ||
-                                        event.flight.flightNumber.toUpperCase().includes('MEDICAL CHK') ||
-                                        event.flight.flightNumber.toUpperCase().includes('MEDICAL') ||
-                                        event.flight.flightNumber.toUpperCase().includes('안전회의') ||
-                                        event.flight.flightNumber.toUpperCase().includes('SAFETY') ||
-                                        event.flight.flightNumber.toUpperCase().includes('TRAINING') ||
-                                        event.flight.flightNumber.toUpperCase().includes('교육') ||
-                                        event.flight.flightNumber.toUpperCase().includes('BRIEFING') ||
-                                        event.flight.flightNumber.toUpperCase().includes('브리핑') ||
-                                        event.flight.flightNumber.toUpperCase().includes('MEETING') ||
-                                        event.flight.flightNumber.toUpperCase().includes('회의') ||
-                                        event.flight.flightNumber.toUpperCase().includes('CHECK') ||
-                                        event.flight.flightNumber.toUpperCase().includes('점검') ||
-                                        event.flight.flightNumber.toUpperCase().includes('INSPECTION') ||
-                                        event.flight.flightNumber.toUpperCase().includes('검사');
-
-                                    // 항공사 구분 (KE vs OZ vs 7C)
-                                    const isKESchedule = event.flight.flightNumber.startsWith('KE') ||
-                                        event.flight.flightNumber.match(/^\d+$/) &&
-                                        event.flight.scheduleType === 'FLIGHT';
-                                    const isOZSchedule = event.flight.scheduleType === 'OZ' ||
-                                        (event.flight.flightNumber.match(/^\d+$/) &&
-                                            event.flight.scheduleType !== '7C' &&
-                                            event.flight.scheduleType !== 'FLIGHT') ||
-                                        event.flight.flightNumber.toUpperCase().includes('FIXED SKD') ||
-                                        event.flight.flightNumber.toUpperCase().includes('ORAL');
-                                    const is7CSchedule = event.flight.scheduleType === '7C' &&
-                                        !isSpecialSchedule && !isSimSchedule && !isVacationSchedule;
-
-                                    // 색상 결정 (OZ 달력 표시 방식 기준)
-                                    let bgColor, hoverColor;
-                                    if (isVacationSchedule) {
-                                        bgColor = 'bg-rose-600';
-                                        hoverColor = 'hover:bg-rose-500';
-                                    } else if (isStandby) {
-                                        bgColor = 'bg-amber-600';
-                                        hoverColor = 'hover:bg-amber-500';
-                                    } else if (isSimSchedule) {
-                                        bgColor = 'bg-emerald-600';
-                                        hoverColor = 'hover:bg-emerald-500';
-                                    } else if (isSpecialSchedule) {
-                                        bgColor = 'bg-purple-600';
-                                        hoverColor = 'hover:bg-purple-500';
-                                    } else if (is7CSchedule) {
-                                        // 7C 일반 비행 스케줄은 주황색으로 구분
-                                        bgColor = 'bg-orange-600';
-                                        hoverColor = 'hover:bg-orange-500';
-                                    } else if (isOZSchedule) {
-                                        // OZ 스케줄은 진한 파란색
-                                        bgColor = 'bg-indigo-600';
-                                        hoverColor = 'hover:bg-indigo-500';
-                                    } else if (isKESchedule) {
-                                        // KE 스케줄은 하늘색
-                                        bgColor = 'bg-sky-600';
-                                        hoverColor = 'hover:bg-sky-500';
-                                    } else {
-                                        // 기타 스케줄은 회색
-                                        bgColor = 'bg-slate-600';
-                                        hoverColor = 'hover:bg-slate-500';
-                                    }
-
-                                    return (
-                                        <div
-                                            key={eventIndex}
-                                            className={`text-[10px] sm:text-xs md:text-sm lg:text-sm xl:text-sm ${bgColor} ${hoverColor} text-white px-1 sm:px-2 py-1 rounded cursor-pointer break-words leading-tight shadow-sm transition-colors`}
-                                            onClick={() => onFlightClick(event.flight)}
-                                            title={event.title} // 전체 제목을 툴팁으로 표시
-                                        >
-                                            {event.title}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
     );
+
+
 };
 
 export default CalendarModal;
