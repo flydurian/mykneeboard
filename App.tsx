@@ -345,7 +345,10 @@ const App: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isUserSettingsModalOpen, setIsUserSettingsModalOpen] = useState(false);
   const [selectedAirline, setSelectedAirline] = useState('OZ');
-  const [baseIata, setBaseIata] = useState<string | undefined>(undefined);
+  const [baseIata, setBaseIata] = useState<string | undefined>(() => {
+    const saved = localStorage.getItem('baseIata');
+    return saved || undefined;
+  });
   const [isCrewHistoryModalOpen, setIsCrewHistoryModalOpen] = useState(false);
   const [selectedCrewName, setSelectedCrewName] = useState<string>('');
   const [flightsWithSelectedCrew, setFlightsWithSelectedCrew] = useState<Flight[]>([]);
@@ -422,6 +425,13 @@ const App: React.FC = () => {
       if (savedFlightDataExpanded) {
         setIsFlightDataExpanded(JSON.parse(savedFlightDataExpanded));
         console.log('✅ FlightData UI 상태 복원:', JSON.parse(savedFlightDataExpanded));
+      }
+
+      // BASE 정보 복원 (오프라인에서 ICN 표시 방지)
+      const savedBaseIata = localStorage.getItem('baseIata');
+      if (savedBaseIata && !baseIata) {
+        setBaseIata(savedBaseIata);
+        console.log('✅ BASE 정보 복원:', savedBaseIata);
       }
 
       // 로딩 상태 강제 해제 (오프라인에서 무한 로딩 방지)
@@ -566,6 +576,13 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
   }, [activeTab]);
+
+  // BASE 정보 저장 (오프라인 대응)
+  useEffect(() => {
+    if (baseIata) {
+      localStorage.setItem('baseIata', baseIata);
+    }
+  }, [baseIata]);
 
   // Service Worker 등록 및 오프라인 상태 관리
   useEffect(() => {
