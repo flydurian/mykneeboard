@@ -3,7 +3,7 @@
 
 export interface RestNotification {
     id: string;
-    type: 'rest-start-warning' | 'rest-start' | 'rest-end-warning' | 'duty-start-warning';
+    type: 'rest-start-warning' | 'rest-end-warning';
     title: string;
     body: string;
     scheduledTime: number; // Unix timestamp in milliseconds
@@ -105,6 +105,20 @@ export const scheduleRestNotifications = (schedule: RestSchedule): RestNotificat
     const notifications: RestNotification[] = [];
     const now = Date.now();
 
+    // Helper to format time in UTC (HHMM format)
+    const formatUTC = (date: Date): string => {
+        const hours = date.getUTCHours().toString().padStart(2, '0');
+        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    };
+
+    // Helper to format time in local timezone (HHMM format)
+    const formatLocal = (date: Date): string => {
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    };
+
     // Helper to create notification
     const createNotification = (
         type: RestNotification['type'],
@@ -131,20 +145,26 @@ export const scheduleRestNotifications = (schedule: RestSchedule): RestNotificat
 
     // 1. 근무 종료 15분 전 (= 휴식 시작 15분 전)
     const dutyEndWarning = new Date(schedule.restStartTime.getTime() - 15 * 60 * 1000);
+    const dutyEndTimeUTC = formatUTC(schedule.restStartTime);
+    const dutyEndTimeLocal = formatLocal(schedule.restStartTime);
+
     const warning1 = createNotification(
         'rest-start-warning',
-        '근무 종료 15분 전',
-        '곧 휴식 시간이 시작됩니다. 준비해주세요.',
+        '근무 종료 15분 전입니다',
+        `종료시간: ${dutyEndTimeUTC}Z / ${dutyEndTimeLocal}`,
         dutyEndWarning
     );
     if (warning1) notifications.push(warning1);
 
     // 2. 휴식 종료 15분 전 (= 근무 재개 15분 전)
     const restEndWarning = new Date(schedule.restEndTime.getTime() - 15 * 60 * 1000);
+    const restEndTimeUTC = formatUTC(schedule.restEndTime);
+    const restEndTimeLocal = formatLocal(schedule.restEndTime);
+
     const warning2 = createNotification(
         'rest-end-warning',
-        '휴식 종료 15분 전',
-        '곧 근무가 재개됩니다. 준비해주세요.',
+        '휴식 종료 15분 전입니다',
+        `종료시간: ${restEndTimeUTC}Z / ${restEndTimeLocal}`,
         restEndWarning
     );
     if (warning2) notifications.push(warning2);
@@ -163,6 +183,11 @@ export const showNotification = async (notification: RestNotification): Promise<
     }
 
     try {
+        // Vibrate on mobile devices for better awareness
+        if ('vibrate' in navigator) {
+            navigator.vibrate([200, 100, 200]);
+        }
+
         // Check if Service Worker is available
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
             // Use Service Worker to show notification
@@ -173,23 +198,25 @@ export const showNotification = async (notification: RestNotification): Promise<
                 badge: '/icon-192x192.png',
                 tag: notification.id,
                 requireInteraction: false,
+                vibrate: [200, 100, 200],
                 data: {
                     type: notification.type,
                     scheduledTime: notification.scheduledTime
                 }
             });
-            console.log('Notification shown via Service Worker:', notification.title);
+            console.log('✅ Notification shown via Service Worker:', notification.title, notification.body);
         } else {
             // Fallback to regular notification
             new Notification(notification.title, {
                 body: notification.body,
                 icon: '/icon-192x192.png',
-                tag: notification.id
+                tag: notification.id,
+                vibrate: [200, 100, 200]
             });
-            console.log('Notification shown (fallback):', notification.title);
+            console.log('✅ Notification shown (fallback):', notification.title, notification.body);
         }
     } catch (error) {
-        console.error('Failed to show notification:', error);
+        console.error('❌ Failed to show notification:', error);
     }
 };
 

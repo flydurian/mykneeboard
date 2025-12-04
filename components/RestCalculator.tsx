@@ -811,7 +811,15 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 afterTakeoffMinutes = timeToMinutes(afterTakeoff1교대);
                 restDurationMinutes = Math.floor(flightTimeMinutes2Set / 2);
                 beforeLandingMinutes = Math.max(0, restDurationMinutes - afterTakeoffMinutes);
+            } else if (activeTab === '2set' && twoSetMode === '5P') {
+                // 5P 모드
+                afterTakeoffMinutes = timeToMinutes(afterTakeoff5P);
+                const crz1Minutes5P = timeToMinutes(crz1Time5P);
+                const flightTimeMinutes5P = timeToMinutes(flightTime5P);
+                restDurationMinutes = crz1Minutes5P;
+                beforeLandingMinutes = Math.max(0, flightTimeMinutes5P - afterTakeoffMinutes - crz1Minutes5P);
             } else if (activeTab === '3pilot') {
+
                 afterTakeoffMinutes = threePilotMode === 'CASE2'
                     ? timeToMinutes(afterTakeoff3PilotCase2)
                     : timeToMinutes(afterTakeoff3Pilot);
@@ -851,13 +859,16 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         twoSetMode,
         departureTime,
         flightTime,
+        flightTime5P,
         flightTime3Pilot,
         afterTakeoff,
         afterTakeoff1교대,
+        afterTakeoff5P,
         afterTakeoff3Pilot,
         afterTakeoff3PilotCase2,
         beforeLanding,
         crz1Time,
+        crz1Time5P,
         threePilotMode
     ]);
 
