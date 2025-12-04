@@ -1078,6 +1078,7 @@ export interface RestInfo {
   beforeLanding1교대: string;
   timeZone: string;
   threePilotCase: 'CASE1' | 'CASE2';
+  notificationsEnabled?: boolean;
   lastUpdated: string;
 }
 

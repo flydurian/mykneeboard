@@ -637,6 +637,11 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 if (savedRestInfo) {
                     const payload = { ...savedRestInfo, threePilotMode: savedRestInfo.threePilotCase };
                     dispatch({ type: 'LOAD_FROM_FIREBASE', payload });
+
+                    // 알림 설정 복원
+                    if (savedRestInfo.notificationsEnabled !== undefined) {
+                        setNotificationsEnabled(savedRestInfo.notificationsEnabled);
+                    }
                 }
             } catch (error) {
                 console.error('REST 정보 불러오기 실패:', error);
@@ -725,6 +730,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 timeZone: state.timeZone,
                 threePilotCase: state.threePilotMode,
                 afterTakeoff3PilotCase2: state.afterTakeoff3PilotCase2,
+                notificationsEnabled: notificationsEnabled,
                 lastUpdated: new Date().toISOString()
             };
 
@@ -735,7 +741,8 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         } finally {
             setIsSyncing(false);
         }
-    }, [currentUser, state]);
+    }, [currentUser, state, notificationsEnabled]);
+
 
     // 알림 권한 요청 핸들러
     const handleRequestNotificationPermission = useCallback(async () => {
@@ -2586,8 +2593,8 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                             <button
                                                 onClick={handleToggleNotifications}
                                                 className={`relative inline-flex h-7 w-12 items-center transition-colors duration-200 focus:outline-none ${notificationsEnabled
-                                                        ? 'bg-teal-600'
-                                                        : 'bg-gray-400'
+                                                    ? 'bg-teal-600'
+                                                    : 'bg-gray-400'
                                                     }`}
                                                 style={{ borderRadius: '9999px' }}
                                             >
