@@ -67,7 +67,6 @@ import { calculateWarnings, dismissWarningForWeek, isWarningDismissed, getSample
 
 // Service Worker 관련 import
 import { registerServiceWorker, onOnlineStatusChange, getServiceWorkerManager } from './utils/serviceWorker';
-import { getCurrentFileHashes, isLatestVersion, checkAndUpdate, saveVersionInfo } from './src/utils/hashVersion';
 
 // IATA/ICAO 코드를 정규화하는 함수 (IATA -> ICAO 변환)
 const getICAOCode = (airlineCode: string): string => {
@@ -153,28 +152,6 @@ const checkNetworkStatus = async (): Promise<boolean> => {
 };
 
 // 새로고침 실행 (온라인 시 최신 버전 확인 후만 리로드)
-const safeReload = async (reason: string = '새로고침') => {
-  console.log('🔄 ' + (reason) + ' 요청');
-  // 오프라인이면 아무 것도 하지 않음
-  if (!navigator.onLine) {
-    console.log('🚫 오프라인 상태: 새로고침 취소');
-    return false;
-  }
-  try {
-    // 최신 버전인지 확인하고 최신이 아닐 때만 업데이트 로직 수행
-    const latest = await isLatestVersion();
-    if (!latest) {
-      await checkAndUpdate();
-      return true;
-    }
-    // 이미 최신이면 그대로 유지 (리로드 안 함)
-    console.log('✅ 이미 최신 버전입니다. 리로드하지 않습니다.');
-    return false;
-  } catch (e) {
-    console.warn('새로고침 중 버전 확인 실패. 리로드 생략:', e);
-    return false;
-  }
-};
 
 
 // 국기 아이콘을 가져오는 함수
@@ -1365,21 +1342,6 @@ const App: React.FC = () => {
 
   // 해시 기반 최신성 확인 시스템 (Service Worker 완전 제거됨)
   useEffect(() => {
-    const initializeHashSystem = async () => {
-      try {
-        // 현재 파일 해시 정보 저장
-        const currentHashes = getCurrentFileHashes();
-        saveVersionInfo(currentHashes);
-
-        // 해시 기반 버전 관리 시스템 초기화 완료
-
-        // 자동 버전 체크/자동 업데이트 제거됨
-      } catch (error) {
-        console.error('❌ 해시 시스템 초기화 실패:', error);
-      }
-    };
-
-    initializeHashSystem();
   }, []);
 
   // Service Worker 관련 함수 제거됨
