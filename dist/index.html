@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <!-- 개발 환경에서는 더 관대한 CSP 사용 -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cesium.com https://cdn.cesium.com *; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://cesium.com https://cdn.cesium.com *; worker-src 'self' blob: https://cesium.com https://cdn.cesium.com; style-src 'self' 'unsafe-inline' *; img-src 'self' data: https: * https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:* * wss: ws: https: data: blob: https://datis.clowd.io https://aviationweather.gov https://api.cesium.com https://assets.cesium.com https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; frame-src 'self' *; font-src 'self' data: *; object-src 'none'; base-uri 'self'; form-action 'self';" />
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cesium.com https://cdn.cesium.com *; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://cesium.com https://cdn.cesium.com *; worker-src 'self' blob: https://cesium.com https://cdn.cesium.com; style-src 'self' 'unsafe-inline' *; img-src 'self' data: https: * https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org https://*.basemaps.cartocdn.com; connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:* * wss: ws: https: data: blob: https://datis.clowd.io https://aviationweather.gov https://api.cesium.com https://assets.cesium.com https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org https://*.basemaps.cartocdn.com; frame-src 'self' *; font-src 'self' data: *; object-src 'none'; base-uri 'self'; form-action 'self';" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
 
@@ -77,6 +77,20 @@
 
     .animate-fade-in-up {
       animation: fade-in-up 0.3s ease-out forwards;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out forwards;
     }
 
     /* 스크롤바 숨기기 */
@@ -559,11 +573,11 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="/assets/index.C7bmwuF8.js"></script>
+  <script type="module" crossorigin src="/assets/index.BVatzJDZ.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-vendor.BGhqdYZY.js">
   <link rel="modulepreload" crossorigin href="/assets/firebase-vendor.De6J-9NP.js">
-  <link rel="modulepreload" crossorigin href="/assets/utils-vendor.B0e7xJoO.js">
-  <link rel="stylesheet" crossorigin href="/assets/index.BEryp2NL.css">
+  <link rel="modulepreload" crossorigin href="/assets/utils-vendor.CfywGMT7.js">
+  <link rel="stylesheet" crossorigin href="/assets/index.C-The66f.css">
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
