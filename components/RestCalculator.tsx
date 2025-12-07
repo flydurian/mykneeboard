@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { saveRestInfo, getRestInfo, subscribeToRestInfo, RestInfo } from '../src/firebase/database';
 import { getCurrentUser } from '../src/firebase/auth';
 import RestAlarmModal from './modals/RestAlarmModal';
-import { scheduleNextRestAlarm, cancelRestAlarms, calculateRestPeriods } from '../src/utils/restAlarms';
+import { scheduleNextRestAlarm, cancelRestAlarms, calculateRestPeriods, RestPeriod } from '../src/utils/restAlarms';
 
 
 // --- 타입 정의 ---
@@ -533,32 +533,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         };
     }, []);
 
-    // 알람 활성화 시 알람 스케줄링
-    useEffect(() => {
-        if (!isAlarmEnabled) {
-            cancelRestAlarms();
-            return;
-        }
 
-        // 비행 정보가 유효한지 확인
-        const flightTimeMinutes = activeTab === '3pilot'
-            ? timeToMinutes(flightTime3Pilot)
-            : activeTab === '5p'
-                ? timeToMinutes(flightTime5P)
-                : timeToMinutes(flightTime);
-
-        if (!departureTime || flightTimeMinutes <= 0) {
-            return;
-        }
-
-        // 휴식 구간 계산 및 알람 스케줄링
-        const periods = calculateRestPeriods(departureTime, flightTimeMinutes, timeZone);
-        scheduleNextRestAlarm(periods);
-
-        return () => {
-            cancelRestAlarms();
-        };
-    }, [isAlarmEnabled, departureTime, flightTime, flightTime5P, flightTime3Pilot, timeZone, activeTab]);
 
     const handleCancelEdit = useCallback(() => {
         if (preEditStateRef.current) {
@@ -1604,6 +1579,76 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             }, 0);
         }
     }, [showBeforeLandingPicker, beforeLanding]);
+
+    // ✨ [위치 이동] 알람 스케줄링 로직 (실제 타임라인 데이터 사용)
+    useEffect(() => {
+        if (!isAlarmEnabled) {
+            cancelRestAlarms();
+            return;
+        }
+
+        const flightTimeVal = activeTab === '3pilot' ? flightTime3Pilot : activeTab === '5p' ? flightTime5P : flightTime;
+        const flightTimeMin = timeToMinutes(flightTimeVal);
+
+        if (!departureTime || flightTimeMin <= 0) return;
+
+        // 현재 활성화된 모드의 세그먼트 데이터 선택
+        let targetSegments: TimelineSegment[] = [];
+
+        if (activeTab === '2set') {
+            targetSegments = generateTimelineData.segments;
+        } else if (activeTab === '3pilot') {
+            targetSegments = threePilotMode === 'CASE2' ? generateFOTimelineData.segments : generatePICTimelineData.segments;
+        }
+
+        if (!targetSegments || targetSegments.length === 0) return;
+
+        // 이륙 시간(Date) 추정
+        const depHours = parseInt(departureTime.slice(0, 2));
+        const depMinutes = parseInt(departureTime.slice(2, 4));
+        const now = new Date();
+
+        // 후보: 어제, 오늘, 내일
+        const candidates = [-1, 0, 1].map(offset => {
+            const d = new Date(now);
+            d.setDate(d.getDate() + offset);
+            d.setHours(depHours, depMinutes, 0, 0);
+            return d;
+        });
+
+        // 1. 현재 비행 중인 경우 (이륙 ~ 착륙 사이에 현재가 포함됨)
+        let determinedDeparture = candidates.find(d => {
+            const landing = new Date(d.getTime() + flightTimeMin * 60000);
+            return d <= now && now <= landing;
+        });
+
+        // 2. 비행 중이 아니라면 가장 가까운 미래 (곧 이륙)
+        if (!determinedDeparture) {
+            determinedDeparture = candidates.filter(d => d > now).sort((a, b) => a.getTime() - b.getTime())[0];
+        }
+
+        // 3. 미래도 없다면 가장 가까운 과거 (이미 착륙)
+        if (!determinedDeparture) determinedDeparture = candidates[1];
+
+        // 알람 구간 생성
+        const periods: RestPeriod[] = [];
+        let accumulatedMinutes = 0;
+
+        targetSegments.forEach(seg => {
+            accumulatedMinutes += seg.duration;
+            const endTime = new Date(determinedDeparture!.getTime() + accumulatedMinutes * 60000);
+            periods.push({
+                name: seg.label,
+                endTime: endTime
+            });
+        });
+
+        // 스케줄링
+        scheduleNextRestAlarm(periods);
+
+        return () => cancelRestAlarms();
+
+    }, [isAlarmEnabled, departureTime, flightTime, flightTime5P, flightTime3Pilot, activeTab, twoSetMode, threePilotMode, generateTimelineData, generatePICTimelineData, generateFOTimelineData]);
 
     return (
         <div className={`transition-colors duration-500 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
