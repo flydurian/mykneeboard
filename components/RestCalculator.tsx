@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useRef, memo, useCallback, useRedu
 import { motion } from 'framer-motion';
 import { saveRestInfo, getRestInfo, subscribeToRestInfo, RestInfo } from '../src/firebase/database';
 import { getCurrentUser } from '../src/firebase/auth';
+import RestAlarmModal from './modals/RestAlarmModal';
+import { scheduleNextRestAlarm, cancelRestAlarms, calculateRestPeriods } from '../src/utils/restAlarms';
 
 
 // --- 타입 정의 ---
@@ -438,6 +440,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const [showAfterTakeoffPicker, setShowAfterTakeoffPicker] = useState(false);
     const [showBeforeLandingPicker, setShowBeforeLandingPicker] = useState(false);
 
+    // 알람 상태
+    const [isAlarmEnabled, setIsAlarmEnabled] = useState(() => {
+        return localStorage.getItem('restAlarmEnabled') === 'true';
+    });
+    const [alarmModal, setAlarmModal] = useState<{ isOpen: boolean; periodName: string } | null>(null);
+
     const timeZonePickerRef = useRef<HTMLDivElement>(null);
     const crz1PickerRef = useRef<HTMLDivElement>(null);
     const afterTakeoffPickerRef = useRef<HTMLDivElement>(null);
@@ -491,6 +499,52 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             setInputTab('2set');
         }
     }, [activeTab, twoSetMode]);
+
+    // 휴식 알람 이벤트 리스너 설정
+    useEffect(() => {
+        const handleRestAlarm = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const { periodName } = customEvent.detail;
+
+            setAlarmModal({
+                isOpen: true,
+                periodName: periodName
+            });
+        };
+
+        window.addEventListener('rest-alarm', handleRestAlarm);
+
+        return () => {
+            window.removeEventListener('rest-alarm', handleRestAlarm);
+        };
+    }, []);
+
+    // 알람 활성화 시 알람 스케줄링
+    useEffect(() => {
+        if (!isAlarmEnabled) {
+            cancelRestAlarms();
+            return;
+        }
+
+        // 비행 정보가 유효한지 확인
+        const flightTimeMinutes = activeTab === '3pilot'
+            ? timeToMinutes(flightTime3Pilot)
+            : activeTab === '5p'
+                ? timeToMinutes(flightTime5P)
+                : timeToMinutes(flightTime);
+
+        if (!departureTime || flightTimeMinutes <= 0) {
+            return;
+        }
+
+        // 휴식 구간 계산 및 알람 스케줄링
+        const periods = calculateRestPeriods(departureTime, flightTimeMinutes, timeZone);
+        scheduleNextRestAlarm(periods);
+
+        return () => {
+            cancelRestAlarms();
+        };
+    }, [isAlarmEnabled, departureTime, flightTime, flightTime5P, flightTime3Pilot, timeZone, activeTab]);
 
     const handleCancelEdit = useCallback(() => {
         if (preEditStateRef.current) {
@@ -2430,7 +2484,31 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
 
 
-                                    <div className="flex justify-end items-center mt-8">
+                                    <div className="flex justify-end items-center gap-2 mt-8">
+                                        {/* 알람 토글 버튼 */}
+                                        <button
+                                            onClick={() => {
+                                                const newValue = !isAlarmEnabled;
+                                                setIsAlarmEnabled(newValue);
+                                                localStorage.setItem('restAlarmEnabled', String(newValue));
+                                            }}
+                                            className={`p-2.5 rounded-xl transition-all duration-200 ${isAlarmEnabled
+                                                ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30'
+                                                : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700/70'
+                                                }`}
+                                            title={isAlarmEnabled ? '알람 활성화됨' : '알람 비활성화됨'}
+                                            style={{
+                                                borderRadius: '12px',
+                                                overflow: 'hidden',
+                                                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                                                maskImage: '-webkit-radial-gradient(white, black)'
+                                            }}
+                                        >
+                                            <svg className="w-5 h-5" fill={isAlarmEnabled ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                            </svg>
+                                        </button>
+
                                         {/* 완료 버튼 */}
                                         <button
                                             onClick={handleCompleteEditing}
@@ -2452,6 +2530,15 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                     </div>
                 )}
             </div>
+
+            {/* 알람 모달 */}
+            {alarmModal?.isOpen && (
+                <RestAlarmModal
+                    isOpen={alarmModal.isOpen}
+                    periodName={alarmModal.periodName}
+                    onDismiss={() => setAlarmModal(null)}
+                />
+            )}
         </div>
     );
 };
