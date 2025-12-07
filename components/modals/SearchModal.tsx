@@ -377,9 +377,9 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                 setSearchResults([]);
                 setShowResults(false);
               }}
-              className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-all duration-300 z-10 transform hover:scale-105 active:scale-95 ${searchType === 'city'
+              className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${searchType === 'city'
                 ? 'text-white'
-                : (isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                : ('text-gray-400 hover:text-gray-200')
                 }`}
             >
               {searchType === 'city' && (
@@ -393,9 +393,9 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                 setSearchResults([]);
                 setShowResults(false);
               }}
-              className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-all duration-300 z-10 transform hover:scale-105 active:scale-95 ${searchType === 'crew'
+              className={`relative flex-1 py-1.5 px-4 rounded-xl text-sm font-bold transition-colors duration-300 z-10 ${searchType === 'crew'
                 ? 'text-white'
-                : (isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
+                : ('text-gray-400 hover:text-gray-200')
                 }`}
             >
               {searchType === 'crew' && (

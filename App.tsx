@@ -3341,7 +3341,7 @@ const App: React.FC = () => {
                   <button
                     key={tab}
                     onClick={() => handleTabChange(tab as any)}
-                    className={`relative flex - 1 py - 2 px - 3 md: py - 3 md: px - 4 rounded - xl text - sm font - medium transition - colors duration - 200 z - 10 ${activeTab === tab
+                    className={`relative flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-colors duration-200 z-10 ${activeTab === tab
                       ? 'text-white'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                       } `}
@@ -3602,12 +3602,11 @@ const App: React.FC = () => {
                           <button
                             onClick={handleFlightHistorySearch}
                             disabled={isLoadingFlightData}
-                            className={`w - full glass - button py - 1.5 px - 4 rounded - xl font - semibold transition - all duration - 200 transform active: scale - 95 ${isLoadingFlightData ? 'opacity-50 cursor-not-allowed' : ''} `}
+                            className={`w-full glass-button py-1.5 px-4 rounded-xl font-medium transition-all duration-200 ${isLoadingFlightData ? 'opacity-50 cursor-not-allowed' : ''}`}
                             style={{
-                              borderRadius: '12px',
-                              overflow: 'hidden',
-                              WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-                              maskImage: '-webkit-radial-gradient(white, black)'
+                              WebkitAppearance: 'none',
+                              appearance: 'none',
+                              borderRadius: '0.75rem'
                             }}
                           >
                             {isLoadingFlightData ? '검색 중...' : '검색'}
@@ -3648,12 +3647,11 @@ const App: React.FC = () => {
                           <button
                             onClick={handleAirlineSearch}
                             disabled={isLoadingAirlineData}
-                            className={`w - full glass - button py - 1.5 px - 4 rounded - xl font - semibold transition - all duration - 200 transform active: scale - 95 ${isLoadingAirlineData ? 'opacity-50 cursor-not-allowed' : ''} `}
+                            className={`w-full glass-button py-1.5 px-4 rounded-xl font-medium transition-all duration-200 ${isLoadingAirlineData ? 'opacity-50 cursor-not-allowed' : ''}`}
                             style={{
-                              borderRadius: '12px',
-                              overflow: 'hidden',
-                              WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-                              maskImage: '-webkit-radial-gradient(white, black)'
+                              WebkitAppearance: 'none',
+                              appearance: 'none',
+                              borderRadius: '0.75rem'
                             }}
                           >
                             {isLoadingAirlineData ? '로딩 중...' : '검색'}
