@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { saveRestInfo, getRestInfo, subscribeToRestInfo, RestInfo } from '../src/firebase/database';
 import { getCurrentUser } from '../src/firebase/auth';
 import RestAlarmModal from './modals/RestAlarmModal';
-import { scheduleNextRestAlarm, cancelRestAlarms, calculateRestPeriods, RestPeriod } from '../src/utils/restAlarms';
+import { scheduleNextRestAlarm, cancelRestAlarms, calculateRestPeriods, RestPeriod, sendRestNotification } from '../src/utils/restAlarms';
 
 
 // --- 타입 정의 ---
@@ -513,16 +513,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
             // 시스템 알림 발송 (사용자 요청)
             if ('Notification' in window && Notification.permission === 'granted') {
-                try {
-                    new Notification('휴식 알림', {
-                        body: `${periodName} 종료 15분 전입니다.`,
-                        icon: '/icon-192x192.png',
-                        tag: 'rest-alarm',
-                        requireInteraction: true
-                    });
-                } catch (e) {
-                    console.error('시스템 알림 발송 실패:', e);
-                }
+                sendRestNotification('휴식 알림', `${periodName} 종료 15분 전입니다.`);
             }
         };
 
@@ -534,6 +525,27 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     }, []);
 
 
+
+    const handleTestNotification = useCallback(async () => {
+        if (!('Notification' in window)) {
+            alert('이 브라우저는 알림을 지원하지 않습니다.');
+            return;
+        }
+
+        if (Notification.permission !== 'granted') {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                alert('알림 권한이 거부되었습니다. 설정에서 권한을 허용해주세요.');
+                return;
+            }
+        }
+
+        alert('5초 뒤에 테스트 알림이 발송됩니다.\n홈 화면으로 나가서 알림이 오는지 확인해보세요!');
+
+        setTimeout(() => {
+            sendRestNotification('알림 테스트 성공! 🎉', '시스템 알림이 정상적으로 작동합니다.');
+        }, 5000);
+    }, []);
 
     const handleCancelEdit = useCallback(() => {
         if (preEditStateRef.current) {
@@ -2544,6 +2556,14 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
 
                                     <div className="flex justify-end items-center gap-2 mt-8">
+                                        {/* 알림 테스트 버튼 */}
+                                        <button
+                                            onClick={handleTestNotification}
+                                            className="mr-3 text-xs text-gray-400 hover:text-white underline transition-colors"
+                                        >
+                                            🔔 테스트
+                                        </button>
+
                                         {/* 알람 토글 버튼 */}
                                         <button
                                             onClick={async () => {

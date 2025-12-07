@@ -105,3 +105,29 @@ export function calculateRestPeriods(
 
     return periods;
 }
+
+/**
+ * 시스템 알림 발송 (Service Worker 우선 사용)
+ */
+export async function sendRestNotification(title: string, body: string) {
+    const options = {
+        body,
+        icon: '/icon-192x192.png',
+        tag: 'rest-alarm',
+        requireInteraction: true
+    };
+
+    if ('serviceWorker' in navigator) {
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            await reg.showNotification(title, options);
+            return;
+        } catch (e) {
+            console.error('SW notification error:', e);
+        }
+    }
+
+    if ('Notification' in window) {
+        new Notification(title, options);
+    }
+}
