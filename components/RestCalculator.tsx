@@ -445,6 +445,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         return localStorage.getItem('restAlarmEnabled') === 'true';
     });
     const [alarmModal, setAlarmModal] = useState<{ isOpen: boolean; periodName: string } | null>(null);
+    const [debugInfo, setDebugInfo] = useState<string>(''); // 디버그용 상태 추가
 
     const timeZonePickerRef = useRef<HTMLDivElement>(null);
     const crz1PickerRef = useRef<HTMLDivElement>(null);
@@ -1634,6 +1635,15 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             });
         });
 
+        // 디버그 정보 생성 (개발용)
+        const info = periods.map(p => {
+            const alarmTime = new Date(p.endTime.getTime() - 15 * 60000);
+            const nowTime = new Date();
+            const remaining = Math.round((alarmTime.getTime() - nowTime.getTime()) / 60000);
+            return `${p.name}: 종료 ${p.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} / 알람 ${alarmTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${remaining}분 후)`;
+        }).join('\n');
+        setDebugInfo(`[시스템 시각: ${new Date().toLocaleTimeString()}]\n` + info);
+
         // 스케줄링
         scheduleNextRestAlarm(periods);
 
@@ -2592,6 +2602,16 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                     </div>
                 )}
             </div>
+
+            {/* 디버그 정보 (임시) */}
+            {isAlarmEnabled && debugInfo && (
+                <div className="max-w-screen-xl mx-auto px-4 mt-4 mb-8">
+                    <div className="p-3 bg-black/80 text-xs text-green-400 font-mono whitespace-pre-wrap rounded-lg">
+                        <strong>[DEBUG INFO - v2.0.14]</strong>{'\n'}
+                        {debugInfo}
+                    </div>
+                </div>
+            )}
 
             {/* 알람 모달 */}
             {alarmModal?.isOpen && (
