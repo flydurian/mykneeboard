@@ -60,7 +60,7 @@ const PassportVisaWarningModal = lazy(() => import('./components/modals/Passport
 const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal'));
 const DeleteDataModal = lazy(() => import('./components/modals/DeleteDataModal'));
 const SearchModal = lazy(() => import('./components/modals/SearchModal'));
-const UpdateNotificationModal = lazy(() => import('./components/modals/UpdateNotificationModal'));
+
 
 import { fetchAirlineData, fetchAirlineDataWithInfo, searchAirline, getAirlineByCode, AirlineInfo, AirlineDataInfo, convertFlightNumberToIATA } from './utils/airlineData';
 import { getCityInfo, getFlightTime } from './utils/cityData';
@@ -384,7 +384,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('selectedCurrencyCards');
     return saved ? JSON.parse(saved) : ['passport', 'visa', 'epta', 'radio', 'whitecard', 'crm']; // Yellow Card를 CRM으로 변경
   });
-  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+
 
   // 오프라인 모드에서 UI 상태 강제 복원
   useEffect(() => {
@@ -653,15 +653,6 @@ const App: React.FC = () => {
 
     initializeServiceWorker();
 
-    // 서비스 워커 업데이트 감지
-    const handleUpdateAvailable = () => {
-      console.log('🔔 새 버전 감지됨');
-      setIsUpdateAvailable(true);
-    };
-
-    window.addEventListener('sw-update-available', handleUpdateAvailable);
-
-
     // 온라인/오프라인 상태 변경 감지 (안정성 향상)
     const unsubscribe = onOnlineStatusChange((isOnline) => {
       // 네트워크 상태 변경 감지됨
@@ -690,7 +681,6 @@ const App: React.FC = () => {
 
     return () => {
       unsubscribe();
-      window.removeEventListener('sw-update-available', handleUpdateAvailable);
     };
   }, [user]);
 
@@ -2263,14 +2253,7 @@ const App: React.FC = () => {
     }
   };
 
-  // 업데이트 알림 핸들러
-  const handleUpdate = () => {
-    window.location.reload();
-  };
 
-  const handleDismissUpdate = () => {
-    setIsUpdateAvailable(false);
-  };
 
   const handleShowRegister = () => {
     setIsLoginModalOpen(false);
@@ -4107,11 +4090,7 @@ const App: React.FC = () => {
           }}
         />
 
-        <UpdateNotificationModal
-          isOpen={isUpdateAvailable}
-          onUpdate={handleUpdate}
-          onDismiss={handleDismissUpdate}
-        />
+
         <AnnualBlockTimeModal
           isOpen={isAnnualBlockTimeModalOpen}
           onClose={handleAnnualBlockTimeModalClose}
