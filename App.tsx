@@ -60,6 +60,7 @@ const PassportVisaWarningModal = lazy(() => import('./components/modals/Passport
 const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal'));
 const DeleteDataModal = lazy(() => import('./components/modals/DeleteDataModal'));
 const SearchModal = lazy(() => import('./components/modals/SearchModal'));
+const UpdateNotificationModal = lazy(() => import('./components/modals/UpdateNotificationModal'));
 
 import { fetchAirlineData, fetchAirlineDataWithInfo, searchAirline, getAirlineByCode, AirlineInfo, AirlineDataInfo, convertFlightNumberToIATA } from './utils/airlineData';
 import { getCityInfo, getFlightTime } from './utils/cityData';
@@ -383,6 +384,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('selectedCurrencyCards');
     return saved ? JSON.parse(saved) : ['passport', 'visa', 'epta', 'radio', 'whitecard', 'crm']; // Yellow Card를 CRM으로 변경
   });
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 
   // 오프라인 모드에서 UI 상태 강제 복원
   useEffect(() => {
@@ -651,6 +653,15 @@ const App: React.FC = () => {
 
     initializeServiceWorker();
 
+    // 서비스 워커 업데이트 감지
+    const handleUpdateAvailable = () => {
+      console.log('🔔 새 버전 감지됨');
+      setIsUpdateAvailable(true);
+    };
+
+    window.addEventListener('sw-update-available', handleUpdateAvailable);
+
+
     // 온라인/오프라인 상태 변경 감지 (안정성 향상)
     const unsubscribe = onOnlineStatusChange((isOnline) => {
       // 네트워크 상태 변경 감지됨
@@ -677,7 +688,10 @@ const App: React.FC = () => {
       return () => clearTimeout(timeoutId);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      window.removeEventListener('sw-update-available', handleUpdateAvailable);
+    };
   }, [user]);
 
   // UTC 시간 업데이트 (30초 단위)
@@ -2249,6 +2263,15 @@ const App: React.FC = () => {
     }
   };
 
+  // 업데이트 알림 핸들러
+  const handleUpdate = () => {
+    window.location.reload();
+  };
+
+  const handleDismissUpdate = () => {
+    setIsUpdateAvailable(false);
+  };
+
   const handleShowRegister = () => {
     setIsLoginModalOpen(false);
     setIsRegisterModalOpen(true);
@@ -3318,10 +3341,10 @@ const App: React.FC = () => {
                   <button
                     key={tab}
                     onClick={() => handleTabChange(tab as any)}
-                    className={`relative flex-1 py-2 px-3 md:py-3 md:px-4 rounded-xl text-sm font-medium transition-colors duration-200 z-10 ${activeTab === tab
+                    className={`relative flex - 1 py - 2 px - 3 md: py - 3 md: px - 4 rounded - xl text - sm font - medium transition - colors duration - 200 z - 10 ${activeTab === tab
                       ? 'text-white'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }`}
+                      } `}
                   >
                     {activeTab === tab && (
                       <motion.div
@@ -3579,7 +3602,7 @@ const App: React.FC = () => {
                           <button
                             onClick={handleFlightHistorySearch}
                             disabled={isLoadingFlightData}
-                            className={`w-full glass-button py-1.5 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingFlightData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w - full glass - button py - 1.5 px - 4 rounded - xl font - semibold transition - all duration - 200 transform active: scale - 95 ${isLoadingFlightData ? 'opacity-50 cursor-not-allowed' : ''} `}
                             style={{
                               borderRadius: '12px',
                               overflow: 'hidden',
@@ -3625,7 +3648,7 @@ const App: React.FC = () => {
                           <button
                             onClick={handleAirlineSearch}
                             disabled={isLoadingAirlineData}
-                            className={`w-full glass-button py-1.5 px-4 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 ${isLoadingAirlineData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w - full glass - button py - 1.5 px - 4 rounded - xl font - semibold transition - all duration - 200 transform active: scale - 95 ${isLoadingAirlineData ? 'opacity-50 cursor-not-allowed' : ''} `}
                             style={{
                               borderRadius: '12px',
                               overflow: 'hidden',
@@ -4084,6 +4107,12 @@ const App: React.FC = () => {
             setFlightsWithSelectedCrew(flightsWithCrew);
             setIsCrewHistoryModalOpen(true);
           }}
+        />
+
+        <UpdateNotificationModal
+          isOpen={isUpdateAvailable}
+          onUpdate={handleUpdate}
+          onDismiss={handleDismissUpdate}
         />
         <AnnualBlockTimeModal
           isOpen={isAnnualBlockTimeModalOpen}

@@ -99,7 +99,12 @@ export default function LoginModal({
                 className="w-full px-3 py-2 glass-input rounded-xl focus:outline-none"
                 placeholder="이메일을 입력하세요"
                 autoComplete="email"
-                style={{ touchAction: 'manipulation' }}
+                style={{
+                  touchAction: 'manipulation',
+                  WebkitAppearance: 'none',
+                  appearance: 'none',
+                  borderRadius: '0.75rem'
+                }}
                 required
               />
             </div>
@@ -152,7 +157,12 @@ export default function LoginModal({
                   className="w-full px-3 py-2 glass-input rounded-xl focus:outline-none"
                   placeholder="이메일을 입력하세요"
                   autoComplete="email"
-                  style={{ touchAction: 'manipulation' }}
+                  style={{
+                    touchAction: 'manipulation',
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    borderRadius: '0.75rem'
+                  }}
                   required
                 />
               </div>
@@ -169,7 +179,12 @@ export default function LoginModal({
                   className="w-full px-3 py-2 glass-input rounded-xl focus:outline-none"
                   placeholder="비밀번호를 입력하세요"
                   autoComplete="current-password"
-                  style={{ touchAction: 'manipulation' }}
+                  style={{
+                    touchAction: 'manipulation',
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    borderRadius: '0.75rem'
+                  }}
                   required
                 />
               </div>
