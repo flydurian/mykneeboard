@@ -1595,17 +1595,23 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
         if (!targetSegments || targetSegments.length === 0) return;
 
-        // 이륙 시간(Date) 추정
+        // 이륙 시간(Date) 추정 (타임존 반영)
         const depHours = parseInt(departureTime.slice(0, 2));
         const depMinutes = parseInt(departureTime.slice(2, 4));
         const now = new Date();
 
-        // 후보: 어제, 오늘, 내일
+        // 후보: 어제, 오늘, 내일 (UTC 기준 날짜 + 타임존 오프셋 역보정)
         const candidates = [-1, 0, 1].map(offset => {
-            const d = new Date(now);
-            d.setDate(d.getDate() + offset);
-            d.setHours(depHours, depMinutes, 0, 0);
-            return d;
+            // 현재 UTC 날짜 기준
+            const utcY = now.getUTCFullYear();
+            const utcM = now.getUTCMonth();
+            const utcD = now.getUTCDate() + offset;
+
+            // 타임존 오프셋 적용 (입력된 시간은 해당 타임존의 시간임)
+            // TimeZone이 9(KST)라면, 입력된 09:00은 UTC 00:00임.
+            // 즉, UTC Timestamp = Date.UTC(..., hh, mm) - (timeZone * 3600000)
+            const timestamp = Date.UTC(utcY, utcM, utcD, depHours, depMinutes) - (timeZone * 3600000);
+            return new Date(timestamp);
         });
 
         // 1. 현재 비행 중인 경우 (이륙 ~ 착륙 사이에 현재가 포함됨)
@@ -1649,7 +1655,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
         return () => cancelRestAlarms();
 
-    }, [isAlarmEnabled, departureTime, flightTime, flightTime5P, flightTime3Pilot, activeTab, twoSetMode, threePilotMode, generateTimelineData, generatePICTimelineData, generateFOTimelineData]);
+    }, [isAlarmEnabled, departureTime, flightTime, flightTime5P, flightTime3Pilot, activeTab, twoSetMode, threePilotMode, generateTimelineData, generatePICTimelineData, generateFOTimelineData, timeZone]);
 
     return (
         <div className={`transition-colors duration-500 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
