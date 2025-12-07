@@ -165,18 +165,12 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
     return (
         <>
             <div
-                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50"
-                style={{
-                    paddingTop: 'max(1rem, env(safe-area-inset-top))',
-                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-                    paddingLeft: 'max(1rem, env(safe-area-inset-left))',
-                    paddingRight: 'max(1rem, env(safe-area-inset-right))'
-                }}
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe"
                 onClick={onClose}
             >
-                <div className="glass-panel rounded-2xl shadow-xl w-full max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl p-4 md:p-6 relative animate-fade-in-up flex flex-col max-h-full" onClick={(e) => e.stopPropagation()}>
+                <div className="glass-panel rounded-2xl shadow-xl w-full max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl relative animate-fade-in-up flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
                     {/* 헤더 영역 */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
                         {/* 제목 */}
                         <h2 className="text-xl font-bold text-white">
                             {month + 1}월 스케줄
@@ -192,7 +186,7 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                 className="p-1 text-slate-400 hover:text-white transition-colors"
                                 title="이전 월"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
                             </button>
@@ -201,7 +195,7 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                 className="p-1 text-slate-400 hover:text-white transition-colors"
                                 title="다음 월"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                             </button>
@@ -210,13 +204,14 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                                 className="p-1 text-slate-400 hover:text-white transition-colors"
                                 title="닫기"
                             >
-                                <XIcon className="w-5 h-5" />
+                                <XIcon className="w-6 h-6" />
                             </button>
                         </div>
                     </div>
 
+                    {/* Content area */}
                     <div
-                        className={`flex-grow overflow-auto ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
+                        className={`flex-grow overflow-auto p-6 ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
                         onScroll={handleScroll}
                     >
                         {flights.length > 0 ? (
