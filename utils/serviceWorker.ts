@@ -103,13 +103,8 @@ class ServiceWorkerManager {
 
   private showUpdateNotification(): void {
     // Show a notification to the user about the update
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('My KneeBoard Update Available', {
-        body: 'A new version is available. Click to update.',
-        icon: '/icon-192x192.png',
-        tag: 'app-update'
-      });
-    }
+    // System notification removed as per user request
+    console.log('Update available');
 
     // You could also show an in-app notification
     this.dispatchUpdateEvent();

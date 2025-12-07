@@ -1,13 +1,13 @@
 {
   "name": "mykneeboard",
   "private": true,
-  "version": "2.0.8",
+  "version": "2.0.9",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node generate-version.js && vite",
+    "build": "node generate-version.js && vite build",
     "preview": "vite preview",
-    "vercel-build": "vite build",
+    "vercel-build": "node generate-version.js && vite build",
     "build:check": "vite build && echo 'Build completed. Checking file hashes...' && ls -la dist/assets/ | grep -E '\\.(js|css)$' | head -10"
   },
   "vercel": {
