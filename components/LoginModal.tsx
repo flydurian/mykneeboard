@@ -119,6 +119,11 @@ export default function LoginModal({
               type="submit"
               disabled={isLoading}
               className="w-full glass-button py-2.5 px-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                WebkitAppearance: 'none',
+                appearance: 'none',
+                borderRadius: '0.75rem'
+              }}
             >
               재설정 이메일 보내기
             </button>
@@ -189,6 +194,11 @@ export default function LoginModal({
                 type="submit"
                 disabled={isLoading}
                 className="w-full glass-button py-2.5 px-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  WebkitAppearance: 'none',
+                  appearance: 'none',
+                  borderRadius: '0.75rem'
+                }}
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center">

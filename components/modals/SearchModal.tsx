@@ -422,13 +422,23 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, flights, onC
                 setSearchResults([]);
                 setShowResults(false);
               }}
-              className="glass-input w-full px-3 py-2 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-400 bg-black/20"
+              className="glass-input w-full px-3 py-2 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-400 bg-black/20"
+              style={{
+                WebkitAppearance: 'none',
+                appearance: 'none',
+                borderRadius: '0.75rem'
+              }}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
           </div>
           <button
             onClick={handleSearch}
-            className="w-full glass-button bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded-lg transition-colors font-medium"
+            className="w-full glass-button bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded-xl transition-colors font-medium"
+            style={{
+              WebkitAppearance: 'none',
+              appearance: 'none',
+              borderRadius: '0.75rem'
+            }}
           >
             검색
           </button>
