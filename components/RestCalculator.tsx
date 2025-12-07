@@ -510,6 +510,20 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 isOpen: true,
                 periodName: periodName
             });
+
+            // 시스템 알림 발송 (사용자 요청)
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                    new Notification('휴식 알림', {
+                        body: `${periodName} 종료 15분 전입니다.`,
+                        icon: '/icon-192x192.png',
+                        tag: 'rest-alarm',
+                        requireInteraction: true
+                    });
+                } catch (e) {
+                    console.error('시스템 알림 발송 실패:', e);
+                }
+            }
         };
 
         window.addEventListener('rest-alarm', handleRestAlarm);
@@ -2487,8 +2501,18 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                     <div className="flex justify-end items-center gap-2 mt-8">
                                         {/* 알람 토글 버튼 */}
                                         <button
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 const newValue = !isAlarmEnabled;
+
+                                                // 알람 활성화 시 알림 권한 요청 (브라우저 정책상 사용자 인터랙션 내부여야 함)
+                                                if (newValue && 'Notification' in window && Notification.permission !== 'granted') {
+                                                    try {
+                                                        await Notification.requestPermission();
+                                                    } catch (error) {
+                                                        console.error('알림 권한 요청 실패:', error);
+                                                    }
+                                                }
+
                                                 setIsAlarmEnabled(newValue);
                                                 localStorage.setItem('restAlarmEnabled', String(newValue));
                                             }}
