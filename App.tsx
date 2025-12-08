@@ -3175,7 +3175,15 @@ const App: React.FC = () => {
             </h2>
             <button
               onClick={handleLoginClick}
-              className="w-full glass-button py-3 px-4 rounded-xl font-medium text-lg"
+              className="w-full glass-button py-3 px-4 rounded-2xl font-medium text-lg"
+              style={{
+                WebkitAppearance: 'none',
+                appearance: 'none',
+                borderRadius: '1rem',
+                overflow: 'hidden',
+                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                maskImage: '-webkit-radial-gradient(white, black)'
+              }}
             >
               로그인하기
             </button>
