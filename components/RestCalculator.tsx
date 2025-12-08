@@ -444,8 +444,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const [isAlarmEnabled, setIsAlarmEnabled] = useState(() => {
         return localStorage.getItem('restAlarmEnabled') === 'true';
     });
-    const [alarmModal, setAlarmModal] = useState<{ isOpen: boolean; periodName: string } | null>(null);
-    const [debugInfo, setDebugInfo] = useState<string>(''); // 디버그용 상태 추가
+
+
+
+
 
     const timeZonePickerRef = useRef<HTMLDivElement>(null);
     const crz1PickerRef = useRef<HTMLDivElement>(null);
@@ -507,10 +509,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             const customEvent = event as CustomEvent;
             const { periodName } = customEvent.detail;
 
-            setAlarmModal({
-                isOpen: true,
-                periodName: periodName
-            });
+            // setAlarmModal({
+            //     isOpen: true,
+            //     periodName: periodName
+            // });
 
             // 시스템 알림 발송 (사용자 요청)
             if ('Notification' in window && Notification.permission === 'granted') {
@@ -1573,60 +1575,65 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     }, [showBeforeLandingPicker, beforeLanding]);
 
     // ✨ [위치 이동] 알람 스케줄링 로직 (실제 타임라인 데이터 사용)
+    // ✨ [개선] 이륙 날짜 계산 (useMemo로 분리하여 UI 표시 및 수동 조절 가능하게 함)
+    // Hook은 컴포넌트 최상위 레벨에서 호출되어야 함
+    const estimatedDepartureDate = useMemo(() => {
+        const depHours = parseInt(departureTime.slice(0, 2));
+        const depMinutes = parseInt(departureTime.slice(2, 4));
+        const now = new Date();
+        const flightTimeMin = flightTimeMinutes; // useMemo 내부 변수
+
+        // 후보: 어제, 오늘, 내일 (UTC 기준 날짜) - 입력값은 무조건 UTC로 해석
+        const candidates = [-1, 0, 1].map(offset => {
+            const utcY = now.getUTCFullYear();
+            const utcM = now.getUTCMonth();
+            const utcD = now.getUTCDate() + offset;
+            const timestamp = Date.UTC(utcY, utcM, utcD, depHours, depMinutes);
+            return new Date(timestamp);
+        });
+
+        // 1. 자동 추정 (스마트 로직)
+        // 우선순위 1: 현재 시각이 비행 구간(이륙 ~ 착륙+여유버퍼)에 포함되는 날짜 (비행 중)
+        let determined = candidates.find(d => {
+            if (flightTimeMin > 0) {
+                const landing = new Date(d.getTime() + flightTimeMin * 60000);
+                const bufferedLanding = new Date(landing.getTime() + 12 * 60 * 60000); // 비행 종료 후 12시간까지는 해당 비행으로 간주 (여유롭게)
+                return d <= now && now <= bufferedLanding;
+            }
+            return false;
+        });
+
+        // 우선순위 2: 비행 중이 아니라면, 현재 시각과 가장 가까운 시간 (과거/미래 불문)
+        if (!determined) {
+            determined = candidates.sort((a, b) => Math.abs(now.getTime() - a.getTime()) - Math.abs(now.getTime() - b.getTime()))[0];
+        }
+
+        // 2. 수동 보정 적용 (삭제됨)
+
+        return determined;
+    }, [departureTime, flightTimeMinutes, timeZone]);
+
+    // 이륙 시간이 바뀌면 수동 보정 초기화 (삭제됨)
+
+    // ✨ [위치 이동] 알람 스케줄링 로직 (실제 타임라인 데이터 사용)
     useEffect(() => {
         if (!isAlarmEnabled) {
             cancelRestAlarms();
             return;
         }
 
-        const flightTimeVal = activeTab === '3pilot' ? flightTime3Pilot : activeTab === '5p' ? flightTime5P : flightTime;
-        const flightTimeMin = timeToMinutes(flightTimeVal);
-
-        if (!departureTime || flightTimeMin <= 0) return;
-
-        // 현재 활성화된 모드의 세그먼트 데이터 선택
+        // 타임라인 데이터
         let targetSegments: TimelineSegment[] = [];
-
         if (activeTab === '2set') {
             targetSegments = generateTimelineData.segments;
         } else if (activeTab === '3pilot') {
-            targetSegments = threePilotMode === 'CASE2' ? generateFOTimelineData.segments : generatePICTimelineData.segments;
+            targetSegments = generatePICTimelineData.segments;
         }
 
         if (!targetSegments || targetSegments.length === 0) return;
 
-        // 이륙 시간(Date) 추정 (타임존 반영)
-        const depHours = parseInt(departureTime.slice(0, 2));
-        const depMinutes = parseInt(departureTime.slice(2, 4));
-        const now = new Date();
-
-        // 후보: 어제, 오늘, 내일 (UTC 기준 날짜 + 타임존 오프셋 역보정)
-        const candidates = [-1, 0, 1].map(offset => {
-            // 현재 UTC 날짜 기준
-            const utcY = now.getUTCFullYear();
-            const utcM = now.getUTCMonth();
-            const utcD = now.getUTCDate() + offset;
-
-            // 타임존 오프셋 적용 (입력된 시간은 해당 타임존의 시간임)
-            // TimeZone이 9(KST)라면, 입력된 09:00은 UTC 00:00임.
-            // 즉, UTC Timestamp = Date.UTC(..., hh, mm) - (timeZone * 3600000)
-            const timestamp = Date.UTC(utcY, utcM, utcD, depHours, depMinutes) - (timeZone * 3600000);
-            return new Date(timestamp);
-        });
-
-        // 1. 현재 비행 중인 경우 (이륙 ~ 착륙 사이에 현재가 포함됨)
-        let determinedDeparture = candidates.find(d => {
-            const landing = new Date(d.getTime() + flightTimeMin * 60000);
-            return d <= now && now <= landing;
-        });
-
-        // 2. 비행 중이 아니라면 가장 가까운 미래 (곧 이륙)
-        if (!determinedDeparture) {
-            determinedDeparture = candidates.filter(d => d > now).sort((a, b) => a.getTime() - b.getTime())[0];
-        }
-
-        // 3. 미래도 없다면 가장 가까운 과거 (이미 착륙)
-        if (!determinedDeparture) determinedDeparture = candidates[1];
+        // determinedDeparture는 estimatedDepartureDate 사용
+        const determinedDeparture = estimatedDepartureDate;
 
         // 알람 구간 생성
         const periods: RestPeriod[] = [];
@@ -1634,7 +1641,12 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 
         targetSegments.forEach(seg => {
             accumulatedMinutes += seg.duration;
-            const endTime = new Date(determinedDeparture!.getTime() + accumulatedMinutes * 60000);
+
+            // ✨ 사용자 요청: 이륙 후/착륙 전 구간의 '종료' 시점 알람(휴식 시작 예고/착륙 예고)은 제외
+            // 단, 시간 누적(accumulatedMinutes)은 위에서 수행해야 이후 구간 시간이 밀리지 않음
+            if (seg.label === '이륙 후' || seg.label === '착륙 전') return;
+
+            const endTime = new Date(determinedDeparture.getTime() + accumulatedMinutes * 60000);
             periods.push({
                 name: seg.label,
                 endTime: endTime
@@ -1648,14 +1660,14 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             const remaining = Math.round((alarmTime.getTime() - nowTime.getTime()) / 60000);
             return `${p.name}: 종료 ${p.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} / 알람 ${alarmTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${remaining}분 후)`;
         }).join('\n');
-        setDebugInfo(`[시스템 시각: ${new Date().toLocaleTimeString()}]\n` + info);
+        // setDebugInfo(`[시스템 시각: ${new Date().toLocaleTimeString()}]\n[이륙 기준: ${determinedDeparture.toLocaleDateString()} ${determinedDeparture.toLocaleTimeString()}]\n` + info);
 
         // 스케줄링
         scheduleNextRestAlarm(periods);
 
         return () => cancelRestAlarms();
 
-    }, [isAlarmEnabled, departureTime, flightTime, flightTime5P, flightTime3Pilot, activeTab, twoSetMode, threePilotMode, generateTimelineData, generatePICTimelineData, generateFOTimelineData, timeZone]);
+    }, [isAlarmEnabled, estimatedDepartureDate, activeTab, twoSetMode, threePilotMode, generateTimelineData, generatePICTimelineData, generateFOTimelineData]);
 
     return (
         <div className={`transition-colors duration-500 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
@@ -2609,24 +2621,9 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                 )}
             </div>
 
-            {/* 디버그 정보 (임시) */}
-            {isAlarmEnabled && debugInfo && (
-                <div className="max-w-screen-xl mx-auto px-4 mt-4 mb-8">
-                    <div className="p-3 bg-black/80 text-xs text-green-400 font-mono whitespace-pre-wrap rounded-lg">
-                        <strong>[DEBUG INFO - v2.0.14]</strong>{'\n'}
-                        {debugInfo}
-                    </div>
-                </div>
-            )}
 
-            {/* 알람 모달 */}
-            {alarmModal?.isOpen && (
-                <RestAlarmModal
-                    isOpen={alarmModal.isOpen}
-                    periodName={alarmModal.periodName}
-                    onDismiss={() => setAlarmModal(null)}
-                />
-            )}
+
+
         </div>
     );
 };
