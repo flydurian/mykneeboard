@@ -60,7 +60,7 @@ const PassportVisaWarningModal = lazy(() => import('./components/modals/Passport
 const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal'));
 const DeleteDataModal = lazy(() => import('./components/modals/DeleteDataModal'));
 const SearchModal = lazy(() => import('./components/modals/SearchModal'));
-const UpdateNotificationModal = lazy(() => import('./components/modals/UpdateNotificationModal'));
+
 
 import { fetchAirlineData, fetchAirlineDataWithInfo, searchAirline, getAirlineByCode, AirlineInfo, AirlineDataInfo, convertFlightNumberToIATA } from './utils/airlineData';
 import { getCityInfo, getFlightTime } from './utils/cityData';
@@ -384,7 +384,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('selectedCurrencyCards');
     return saved ? JSON.parse(saved) : ['passport', 'visa', 'epta', 'radio', 'whitecard', 'crm']; // Yellow Card를 CRM으로 변경
   });
-  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+
 
 
   // 오프라인 모드에서 UI 상태 강제 복원
@@ -669,7 +669,33 @@ const App: React.FC = () => {
 
         if (serverVersion !== currentVersion) {
           console.log('🔔 New version available:', serverVersion);
-          setIsUpdateAvailable(true);
+
+          // 시스템 알림 요청 및 표시
+          if (Notification.permission === 'granted') {
+            const notification = new Notification('업데이트 가능', {
+              body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
+              icon: '/pwa-192x192.png',
+              tag: 'update-notification'
+            });
+            notification.onclick = () => {
+              notification.close();
+              window.location.reload();
+            };
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                const notification = new Notification('업데이트 가능', {
+                  body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
+                  icon: '/pwa-192x192.png',
+                  tag: 'update-notification'
+                });
+                notification.onclick = () => {
+                  notification.close();
+                  window.location.reload();
+                };
+              }
+            });
+          }
         } else {
           console.log('✅ Already on latest version');
         }
@@ -682,7 +708,22 @@ const App: React.FC = () => {
       checkForUpdate();
     };
 
+    const handleVisibilityChange = () => {
+      // 앱이 다시 활성화되었을 때(포그라운드 진입) 버전 체크
+      if (document.visibilityState === 'visible') {
+        console.log('👀 앱 활성화됨: 버전 체크 수행');
+        checkForUpdate();
+      }
+    };
     window.addEventListener('sw-update-available', handleUpdateAvailable);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', checkForUpdate); // 창 포커스 시에도 체크
+
+    // 4시간마다 주기적으로 버전 체크
+    const updateCheckInterval = setInterval(() => {
+      console.log('⏰ 정기 버전 체크 수행 (4시간)');
+      checkForUpdate();
+    }, 4 * 60 * 60 * 1000);
 
     // 온라인/오프라인 상태 변경 감지 (안정성 향상)
     const unsubscribe = onOnlineStatusChange((isOnline) => {
@@ -692,10 +733,15 @@ const App: React.FC = () => {
       const timeoutId = setTimeout(() => {
         setIsOffline(!isOnline);
 
-        if (isOnline && user) {
-          console.log('🔄 온라인 복구: 동기화 시작');
-          // 온라인으로 복구되면 동기화 시도
-          handleSyncWhenOnline();
+        if (isOnline) {
+          // 온라인 복구 시 즉시 버전 체크
+          checkForUpdate();
+
+          if (user) {
+            console.log('🔄 온라인 복구: 동기화 시작');
+            // 온라인으로 복구되면 동기화 시도
+            handleSyncWhenOnline();
+          }
         }
 
         // Firebase RTDB 연결 상태 동기화
@@ -713,6 +759,9 @@ const App: React.FC = () => {
     return () => {
       unsubscribe();
       window.removeEventListener('sw-update-available', handleUpdateAvailable);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', checkForUpdate);
+      clearInterval(updateCheckInterval);
     };
   }, [user]);
 
@@ -2288,14 +2337,7 @@ const App: React.FC = () => {
 
 
 
-  // 업데이트 알림 핸들러
-  const handleUpdate = () => {
-    window.location.reload();
-  };
 
-  const handleDismissUpdate = () => {
-    setIsUpdateAvailable(false);
-  };
 
   const handleShowRegister = () => {
     setIsLoginModalOpen(false);
@@ -4142,11 +4184,7 @@ const App: React.FC = () => {
 
 
 
-        <UpdateNotificationModal
-          isOpen={isUpdateAvailable}
-          onUpdate={handleUpdate}
-          onDismiss={handleDismissUpdate}
-        />
+
 
         <AnnualBlockTimeModal
           isOpen={isAnnualBlockTimeModalOpen}
