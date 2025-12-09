@@ -845,16 +845,16 @@ const App: React.FC = () => {
           const showUpDateZoned = toZonedTime(showUpTime, targetTimezone);
           const showUpTimeStr = format(showUpDateZoned, 'HHmm');
 
-          // ETD 시간 포맷팅 (HHmm)
+          // ETD 시간 및 날짜 포맷팅 (HHmm, yy.MM.dd)
           let etdTimeStr = 'Unknown';
+          let dateStr = format(showUpDateZoned, 'yy.MM.dd'); // 기본값은 Show Up 날짜 (백업)
+
           if (nextFlight.departureDateTimeUtc) {
             const depUtc = new Date(nextFlight.departureDateTimeUtc);
             const depDateZoned = toZonedTime(depUtc, targetTimezone);
             etdTimeStr = format(depDateZoned, 'HHmm');
+            dateStr = format(depDateZoned, 'yy.MM.dd'); // 비행 날짜(출발일) 기준
           }
-
-          // 날짜 포맷팅 (yy.MM.dd)
-          const dateStr = format(showUpDateZoned, 'yy.MM.dd');
 
           // 알림 생성
           new Notification(`${dateStr} <${nextFlight.flightNumber}>`, {
