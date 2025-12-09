@@ -817,27 +817,33 @@ const App: React.FC = () => {
 
         // 알림 조건: 현재 시간이 알림 시간 이후이고, 아직 Show Up 시간은 지나지 않았을 때
         if (now >= alarmTime && now < showUpTime) {
-          // 베이스 타임존 기준 시간 포맷팅
-          let timeDisplay = '';
-          let timezoneDisplay = '';
-
+          // 타임존 결정 (Base 설정이 있으면 Base, 없으면 Local)
+          let targetTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone; // 기본값 Local
           if (baseIata) {
             const cityInfo = getCityInfo(baseIata);
             if (cityInfo) {
-              const baseDate = toZonedTime(showUpTime, cityInfo.timezone);
-              timeDisplay = format(baseDate, 'HH:mm');
-              timezoneDisplay = baseIata;
+              targetTimezone = cityInfo.timezone;
             }
           }
 
-          // 베이스 설정이 없으면 로컬 시간 표시
-          if (!timeDisplay) {
-            timeDisplay = format(showUpTime, 'HH:mm');
-            timezoneDisplay = 'Local';
+          // Show Up 시간 포맷팅 (HHmm)
+          const showUpDateZoned = toZonedTime(showUpTime, targetTimezone);
+          const showUpTimeStr = format(showUpDateZoned, 'HHmm');
+
+          // ETD 시간 포맷팅 (HHmm)
+          let etdTimeStr = 'Unknown';
+          if (nextFlight.departureDateTimeUtc) {
+            const depUtc = new Date(nextFlight.departureDateTimeUtc);
+            const depDateZoned = toZonedTime(depUtc, targetTimezone);
+            etdTimeStr = format(depDateZoned, 'HHmm');
           }
 
-          new Notification('Show Up 2시간 전', {
-            body: `Show Up 시간: ${timeDisplay} (${timezoneDisplay})`,
+          // 날짜 포맷팅 (yy.MM.dd)
+          const dateStr = format(showUpDateZoned, 'yy.MM.dd');
+
+          // 알림 생성
+          new Notification(`${dateStr} <${nextFlight.flightNumber}>`, {
+            body: `SHOW UP : ${showUpTimeStr} / ETD : ${etdTimeStr}`,
             icon: '/pwa-192x192.png',
             tag: `showup-alarm-${nextFlight.id}`
           });
@@ -845,7 +851,7 @@ const App: React.FC = () => {
           // 알림 보냄 상태 저장
           setLastAlarmedFlightId(nextFlight.id);
           localStorage.setItem('lastAlarmedFlightId', String(nextFlight.id));
-          console.log(`🔔 Show Up 알림 전송 완료: Flight ${nextFlight.flightNumber}, Time ${timeDisplay} (${timezoneDisplay})`);
+          console.log(`🔔 Show Up 알림 전송 완료: ${dateStr} <${nextFlight.flightNumber}>, SHOW UP : ${showUpTimeStr} / ETD : ${etdTimeStr}`);
         }
       } catch (error) {
         console.error('Show Up 알림 체크 중 오류:', error);
