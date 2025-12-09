@@ -39,7 +39,7 @@ const CurrencyCard: React.FC<CurrencyCardProps> = memo(({ title, currencyInfo, o
         const label = `D-${days}`;
         if (days <= 7) return { text: 'text-black dark:text-red-200', bg: 'bg-red-100 dark:bg-red-900', label };
         if (days <= 30) return { text: 'text-black dark:text-orange-200', bg: 'bg-orange-100 dark:bg-orange-800', label };
-        return { text: 'text-black dark:text-lime-200', bg: 'bg-lime-200 dark:bg-lime-700', label };
+        return { text: 'text-white font-sans', bg: 'bg-lime-500/80 border border-lime-400/50 shadow-lg shadow-lime-500/30 backdrop-blur-md', label };
     };
 
     const getDocumentExpiryStyle = (expiryDate: string, cardType?: string) => {
@@ -164,7 +164,7 @@ const CurrencyCard: React.FC<CurrencyCardProps> = memo(({ title, currencyInfo, o
                 </p>
                 <p className="text-sm text-slate-400">(최근 90일)</p>
             </div>
-            <div className={`mt-3 py-2 px-3 rounded-lg text-center transform-gpu overflow-hidden isolation-isolate [mask-image:radial-gradient(white,black)] ${style.bg}`}>
+            <div className={`mt-3 py-2 px-3 rounded-lg text-center transform-gpu ${style.bg}`}>
                 <p className={`text-sm font-bold ${style.text}`}>{style.label}</p>
                 <p className={`text-xs ${style.text}`} style={{ fontSize: '0.65rem' }}>
                     {expiryDate ? `${expiryDate} 만료 예정` : currencyInfo.expiryDate ? `${currencyInfo.expiryDate} 만료 예정` : '자격 미충족'}

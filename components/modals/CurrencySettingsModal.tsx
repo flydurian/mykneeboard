@@ -164,6 +164,11 @@ const CurrencySettingsModal: React.FC<CurrencySettingsModalProps> = ({
                     <button
                         onClick={onClose}
                         className="glass-button px-4 py-2 text-white rounded-xl transition-colors"
+                        style={{
+                            WebkitAppearance: 'none',
+                            appearance: 'none',
+                            borderRadius: '0.75rem'
+                        }}
                     >
                         확인
                     </button>

@@ -790,6 +790,74 @@ const App: React.FC = () => {
     if (isIOS && isStandalone) setIsIosStandalone(true);
   }, []);
 
+  // Show Up 알림 관련 상태
+  const [lastAlarmedFlightId, setLastAlarmedFlightId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('lastAlarmedFlightId');
+    return saved ? Number(saved) : null;
+  });
+
+  // Show Up 알림 체크 (1분마다)
+  useEffect(() => {
+    const checkShowUpAlarm = () => {
+      if (!Notification || Notification.permission !== 'granted') return;
+
+      const todayStr = getTodayString();
+      const { nextFlight } = findLastAndNextFlights(flights, todayStr);
+
+      if (!nextFlight || !nextFlight.showUpDateTimeUtc) return;
+
+      // 이미 알림을 보낸 비행인지 확인
+      if (lastAlarmedFlightId === nextFlight.id) return;
+
+      try {
+        // 알림 시간 계산 (Show Up - 2시간)
+        const showUpTime = new Date(nextFlight.showUpDateTimeUtc);
+        const alarmTime = new Date(showUpTime.getTime() - 2 * 60 * 60 * 1000); // 2시간 전
+        const now = new Date();
+
+        // 알림 조건: 현재 시간이 알림 시간 이후이고, 아직 Show Up 시간은 지나지 않았을 때
+        if (now >= alarmTime && now < showUpTime) {
+          // 베이스 타임존 기준 시간 포맷팅
+          let timeDisplay = '';
+          let timezoneDisplay = '';
+
+          if (baseIata) {
+            const cityInfo = getCityInfo(baseIata);
+            if (cityInfo) {
+              const baseDate = toZonedTime(showUpTime, cityInfo.timezone);
+              timeDisplay = format(baseDate, 'HH:mm');
+              timezoneDisplay = baseIata;
+            }
+          }
+
+          // 베이스 설정이 없으면 로컬 시간 표시
+          if (!timeDisplay) {
+            timeDisplay = format(showUpTime, 'HH:mm');
+            timezoneDisplay = 'Local';
+          }
+
+          new Notification('Show Up 2시간 전', {
+            body: `Show Up 시간: ${timeDisplay} (${timezoneDisplay})`,
+            icon: '/pwa-192x192.png',
+            tag: `showup-alarm-${nextFlight.id}`
+          });
+
+          // 알림 보냄 상태 저장
+          setLastAlarmedFlightId(nextFlight.id);
+          localStorage.setItem('lastAlarmedFlightId', String(nextFlight.id));
+          console.log(`🔔 Show Up 알림 전송 완료: Flight ${nextFlight.flightNumber}, Time ${timeDisplay} (${timezoneDisplay})`);
+        }
+      } catch (error) {
+        console.error('Show Up 알림 체크 중 오류:', error);
+      }
+    };
+
+    const interval = setInterval(checkShowUpAlarm, 60 * 1000); // 1분마다 체크
+    checkShowUpAlarm(); // 초기 실행
+
+    return () => clearInterval(interval);
+  }, [flights, lastAlarmedFlightId, baseIata]);
+
   // 캐시 상태 모니터링 (24시간마다)
   useEffect(() => {
     if (!user?.uid) return;

@@ -1363,14 +1363,15 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                                     }}
                                                                     disabled={isUpdating}
                                                                     className={`flex-1 font-bold py-2 px-4 glass-button rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 ${flight.status?.departed
-                                                                        ? '!bg-none !bg-blue-600 !border-blue-500/50 !shadow-blue-500/30 hover:!bg-blue-500 text-white'
+                                                                        ? '!border-blue-400/50 text-white font-sans'
                                                                         : '!bg-none !bg-slate-800/50 text-slate-400 hover:!bg-slate-700/50 border-white/10'
                                                                         } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                                                                     style={{
                                                                         borderRadius: '12px',
-                                                                        overflow: 'hidden',
-                                                                        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-                                                                        maskImage: '-webkit-radial-gradient(white, black)'
+                                                                        background: flight.status?.departed ? 'rgba(59, 130, 246, 0.8)' : undefined, // blue-500/80
+                                                                        backgroundImage: flight.status?.departed ? 'none' : undefined,
+                                                                        backdropFilter: flight.status?.departed ? 'blur(12px)' : undefined,
+                                                                        boxShadow: flight.status?.departed ? '0 10px 15px -3px rgba(59, 130, 246, 0.3), 0 4px 6px -4px rgba(59, 130, 246, 0.1)' : undefined
                                                                     }}
                                                                 >
                                                                     {isUpdating ? '처리중...' : '이륙'}
@@ -1387,14 +1388,15 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                                                                     }}
                                                                     disabled={isUpdating}
                                                                     className={`flex-1 font-bold py-2 px-4 glass-button rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 ${flight.status?.landed
-                                                                        ? '!bg-none !bg-lime-600 !border-lime-500/50 !shadow-lime-500/30 hover:!bg-lime-500 text-white'
+                                                                        ? '!border-lime-400/50 text-white font-sans'
                                                                         : '!bg-none !bg-slate-800/50 text-slate-400 hover:!bg-slate-700/50 border-white/10'
                                                                         } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                                                                     style={{
                                                                         borderRadius: '12px',
-                                                                        overflow: 'hidden',
-                                                                        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-                                                                        maskImage: '-webkit-radial-gradient(white, black)'
+                                                                        background: flight.status?.landed ? 'rgba(132, 204, 22, 0.8)' : undefined, // lime-500/80
+                                                                        backgroundImage: flight.status?.landed ? 'none' : undefined,
+                                                                        backdropFilter: flight.status?.landed ? 'blur(12px)' : undefined,
+                                                                        boxShadow: flight.status?.landed ? '0 10px 15px -3px rgba(132, 204, 22, 0.3), 0 4px 6px -4px rgba(132, 204, 22, 0.1)' : undefined
                                                                     }}
                                                                 >
                                                                     {isUpdating ? '처리중...' : '착륙'}

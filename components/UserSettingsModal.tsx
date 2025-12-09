@@ -219,47 +219,47 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <div className="glass-panel w-full max-w-md p-6 relative animate-fade-in-up rounded-2xl" onClick={(e) => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
                     <XIcon className="w-6 h-6" />
                 </button>
 
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">사용자 설정</h2>
+                <h2 className="text-xl font-bold text-white mb-6">사용자 설정</h2>
 
                 {/* 탭 버튼 */}
-                <div className="flex mb-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex mb-6 border-b border-white/10">
                     <button
                         onClick={() => setActiveTab('airline')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${activeTab === 'airline'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base transition-colors ${activeTab === 'airline'
+                            ? 'text-indigo-400 border-b-2 border-indigo-400'
+                            : 'text-white/50 hover:text-white/90'
                             }`}
                     >
                         회사
                     </button>
                     <button
                         onClick={() => setActiveTab('base')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${activeTab === 'base'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base transition-colors ${activeTab === 'base'
+                            ? 'text-indigo-400 border-b-2 border-indigo-400'
+                            : 'text-white/50 hover:text-white/90'
                             }`}
                     >
                         BASE
                     </button>
                     <button
                         onClick={() => setActiveTab('name')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${activeTab === 'name'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base transition-colors ${activeTab === 'name'
+                            ? 'text-indigo-400 border-b-2 border-indigo-400'
+                            : 'text-white/50 hover:text-white/90'
                             }`}
                     >
                         이름
                     </button>
                     <button
                         onClick={() => setActiveTab('password')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base ${activeTab === 'password'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base transition-colors ${activeTab === 'password'
+                            ? 'text-indigo-400 border-b-2 border-indigo-400'
+                            : 'text-white/50 hover:text-white/90'
                             }`}
                     >
                         <span className="hidden sm:inline">비밀번호</span>
@@ -269,12 +269,12 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
 
                 {/* 에러/성공 메시지 */}
                 {error && (
-                    <div className="mb-4 p-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                    <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 text-red-200 rounded-lg text-sm">
                         {error}
                     </div>
                 )}
                 {success && (
-                    <div className="mb-4 p-2 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-lg text-sm">
+                    <div className="mb-4 p-3 bg-green-500/20 border border-green-500/30 text-green-200 rounded-lg text-sm">
                         {success}
                     </div>
                 )}
@@ -283,14 +283,19 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                 {activeTab === 'name' && (
                     <div>
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
                                 새 이름
                             </label>
                             <input
                                 ref={nameInputRef}
                                 type="text"
-                                style={{ textTransform: 'uppercase' }}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="glass-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                style={{
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    borderRadius: '0.5rem',
+                                    textTransform: 'uppercase'
+                                }}
                                 placeholder="스케줄에 나오는 이름으로 입력하세요"
                                 onBlur={(e) => setNewDisplayName(e.target.value.toUpperCase())}
                                 onCompositionStart={(e) => {
@@ -311,15 +316,20 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                             />
                         </div>
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
                                 EMPL ID
                             </label>
                             <input
                                 type="text"
                                 value={newEmplId}
                                 onChange={(e) => setNewEmplId(e.target.value.toUpperCase())}
-                                style={{ textTransform: 'uppercase' }}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="glass-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                style={{
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    borderRadius: '0.5rem',
+                                    textTransform: 'uppercase'
+                                }}
                                 placeholder="EMPL ID를 입력하세요"
                             />
                         </div>
@@ -327,6 +337,11 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                             onClick={handleNameUpdate}
                             disabled={isLoading}
                             className="w-full glass-button text-white font-bold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
+                            style={{
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                borderRadius: '0.75rem'
+                            }}
                         >
                             {isLoading ? '변경 중...' : '정보 변경'}
                         </button>
@@ -337,38 +352,53 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                 {activeTab === 'password' && (
                     <div>
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
                                 현재 비밀번호
                             </label>
                             <input
                                 type="password"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="glass-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                style={{
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    borderRadius: '0.5rem'
+                                }}
                                 placeholder="현재 비밀번호를 입력하세요"
                             />
                         </div>
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
                                 새 비밀번호
                             </label>
                             <input
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="glass-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                style={{
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    borderRadius: '0.5rem'
+                                }}
                                 placeholder="새 비밀번호를 입력하세요 (6자 이상)"
                             />
                         </div>
                         <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
                                 새 비밀번호 확인
                             </label>
                             <input
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="glass-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                style={{
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    borderRadius: '0.5rem'
+                                }}
                                 placeholder="새 비밀번호를 다시 입력하세요"
                             />
                         </div>
@@ -376,6 +406,11 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                             onClick={handlePasswordUpdate}
                             disabled={isLoading}
                             className="w-full glass-button text-white font-bold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
+                            style={{
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                borderRadius: '0.75rem'
+                            }}
                         >
                             {isLoading ? '변경 중...' : '비밀번호 변경'}
                         </button>
@@ -388,15 +423,15 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                 {activeTab === 'airline' && (
                     <div>
                         <div className="flex justify-center mb-4">
-                            <div className="w-24 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <div className="w-24 bg-black/20 rounded-2xl border border-white/10 overflow-hidden">
                                 <div className="relative h-48">
                                     {['OZ', 'KE', '7C'].map((airline, index) => (
                                         <div
                                             key={airline}
                                             onClick={() => setTempSelectedAirline(airline)}
                                             className={`h-16 flex items-center justify-center cursor-pointer transition-all duration-200 ${tempSelectedAirline === airline
-                                                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold shadow-lg transform scale-105'
-                                                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
+                                                ? 'bg-indigo-600/50 text-white font-bold shadow-lg'
+                                                : 'text-white/50 hover:bg-white/10 hover:text-white'
                                                 }`}
                                         >
                                             <span className="text-lg font-bold tracking-wider">
@@ -411,6 +446,11 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                             onClick={handleAirlineUpdate}
                             disabled={isLoading}
                             className="w-full glass-button text-white font-bold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
+                            style={{
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                borderRadius: '0.75rem'
+                            }}
                         >
                             {isLoading ? '적용 중...' : '확인'}
                         </button>
@@ -485,7 +525,7 @@ const BaseSettings: React.FC<{ currentUser: any; onSettingsUpdate?: (userId: str
 
         return (
             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                     BASE (IATA 코드)
                 </label>
                 <input
@@ -493,16 +533,26 @@ const BaseSettings: React.FC<{ currentUser: any; onSettingsUpdate?: (userId: str
                     value={base}
                     onChange={(e) => setBase(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))}
                     maxLength={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                    className="glass-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase"
+                    style={{
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        borderRadius: '0.5rem'
+                    }}
                     placeholder="IATA code로 입력해주세요 (예: ICN)"
                 />
                 {message && (
-                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">{message}</div>
+                    <div className="mt-2 text-sm text-gray-300">{message}</div>
                 )}
                 <button
                     onClick={handleSave}
                     disabled={isLoading}
                     className="mt-4 w-full glass-button text-white font-bold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
+                    style={{
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        borderRadius: '0.75rem'
+                    }}
                 >
                     {isLoading ? '저장 중...' : '저장'}
                 </button>

@@ -703,7 +703,12 @@ const CityMemoModal: React.FC<CityMemoModalProps> = ({ isOpen, onClose, cityCode
                             <select
                                 onChange={(e) => changeFontSize(e.target.value)}
                                 defaultValue="14"
-                                className="px-2 py-1 text-sm border border-white/10 rounded bg-black/40 text-white"
+                                className="px-2 py-1 text-sm border border-white/10 rounded-lg bg-black/40 text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                style={{
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    borderRadius: '0.5rem'
+                                }}
                                 title="폰트 크기"
                             >
                                 <option value="8">8pt</option>

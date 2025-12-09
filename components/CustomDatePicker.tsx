@@ -191,22 +191,22 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                     onClick={() => handleDateSelect(date)}
                     disabled={isDisabled}
                     className={`w-8 h-8 text-sm rounded-full transition-colors ${isSelected
-                            ? 'bg-blue-600 text-white'
-                            : isToday
+                        ? 'bg-blue-600 text-white'
+                        : isToday
+                            ? isDarkMode
+                                ? 'bg-blue-900 text-blue-400 font-semibold'
+                                : 'bg-blue-100 text-blue-600 font-semibold'
+                            : isDisabled
                                 ? isDarkMode
-                                    ? 'bg-blue-900 text-blue-400 font-semibold'
-                                    : 'bg-blue-100 text-blue-600 font-semibold'
-                                : isDisabled
+                                    ? 'text-gray-700 cursor-not-allowed'
+                                    : 'text-gray-300 cursor-not-allowed'
+                                : isWeekend
                                     ? isDarkMode
-                                        ? 'text-gray-700 cursor-not-allowed'
-                                        : 'text-gray-300 cursor-not-allowed'
-                                    : isWeekend
-                                        ? isDarkMode
-                                            ? 'text-red-400 hover:bg-red-900/20'
-                                            : 'text-red-500 hover:bg-red-50'
-                                        : isDarkMode
-                                            ? 'text-gray-300 hover:bg-gray-700'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'text-red-400 hover:bg-red-900/20'
+                                        : 'text-red-500 hover:bg-red-50'
+                                    : isDarkMode
+                                        ? 'text-gray-300 hover:bg-gray-700'
+                                        : 'text-gray-700 hover:bg-gray-100'
                         }`}
                 >
                     {day}
@@ -244,6 +244,11 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm sm:text-base text-left ${className}`}
+                style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    borderRadius: '0.5rem'
+                }}
             >
                 {selectedDate ? formatDate(selectedDate) : placeholder}
             </button>
@@ -290,8 +295,8 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                                             key={year}
                                             onClick={() => handleYearSelect(year)}
                                             className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${year === currentDate.getFullYear()
-                                                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
-                                                    : isDarkMode ? 'text-white' : 'text-gray-800'
+                                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                                                : isDarkMode ? 'text-white' : 'text-gray-800'
                                                 }`}
                                         >
                                             {year}년
@@ -314,8 +319,8 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                                             key={index}
                                             onClick={() => handleMonthSelect(index)}
                                             className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap ${index === currentDate.getMonth()
-                                                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
-                                                    : isDarkMode ? 'text-white' : 'text-gray-800'
+                                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                                                : isDarkMode ? 'text-white' : 'text-gray-800'
                                                 }`}
                                         >
                                             {month}
