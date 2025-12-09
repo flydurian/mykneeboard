@@ -668,36 +668,51 @@ const App: React.FC = () => {
         console.log(`Checking for update: Current=${currentVersion}, Server=${serverVersion}`);
 
         if (serverVersion !== currentVersion) {
-          console.log('🔔 New version available:', serverVersion);
+          // 이미 알림을 보낸 버전인지 확인
+          const lastNotifiedVersion = localStorage.getItem('lastNotifiedVersion');
 
-          // 시스템 알림 요청 및 표시
-          if (Notification.permission === 'granted') {
-            const notification = new Notification('업데이트 가능', {
-              body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
-              icon: '/pwa-192x192.png',
-              tag: 'update-notification'
-            });
-            notification.onclick = () => {
-              notification.close();
-              window.location.reload();
-            };
-          } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'granted') {
-                const notification = new Notification('업데이트 가능', {
-                  body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
-                  icon: '/pwa-192x192.png',
-                  tag: 'update-notification'
-                });
-                notification.onclick = () => {
-                  notification.close();
-                  window.location.reload();
-                };
-              }
-            });
+          if (lastNotifiedVersion !== serverVersion) {
+            console.log('🔔 New version available:', serverVersion);
+
+            // 시스템 알림 요청 및 표시
+            if (Notification.permission === 'granted') {
+              const notification = new Notification('업데이트 가능', {
+                body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
+                icon: '/pwa-192x192.png',
+                tag: 'update-notification'
+              });
+              notification.onclick = () => {
+                notification.close();
+                window.location.reload();
+              };
+
+              // 알림 보낸 버전 저장
+              localStorage.setItem('lastNotifiedVersion', serverVersion);
+            } else if (Notification.permission !== 'denied') {
+              Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                  const notification = new Notification('업데이트 가능', {
+                    body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
+                    icon: '/pwa-192x192.png',
+                    tag: 'update-notification'
+                  });
+                  notification.onclick = () => {
+                    notification.close();
+                    window.location.reload();
+                  };
+
+                  // 알림 보낸 버전 저장
+                  localStorage.setItem('lastNotifiedVersion', serverVersion);
+                }
+              });
+            }
+          } else {
+            console.log('🔕 Version already notified:', serverVersion);
           }
         } else {
           console.log('✅ Already on latest version');
+          // 최신 버전이면 알림 기록 초기화 (혹시 나중에 다운그레이드 후 다시 업데이트 할 경우 대비, 필수는 아님)
+          // localStorage.removeItem('lastNotifiedVersion'); 
         }
       } catch (error) {
         console.error('Failed to check version:', error);
