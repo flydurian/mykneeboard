@@ -2569,9 +2569,9 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
                                                 const newValue = !isAlarmEnabled;
 
                                                 // 알람 활성화 시 알림 권한 요청 (브라우저 정책상 사용자 인터랙션 내부여야 함)
-                                                if (newValue && 'Notification' in window && Notification.permission !== 'granted') {
+                                                if (newValue && 'Notification' in window && window.Notification.permission !== 'granted') {
                                                     try {
-                                                        await Notification.requestPermission();
+                                                        await window.Notification.requestPermission();
                                                     } catch (error) {
                                                         console.error('알림 권한 요청 실패:', error);
                                                     }
