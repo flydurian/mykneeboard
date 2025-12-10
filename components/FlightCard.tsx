@@ -43,15 +43,13 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
 
                     // 출발시간이 현재 시간보다 과거라면 최근 비행으로 분류
                     if (departureUtc <= nowUtc) {
-                        // 도착 전까지는 출발지 현지 날짜를 기준으로 표기
-                        const [depAirport, arrAirport] = flight.route.split('/');
-                        const depTimezone = getCityInfo(depAirport)?.timezone || 'Asia/Seoul';
-                        const arrTimezone = getCityInfo(arrAirport)?.timezone || 'Asia/Seoul';
-
                         const hasArrived = nowUtc >= arrivalUtc;
 
                         if (!hasArrived) {
                             // 출발지 현지 날짜 기준 (도착 전 구간)
+                            const [depAirport, arrAirport] = flight.route ? flight.route.split('/') : ['ICN', 'ICN'];
+                            const depTimezone = getCityInfo(depAirport)?.timezone || 'Asia/Seoul';
+
                             const departureLocal = new Date(departureUtc.toLocaleString('en-US', { timeZone: depTimezone }));
                             const nowLocal = new Date(nowUtc.toLocaleString('en-US', { timeZone: depTimezone }));
                             const depDate = new Date(departureLocal.getFullYear(), departureLocal.getMonth(), departureLocal.getDate());
@@ -64,6 +62,9 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
                             return { text: `${diffDays}일 전`, days: -diffDays };
                         } else {
                             // 도착 후에는 도착지 현지 날짜 기준
+                            const arrAirport = flight.route && flight.route.includes('/') ? flight.route.split('/')[1] : 'ICN';
+                            const arrTimezone = getCityInfo(arrAirport)?.timezone || 'Asia/Seoul';
+
                             const arrivalLocal = new Date(arrivalUtc.toLocaleString('en-US', { timeZone: arrTimezone }));
                             const nowLocal = new Date(nowUtc.toLocaleString('en-US', { timeZone: arrTimezone }));
                             const arrivalDate = new Date(arrivalLocal.getFullYear(), arrivalLocal.getMonth(), arrivalLocal.getDate());
@@ -89,7 +90,7 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
                     }
 
                     // 출발지 시간대 정보 가져오기
-                    const [depAirport] = flight.route.split('/');
+                    const [depAirport] = flight.route ? flight.route.split('/') : ['ICN', 'ICN'];
                     const depTimezone = getCityInfo(depAirport)?.timezone || 'Asia/Seoul';
 
                     // 출발시간을 출발지 현지시간으로 변환
@@ -123,7 +124,7 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
         if (type !== 'next' || !flight?.showUpDateTimeUtc || !flight?.route) return null;
 
         try {
-            const [depAirport] = flight.route.split('/');
+            const [depAirport] = flight.route ? flight.route.split('/') : ['ICN', 'ICN'];
             const cityInfo = getCityInfo(depAirport);
             const timezone = cityInfo?.timezone || 'Asia/Seoul';
             const showUpUtc = new Date(flight.showUpDateTimeUtc);
@@ -153,16 +154,10 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
 
         // 최근 비행에서 베이스 공항이 표시되는 것을 방지
         if (type === 'last') {
-            const code = getAirportCodeForCard(flight.route, type, baseIata);
+            const code = getAirportCodeForCard(flight.route || 'ICN/ICN', type, baseIata);
             // 베이스 공항과 동일한 경우 빈 문자열 반환 (표시하지 않음)
             if (code === baseIata) {
-                console.log('🚫 최근 비행에서 베이스 공항 표시 방지:', {
-                    type,
-                    flightNumber: flight.flightNumber,
-                    route: flight.route,
-                    baseIata,
-                    code
-                });
+                // 로그 제거
                 return '';
             }
             return code;
@@ -176,13 +171,13 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
                 const arrUtc = new Date(flight.arrivalDateTimeUtc);
                 if (depUtc <= nowUtc && nowUtc < arrUtc) {
                     // 베이스 공항을 제외한 공항 코드 반환
-                    const code = getAirportCodeForCard(flight.route, type, baseIata);
+                    const code = getAirportCodeForCard(flight.route || 'ICN/ICN', type, baseIata);
                     return code;
                 }
             }
         } catch { }
 
-        const code = getAirportCodeForCard(flight.route, type, baseIata);
+        const code = getAirportCodeForCard(flight.route || 'ICN/ICN', type, baseIata);
         return code;
     };
 

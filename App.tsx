@@ -1654,17 +1654,17 @@ const App: React.FC = () => {
 
   // 인증 상태 감지 (온라인/오프라인 감지 포함)
   useEffect(() => {
-    console.log('🚀 onAuthStateChange 리스너 등록됨');
+
     const unsubscribe = onAuthStateChange(async (user) => {
-      console.log('🚀 onAuthStateChange 트리거됨, user:', user);
       if ((import.meta as any).env?.DEV) {
+        // console.log('🚀 onAuthStateChange 트리거됨, user:', user);
       }
 
       // Firebase 인증 상태 처리 (온라인 모드에서만)
 
       setUser(user);
       if (!user) {
-        // setFlights([]) 제거됨 (queryClient가 처리)
+
         setIsLoading(false);
         setUserInfo(null); // 로그아웃 시 사용자 정보 초기화
         setSelectedAirline('OZ'); // 로그아웃 시 기본값으로 리셋
@@ -1690,106 +1690,132 @@ const App: React.FC = () => {
         }
       } else {
         // 로그인 성공 시
-        console.log('✅ 사용자 로그인 감지:', user.uid);
+        // 로그인 성공 시
 
-        // 데이터베이스 연결 테스트 실행
-        import('./src/firebase/database').then(async ({ testDatabaseConnection }) => {
-          console.log('🔍 데이터베이스 연결 테스트 시작...');
-          const result = await testDatabaseConnection(user.uid);
-          console.log('🔍 데이터베이스 연결 테스트 결과:', result);
-
-          if (!result.success) {
-            console.error('❌ 데이터베이스 연결 실패:', result.error);
-            // 사용자에게 알림 (옵션) - 오프라인 모드로 자연스럽게 전환
-            // alert('데이터베이스 연결 실패: ' + (result.error) + '\n네트워크 상태나 권한을 확인해주세요.');
-          } else {
-            console.log('✅ 데이터베이스 연결 성공');
-          }
-        });
-        // 사용자 정보 가져오기 (EMPL 정보 포함)
+        // 모든 비동기 작업을 감싸는 try-finally 블록 시작
         try {
-          const userInfoData = await getUserInfo(user.uid);
-          if (userInfoData) {
+          // Promise with timeout helper
+          const withTimeout = <T,>(promise: Promise<T>, ms: number, fallbackValue?: T): Promise<T> => {
+            let timeoutId: NodeJS.Timeout;
+            const timeoutPromise = new Promise<T>((_, reject) => {
+              timeoutId = setTimeout(() => {
+                if (fallbackValue !== undefined) {
+                  // 타임아웃 시 fallback 값 반환 (reject 하지 않음)
+                  // console.warn(`Async operation timed out after ${ms}ms, using fallback.`);
+                  // resolve(fallbackValue); 
+                  // Promise.race에서는 resolve를 외부에서 제어하기 까다로우므로 reject로 처리하고 catch에서 핸들링하거나
+                  // 여기서는 단순히 reject하고 호출부에서 catch하는게 깔끔함.
+                  reject(new Error(`Operation timed out after ${ms}ms`));
+                } else {
+                  reject(new Error(`Operation timed out after ${ms}ms`));
+                }
+              }, ms);
+            });
+            return Promise.race([
+              promise.then(res => {
+                clearTimeout(timeoutId);
+                return res;
+              }),
+              timeoutPromise
+            ]).catch(err => {
+              if (fallbackValue !== undefined) return fallbackValue;
+              throw err;
+            });
+          };
+
+          // 1. 데이터베이스 연결 테스트 (비차단)
+          import('./src/firebase/database').then(async ({ testDatabaseConnection }) => {
+            // 이건 메인 로딩을 막지 않도록 별도로 실행
+            try {
+              const result = await testDatabaseConnection(user.uid);
+              if (!result.success) {
+                console.error('❌ 데이터베이스 연결 실패:', result.error);
+              }
+            } catch (e) { console.error('DB Test Error', e); }
+          });
+
+          // 2. 사용자 정보 가져오기 (EMPL 정보 포함)
+          // 5초 타임아웃
+          try {
+            const userInfoData = await withTimeout(
+              getUserInfo(user.uid),
+              5000,
+              null
+            );
+
+            if (userInfoData) {
+              setUserInfo({
+                displayName: userInfoData.displayName,
+                empl: userInfoData.empl,
+                userName: userInfoData.userName,
+                company: userInfoData.company
+              });
+            } else {
+              // 타임아웃이나 null인 경우 기본값
+              setUserInfo({
+                displayName: user.displayName,
+                empl: undefined,
+                company: undefined
+              });
+            }
+          } catch (error) {
+            console.error('❌ 사용자 정보 로드 실패:', error);
             setUserInfo({
-              displayName: userInfoData.displayName,
-              empl: userInfoData.empl,
-              userName: userInfoData.userName,
-              company: userInfoData.company
+              displayName: user.displayName,
+              empl: undefined,
+              company: undefined
             });
           }
-        } catch (error) {
-          console.error('❌ 사용자 정보 로드 실패:', error);
-          setUserInfo({
-            displayName: user.displayName,
-            empl: undefined,
-            company: undefined
-          });
-        }
 
-        // 관리자 권한 확인
-        console.log('🚀 관리자 권한 확인 시작 - 전체 프로세스 시작');
-        try {
-          console.log('🔍 관리자 권한 확인 시작... UID:', user.uid, 'Email:', user.email);
-          console.log('🔍 실제 로그인한 계정의 UID:', user.uid);
+          // 3. 관리자 권한 확인
+          // 5초 타임아웃
+          // 5초 타임아웃
+          try {
+            setIsUserAdmin(null);
+            const { isAdmin } = await import('./src/firebase/auth');
+            const adminStatus = await withTimeout(isAdmin(user.uid), 5000, false);
 
-          setIsUserAdmin(null); // 확인 중 상태로 설정
-          console.log('🔍 isAdmin 함수 import 시작...');
-
-          const { isAdmin } = await import('./src/firebase/auth');
-          console.log('🔍 isAdmin 함수 import 완료, 함수 호출 시작...');
-
-          const adminStatus = await isAdmin(user.uid);
-          console.log('🔍 isAdmin 함수 호출 완료, 결과:', adminStatus);
-
-          setIsUserAdmin(adminStatus);
-          console.log('🔍 setIsUserAdmin 호출 완료, 상태:', adminStatus);
-
-          if (adminStatus) {
-            console.log('✅ 관리자 권한 확인됨 - DB관리 버튼이 보라색으로 표시됩니다');
-          } else {
-            console.log('❌ 관리자 권한 없음 - DB관리 버튼이 회색으로 표시됩니다');
-            console.log('🔍 Firebase Console에서 admin 노드에 다음 UID를 추가해주세요:', user.uid);
-          }
-        } catch (error) {
-          console.error('❌ 관리자 권한 확인 실패:', error);
-          console.error('❌ 오류 상세:', error);
-          setIsUserAdmin(false);
-        }
-        console.log('🚀 관리자 권한 확인 완료 - 전체 프로세스 종료');
-
-        // 세션 타임아웃 설정 (30분)
-        const timeout = createSessionTimeout(30 * 60 * 1000);
-        setSessionTimeout(timeout);
-
-
-        // 로그인 시 사용자 설정 및 문서 만료일 불러오기
-        try {
-          const userSettings = await getUserSettings(user.uid);
-          if (userSettings.airline) {
-            setSelectedAirline(userSettings.airline);
-          }
-          if (userSettings.base) {
-            setBaseIata(String(userSettings.base).toUpperCase());
-          }
-          if (userSettings.selectedCurrencyCards) {
-            setSelectedCurrencyCards(userSettings.selectedCurrencyCards);
+            setIsUserAdmin(adminStatus);
+          } catch (error) {
+            console.error('❌ 관리자 권한 확인 실패:', error);
+            setIsUserAdmin(false);
           }
 
-          // 문서 만료일 데이터 불러오기
-          const documentExpiryDates = await getDocumentExpiryDates(user.uid);
-          setCardExpiryDates(documentExpiryDates);
+          // 4. 세션 타임아웃 설정
+          const timeout = createSessionTimeout(30 * 60 * 1000);
+          setSessionTimeout(timeout);
 
-          // Crew 메모 불러오기
-          const crewMemos = await getCrewMemos(user.uid);
-          setCrewMemos(crewMemos);
+          // 5. 사용자 설정 및 문서 만료일 불러오기
+          try {
+            // 각각의 설정 로드도 타임아웃 적용 (병렬 처리 가능하지만 안전하게 순차 처리하되 타임아웃 적용)
+            const userSettingsPromise = getUserSettings(user.uid);
+            const userSettings = await withTimeout(userSettingsPromise, 5000, {});
 
-          // 도시 메모 불러오기
-          const cityMemos = await getCityMemos(user.uid);
-          setCityMemos(cityMemos);
-        } catch (error) {
-          console.error('사용자 설정 및 문서 만료일 불러오기 실패:', error);
+            if (userSettings.airline) {
+              setSelectedAirline(userSettings.airline);
+            }
+            if (userSettings.base) {
+              setBaseIata(String(userSettings.base).toUpperCase());
+            }
+            if (userSettings.selectedCurrencyCards) {
+              setSelectedCurrencyCards(userSettings.selectedCurrencyCards);
+            }
+
+            // 나머지 비동기 데이터들 (실패해도 앱 실행엔 지장 없음)
+            // 병렬로 시작하고 에러만 로그 찍기
+            Promise.allSettled([
+              getDocumentExpiryDates(user.uid).then(res => setCardExpiryDates(res)),
+              getCrewMemos(user.uid).then(res => setCrewMemos(res)),
+              getCityMemos(user.uid).then(res => setCityMemos(res))
+            ]).catch(e => console.error('Additional data load error', e));
+
+          } catch (error) {
+            console.error('사용자 설정 불러오기 실패:', error);
+          }
+        } catch (fatalError) {
+          console.error('🔥 초기화 프로세스 중 치명적 오류:', fatalError);
         } finally {
-          // 로그인 시에도 로딩 상태 확실히 해제
+          // 어떤 상황에서도 로딩 해제 보장
           setIsLoading(false);
         }
       }

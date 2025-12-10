@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, memo, useCallback, useRedu
 import { motion } from 'framer-motion';
 import { saveRestInfo, getRestInfo, subscribeToRestInfo, RestInfo } from '../src/firebase/database';
 import { getCurrentUser } from '../src/firebase/auth';
-import RestAlarmModal from './modals/RestAlarmModal';
+
 import { scheduleNextRestAlarm, cancelRestAlarms, calculateRestPeriods, RestPeriod, sendRestNotification } from '../src/utils/restAlarms';
 
 
@@ -1608,12 +1608,10 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             determined = candidates.sort((a, b) => Math.abs(now.getTime() - a.getTime()) - Math.abs(now.getTime() - b.getTime()))[0];
         }
 
-        // 2. 수동 보정 적용 (삭제됨)
-
         return determined;
     }, [departureTime, flightTimeMinutes, timeZone]);
 
-    // 이륙 시간이 바뀌면 수동 보정 초기화 (삭제됨)
+
 
     // ✨ [위치 이동] 알람 스케줄링 로직 (실제 타임라인 데이터 사용)
     useEffect(() => {
