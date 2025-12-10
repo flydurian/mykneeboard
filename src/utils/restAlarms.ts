@@ -128,6 +128,6 @@ export async function sendRestNotification(title: string, body: string) {
     }
 
     if ('Notification' in window) {
-        new Notification(title, options);
+        new window.Notification(title, options);
     }
 }

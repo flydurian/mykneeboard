@@ -675,8 +675,8 @@ const App: React.FC = () => {
             console.log('🔔 New version available:', serverVersion);
 
             // 시스템 알림 요청 및 표시
-            if (Notification.permission === 'granted') {
-              const notification = new Notification('업데이트 가능', {
+            if ('Notification' in window && window.Notification.permission === 'granted') {
+              const notification = new window.Notification('업데이트 가능', {
                 body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
                 icon: '/pwa-192x192.png',
                 tag: 'update-notification'
@@ -688,10 +688,10 @@ const App: React.FC = () => {
 
               // 알림 보낸 버전 저장
               localStorage.setItem('lastNotifiedVersion', serverVersion);
-            } else if (Notification.permission !== 'denied') {
-              Notification.requestPermission().then(permission => {
+            } else if ('Notification' in window && window.Notification.permission !== 'denied') {
+              window.Notification.requestPermission().then(permission => {
                 if (permission === 'granted') {
-                  const notification = new Notification('업데이트 가능', {
+                  const notification = new window.Notification('업데이트 가능', {
                     body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
                     icon: '/pwa-192x192.png',
                     tag: 'update-notification'
@@ -814,7 +814,7 @@ const App: React.FC = () => {
   // Show Up 알림 체크 (1분마다)
   useEffect(() => {
     const checkShowUpAlarm = () => {
-      if (!Notification || Notification.permission !== 'granted') return;
+      if (!('Notification' in window) || window.Notification.permission !== 'granted') return;
 
       const todayStr = getTodayString();
       const { nextFlight } = findLastAndNextFlights(flights, todayStr);
@@ -857,7 +857,7 @@ const App: React.FC = () => {
           }
 
           // 알림 생성
-          new Notification(`${dateStr} <${nextFlight.flightNumber}>`, {
+          new window.Notification(`${dateStr} <${nextFlight.flightNumber}>`, {
             body: `SHOW UP : ${showUpTimeStr} / ETD : ${etdTimeStr}`,
             icon: '/pwa-192x192.png',
             tag: `showup-alarm-${nextFlight.id}`

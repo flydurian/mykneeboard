@@ -515,7 +515,7 @@ const RestCalculator: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             // });
 
             // 시스템 알림 발송 (사용자 요청)
-            if ('Notification' in window && Notification.permission === 'granted') {
+            if ('Notification' in window && window.Notification.permission === 'granted') {
                 sendRestNotification('휴식 알림', `${periodName} 종료 15분 전입니다.`);
             }
         };
