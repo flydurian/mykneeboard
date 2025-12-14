@@ -2139,8 +2139,8 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                 setExchangeRateError(null);
 
                 try {
-                    // 캐시된 데이터 확인 (1시간 캐시)
-                    const cachedData = getCachedData(`exchange_${city}`, 60 * 60 * 1000);
+                    // 캐시된 데이터 확인 (1시간 캐시) - v2 키 사용으로 기존 캐시 무효화
+                    const cachedData = getCachedData(`exchange_v2_${city}`, 60 * 60 * 1000);
                     if (cachedData) {
                         setExchangeRate(cachedData);
                         setLoadingExchangeRate(false);
@@ -2167,18 +2167,11 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                             const data = await response.json();
 
                             if (data.success && data.conversion_rate) {
-                                let exchangeRateText;
-                                if (targetCurrency === 'JPY') {
-                                    // 엔화는 100엔 기준으로 표시
-                                    const rate100Yen = Math.round(data.conversion_rate * 100);
-                                    exchangeRateText = `100 ${targetCurrency} ≈ ${rate100Yen.toLocaleString('ko-KR')} KRW`;
-                                } else {
-                                    // 다른 통화는 1 단위 기준으로 표시
-                                    exchangeRateText = `1 ${targetCurrency} ≈ ${Math.round(data.conversion_rate).toLocaleString('ko-KR')} KRW`;
-                                }
-                                setExchangeRate(exchangeRateText);
+                                // API에서 포맷팅된 텍스트를 직접 사용 (VND 10,000 단위 등 처리됨)
+                                const exchangeRateText = data.exchangeRateText || `1 ${targetCurrency} ≈ ${Math.round(data.conversion_rate).toLocaleString('ko-KR')} KRW`;
 
-                                setCachedData(`exchange_${city}`, exchangeRateText);
+                                setExchangeRate(exchangeRateText);
+                                setCachedData(`exchange_v2_${city}`, exchangeRateText);
                             } else {
                                 throw new Error(data['error-type'] || `환율 API 오류: ${JSON.stringify(data)}`);
                             }
@@ -2192,7 +2185,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                         }
                     } else {
                         // 오프라인 상태에서 캐시된 데이터가 있으면 사용
-                        const offlineCachedData = getCachedData(`exchange_${city}`, 24 * 60 * 60 * 1000); // 24시간
+                        const offlineCachedData = getCachedData(`exchange_v2_${city}`, 24 * 60 * 60 * 1000); // 24시간
                         if (offlineCachedData) {
                             setExchangeRate(offlineCachedData);
                             setExchangeRateError('오프라인 모드: 캐시된 데이터를 표시합니다.');
