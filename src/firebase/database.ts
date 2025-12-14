@@ -221,6 +221,22 @@ const getMonthPath = (date: string, userId: string) => {
   return path;
 };
 
+// 알림 인덱스 경로 생성 (yyyy-MM-dd)
+const getAlarmIndexPath = (date: string, userId: string, flightId: string) => {
+  return `schedules/${date}/${userId}/${flightId}`;
+};
+
+// 알림용 경량 데이터 생성
+const createAlarmData = (flightData: any) => {
+  return {
+    flightId: flightData.id || 0,
+    flightNumber: flightData.flightNumber || '',
+    showUpDateTimeUtc: flightData.showUpDateTimeUtc || null,
+    departureDateTimeUtc: flightData.departureDateTimeUtc || null,
+    // 필요한 데이터만 최소한으로 저장
+  };
+};
+
 // -----------------------------
 // Crew 저장 형식 변환 유틸리티
 // -----------------------------
@@ -253,7 +269,7 @@ const indexedObjectToArray = (obj: any): any[] => {
 
 // crew 배열/객체를 인덱스 객체로 변환하면서 'posn type' 호환 키도 함께 저장
 const toIndexedCrewObjectForWrite = (value: any[] | { [k: string]: any } | undefined | null) => {
-  const obj = arrayToIndexedObject(value);
+  const obj = arrayToIndexedObject(value as any[]);
   if (!obj) return obj;
   const result: { [k: string]: any } = {};
   Object.keys(obj).forEach(k => {
@@ -276,7 +292,7 @@ const transformCrewFieldsForWrite = (flightData: any) => {
   }
   if (copy.cabinCrew !== undefined) {
     // cabinCrew는 호환 키가 필요 없지만 형식은 동일하게 맞춤
-    copy.cabinCrew = arrayToIndexedObject(copy.cabinCrew);
+    copy.cabinCrew = arrayToIndexedObject(copy.cabinCrew as any[]);
   }
   return copy;
 };
@@ -529,6 +545,16 @@ export const addFlight = async (flightData: any, userId: string) => {
     const flightRef = ref(database, `${monthPath}/${newKey}`);
     const safeId = safeParseInt(newKey);
     await update(flightRef, { id: safeId });
+
+    // 🔧 알림 인덱스 저장 (Show Up 시간이 있는 경우에만)
+    if (flightData.showUpDateTimeUtc) {
+      try {
+        const alarmPath = getAlarmIndexPath(flightData.date, userId, String(safeId));
+        await set(ref(database, alarmPath), createAlarmData({ ...flightData, id: safeId }));
+      } catch (e) {
+        console.warn('알림 인덱스 저장 실패:', e);
+      }
+    }
   }
 
   return newKey;
@@ -561,6 +587,31 @@ export const updateFlight = async (flightId: number, dataToUpdate: any, userId: 
                 if (String(flightIdNum) === String(flightId)) {
                   const flightRef = ref(database, `users/${userId}/flights/${year}/${month}/${firebaseKey}`);
                   await update(flightRef, dataToUpdate);
+
+                  // 🔧 알림 인덱스 업데이트
+                  // 날짜가 변경되었을 수 있으므로 기존 날짜 삭제 후 새 날짜 추가 필요
+                  try {
+                    const oldDate = existingFlightData.date;
+                    const newDate = dataToUpdate.date || oldDate;
+
+                    // 날짜가 바뀌었거나 ShowUp 시간이 바뀐 경우
+                    if (oldDate !== newDate || dataToUpdate.showUpDateTimeUtc !== undefined) {
+                      // 기존 인덱스 삭제
+                      await remove(ref(database, getAlarmIndexPath(oldDate, userId, String(flightId))));
+
+                      // 새 인덱스 추가 (Show Up 시간이 존재하는 경우)
+                      const mergedData = { ...existingFlightData, ...dataToUpdate };
+                      if (mergedData.showUpDateTimeUtc) {
+                        await set(ref(database, getAlarmIndexPath(newDate, userId, String(flightId))), createAlarmData(mergedData));
+                      }
+                    } else if (dataToUpdate.showUpDateTimeUtc) {
+                      // 날짜는 같고 내용만 업데이트
+                      await update(ref(database, getAlarmIndexPath(oldDate, userId, String(flightId))), createAlarmData({ ...existingFlightData, ...dataToUpdate }));
+                    }
+                  } catch (e) {
+                    console.warn('알림 인덱스 업데이트 실패:', e);
+                  }
+
                   found = true;
                   break;
                 }
@@ -584,20 +635,70 @@ export const updateFlight = async (flightId: number, dataToUpdate: any, userId: 
 export const deleteFlight = async (flightId: string, storagePath: { year: string, month: string, firebaseKey: string }, userId: string) => {
   const fullPath = `users/${userId}/flights/${storagePath.year}/${storagePath.month}/${storagePath.firebaseKey}`;
 
-  // 실제 데이터 존재 여부 확인
+  // 실제 데이터 존재 여부 확인 및 알림 인덱스 삭제를 위한 데이터 확보
+  let flightDate = '';
+  let validFlightId = '';
+
   try {
     const dataRef = ref(database, fullPath);
     const snapshot = await get(dataRef);
     if (!snapshot.exists()) {
       return false;
     }
+    const val = snapshot.val();
+    flightDate = val.date;
+    validFlightId = val.id ? String(val.id) : safeParseInt(storagePath.firebaseKey).toString();
   } catch (error) {
     console.error('🗑️ 데이터 존재 확인 중 오류:', error);
     return false;
   }
 
   const result = await deleteData(fullPath);
+
+  // 🔧 알림 인덱스 삭제
+  if (result && flightDate && validFlightId) {
+    try {
+      await remove(ref(database, getAlarmIndexPath(flightDate, userId, validFlightId)));
+    } catch (e) {
+      console.warn('알림 인덱스 삭제 실패:', e);
+    }
+  }
+
   return result;
+};
+
+// 🔑 기존 데이터 마이그레이션: 모든 유효한 비행에 대해 알림 인덱스 생성
+export const syncAlarmIndexes = async (userId: string) => {
+  try {
+    console.log('🔄 알림 인덱스 동기화 시작...');
+    const allFlights = await getAllFlights(userId);
+
+    if (!allFlights || allFlights.length === 0) {
+      console.log('동기화할 비행 데이터 없음');
+      return;
+    }
+
+    const updates: { [key: string]: any } = {};
+    let count = 0;
+
+    allFlights.forEach(flight => {
+      // Show Up 시간이 있고, 유효한 ID가 있는 경우
+      if (flight.showUpDateTimeUtc && flight.date && flight.id) {
+        const alarmPath = getAlarmIndexPath(flight.date, userId, String(flight.id));
+        updates[alarmPath] = createAlarmData(flight);
+        count++;
+      }
+    });
+
+    if (count > 0) {
+      await update(ref(database), updates);
+      console.log(`✅ ${count}개의 비행에 대한 알림 인덱스 생성 완료`);
+    } else {
+      console.log('업데이트할 알림 인덱스 없음');
+    }
+  } catch (error) {
+    console.error('❌ 알림 인덱스 동기화 실패:', error);
+  }
 };
 
 // 여러 비행 데이터 일괄 추가

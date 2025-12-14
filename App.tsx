@@ -19,10 +19,11 @@ const MonthlyScheduleModal = lazy(() => import('./components/modals/MonthlySched
 const CalendarModal = lazy(() => import('./components/modals/CalendarModal'));
 const ConflictResolutionModal = lazy(() => import('./components/modals/ConflictResolutionModal'));
 const AnnualBlockTimeModal = lazy(() => import('./components/modals/AnnualBlockTimeModal'));
-import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights, getUserSettings, saveUserSettings, saveDocumentExpiryDates, getDocumentExpiryDates, saveCrewMemos, getCrewMemos, saveCityMemos, getCityMemos, setFirebaseOfflineMode } from './src/firebase/database';
+import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights, getUserSettings, saveUserSettings, saveDocumentExpiryDates, getDocumentExpiryDates, saveCrewMemos, getCrewMemos, saveCityMemos, getCityMemos, setFirebaseOfflineMode, syncAlarmIndexes } from './src/firebase/database';
 import { cacheAllFlightsFromFirebase } from './src/firebase/flightSchedules';
 import { clearKeyCache } from './utils/encryption';
-import { auth } from './src/firebase/config';
+import { auth, database } from './src/firebase/config';
+import { requestFcmToken } from './src/firebase/fcm';
 import { loginUser, logoutUser, registerUser, onAuthStateChange, getCurrentUser, resetPassword, getUserInfo } from './src/firebase/auth';
 
 // 앱 초기화 로그
@@ -800,7 +801,10 @@ const App: React.FC = () => {
 
   // iOS PWA(홈화면 추가) 환경 감지: 안전영역 보정용 상태
   useEffect(() => {
-    const isIOS = /iphone|ipod|ipad/i.test(navigator.userAgent);
+    // iPadOS(데스크탑 모드) 대응: Macintosh이면서 터치 포인트가 있으면 iOS로 간주
+    const isIPad = /Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1;
+    const isIOS = /iphone|ipod|ipad/i.test(navigator.userAgent) || isIPad;
+
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
     if (isIOS && isStandalone) setIsIosStandalone(true);
   }, []);
@@ -1738,6 +1742,7 @@ const App: React.FC = () => {
           // 5초 타임아웃
           try {
             const userInfoData = await withTimeout(
+              // 사용자 정보 가져오기
               getUserInfo(user.uid),
               5000,
               null
@@ -1750,6 +1755,20 @@ const App: React.FC = () => {
                 userName: userInfoData.userName,
                 company: userInfoData.company
               });
+              setSelectedAirline((userInfoData as any).airline || 'KAL'); // 기본값 KAL 설정
+
+              // FCM 토큰 등록 (온라인 알림용)
+              import('./src/firebase/fcm').then(({ requestFcmToken }) => {
+                requestFcmToken(user.uid).catch(err => console.error('FCM Token Error:', err));
+              }).catch(err => console.error('FCM Module Load Error:', err));
+
+              // 🔧 마이그레이션: 기존 데이터 인덱싱 (앱 버전별 1회 실행)
+              const MIGRATION_KEY = 'alarm_index_migration_v1';
+              if (!localStorage.getItem(MIGRATION_KEY)) {
+                syncAlarmIndexes(user.uid).then(() => {
+                  localStorage.setItem(MIGRATION_KEY, 'done');
+                });
+              }
             } else {
               // 타임아웃이나 null인 경우 기본값
               setUserInfo({

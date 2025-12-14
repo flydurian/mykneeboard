@@ -40,6 +40,7 @@ let app = null;
 let analytics = null;
 let database = null;
 let auth = null;
+let messaging: any = null;
 
 console.log('🚀 Firebase 초기화 시작...');
 
@@ -85,6 +86,17 @@ try {
   // Database 및 Auth 초기화
   database = getDatabase(app);
   auth = getAuth(app);
+
+  // Messaging 초기화 (브라우저 환경에서만)
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    import("firebase/messaging").then(({ getMessaging }) => {
+      messaging = getMessaging(app);
+      console.log('✅ Firebase Messaging 초기화 완료');
+    }).catch(e => {
+      console.warn('Firebase Messaging 로드 실패:', e);
+    });
+  }
+
   console.log('✅ Firebase Database 및 Auth 초기화 완료');
 
   if (missingVars.length > 0) {
@@ -97,4 +109,4 @@ try {
   console.error('❌ 오류 상세:', error instanceof Error ? error.stack : error);
 }
 
-export { app, analytics, database, auth };
+export { app, analytics, database, auth, messaging };
