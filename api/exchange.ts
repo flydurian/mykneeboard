@@ -20,14 +20,14 @@ export default async function handler(
 
   try {
     const { fromCurrency, toCurrency = 'KRW' } = req.query;
-    
-    
+
+
     if (!fromCurrency) {
       return res.status(400).json({ error: 'fromCurrency가 필요합니다.' });
     }
 
     const API_KEY = process.env.EXCHANGE_API_KEY;
-    
+
     if (!API_KEY) {
       console.error('❌ EXCHANGE_API_KEY 환경변수가 설정되지 않았습니다.');
       return res.status(500).json({ error: '환율 API 키가 설정되지 않았습니다.' });
@@ -35,7 +35,7 @@ export default async function handler(
 
     // ExchangeRate-API 호출
     const apiUrl = `https://v6.exchangerate-api.com/v6/${API_KEY}/pair/${fromCurrency}/${toCurrency}`;
-    
+
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -45,7 +45,7 @@ export default async function handler(
       signal: AbortSignal.timeout(10000)
     });
 
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       console.error('ExchangeRate-API 오류:', errorData);
@@ -53,14 +53,23 @@ export default async function handler(
     }
 
     const data = await response.json();
-    
+
     if (data.result === 'success' && data.conversion_rate) {
+      let displayRate = data.conversion_rate;
+      let displayUnit = 1;
+
+      // VND는 10,000 단위로 표시
+      if (data.base_code === 'VND') {
+        displayRate *= 10000;
+        displayUnit = 10000;
+      }
+
       return res.status(200).json({
         success: true,
         conversion_rate: data.conversion_rate,
         fromCurrency: data.base_code,
         toCurrency: data.target_code,
-        exchangeRateText: `1 ${data.base_code} ≈ ${Math.round(data.conversion_rate).toLocaleString('ko-KR')} KRW`
+        exchangeRateText: `${displayUnit.toLocaleString()} ${data.base_code} ≈ ${Math.round(displayRate).toLocaleString('ko-KR')} KRW`
       });
     } else {
       throw new Error(data['error-type'] || `환율 API 오류: ${JSON.stringify(data)}`);
@@ -68,13 +77,13 @@ export default async function handler(
 
   } catch (error: any) {
     console.error('환율 API 오류:', error);
-    
+
     if (error.name === 'TimeoutError') {
       return res.status(408).json({ error: '환율 정보 로딩 시간 초과' });
     } else if (error.message.includes('Failed to fetch')) {
       return res.status(503).json({ error: '네트워크 연결 실패' });
     } else {
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: `환율 정보 로딩 실패: ${error.message}`,
         details: error.message
       });
