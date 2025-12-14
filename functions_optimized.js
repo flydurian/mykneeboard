@@ -92,6 +92,22 @@ exports.checkShowUpAlarmsOptimized = functions.region('asia-northeast3').pubsub.
                                 data: {
                                     type: 'show-up-alarm',
                                     flightId: String(flightData.flightId)
+                                },
+                                // 높은 우선순위 설정 (잠금화면 노출 확률 증대)
+                                android: {
+                                    priority: 'high',
+                                    notification: {
+                                        priority: 'max',
+                                        channelId: 'show_up_alarm_channel'
+                                    }
+                                },
+                                webpush: {
+                                    headers: {
+                                        Urgency: 'high'
+                                    },
+                                    notification: {
+                                        requireInteraction: true
+                                    }
                                 }
                             };
 
