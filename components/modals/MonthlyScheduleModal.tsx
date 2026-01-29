@@ -8,8 +8,8 @@ interface MonthlyScheduleModalProps {
     data: MonthlyModalData | null;
     onClose: () => void;
     onFlightClick: (flight: Flight) => void;
-    onMonthChange: (month: number) => void;
-    onStatusChange?: (flightId: string, status: Partial<{ departed: boolean; landed: boolean }>) => void;
+    onMonthChange: (month: number, year: number) => void;
+    onStatusChange?: (flightId: string | number, status: Partial<{ departed: boolean; landed: boolean }>) => void;
     userInfo?: { displayName: string | null; empl?: string; userName?: string; company?: string } | null;
 }
 
@@ -58,7 +58,7 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
         return null;
     }
 
-    const { month, flights, blockTime } = data;
+    const { month, year, flights, blockTime } = data;
     const flightsToUse = localFlights.length > 0 ? localFlights : flights;
 
     // 중복 제거: 같은 ID를 가진 비행 데이터 중복 제거
@@ -124,13 +124,23 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
     };
 
     const handlePreviousMonth = () => {
-        const newMonth = month === 0 ? 11 : month - 1;
-        onMonthChange(newMonth);
+        let newMonth = month - 1;
+        let newYear = year;
+        if (newMonth < 0) {
+            newMonth = 11;
+            newYear = year - 1;
+        }
+        onMonthChange(newMonth, newYear);
     };
 
     const handleNextMonth = () => {
-        const newMonth = month === 11 ? 0 : month + 1;
-        onMonthChange(newMonth);
+        let newMonth = month + 1;
+        let newYear = year;
+        if (newMonth > 11) {
+            newMonth = 0;
+            newYear = year + 1;
+        }
+        onMonthChange(newMonth, newYear);
     };
 
     // 스크롤 이벤트 핸들러
@@ -173,7 +183,7 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                     <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
                         {/* 제목 */}
                         <h2 className="text-xl font-bold text-white">
-                            {month + 1}월 스케줄
+                            {year}년 {month + 1}월 스케줄
                             <span className="text-base font-medium text-slate-400 ml-2">
                                 (총 {blockTime})
                             </span>

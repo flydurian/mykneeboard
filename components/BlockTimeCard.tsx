@@ -5,7 +5,7 @@ import { Flight } from '../types';
 interface BlockTimeCardProps {
     flights: Flight[];
     todayStr: string;
-    onMonthClick: (month: number, flights: Flight[]) => void;
+    onMonthClick: (month: number, year: number, flights: Flight[]) => void;
 }
 
 const BlockTimeCard: React.FC<BlockTimeCardProps> = memo(({ flights = [], todayStr, onMonthClick }) => {
@@ -73,12 +73,12 @@ const BlockTimeCard: React.FC<BlockTimeCardProps> = memo(({ flights = [], todayS
 
     // 클릭 핸들러 최적화
     const handleCurrentMonthClick = useCallback(() => {
-        onMonthClick(currentMonth, currentMonthFlights);
-    }, [onMonthClick, currentMonth, currentMonthFlights]);
+        onMonthClick(currentMonth, currentYear, currentMonthFlights);
+    }, [onMonthClick, currentMonth, currentYear, currentMonthFlights]);
 
     const handleNextMonthClick = useCallback(() => {
-        onMonthClick(nextMonth, nextMonthFlights);
-    }, [onMonthClick, nextMonth, nextMonthFlights]);
+        onMonthClick(nextMonth, nextYear, nextMonthFlights);
+    }, [onMonthClick, nextMonth, nextYear, nextMonthFlights]);
 
     return (
         <div className="grid grid-cols-2 gap-6">

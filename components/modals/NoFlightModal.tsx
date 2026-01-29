@@ -3,15 +3,15 @@ import { XIcon } from '../icons';
 
 interface NoFlightModalProps {
     isOpen: boolean;
-    type: 'next' | 'last';
+    type: 'next' | 'last' | 'nextNext';
     onClose: () => void;
 }
 
 const NoFlightModal: React.FC<NoFlightModalProps> = ({ isOpen, type, onClose }) => {
     if (!isOpen) return null;
 
-    const title = type === 'next' ? '다음 비행' : '최근 비행';
-    const message = type === 'next' ? '다음 비행 스케줄이 없습니다.' : '과거 비행 기록이 없습니다.';
+    const title = type === 'last' ? '최근 비행' : type === 'next' ? '다음 비행' : '그 다음 비행';
+    const message = type === 'last' ? '과거 비행 기록이 없습니다.' : type === 'next' ? '다음 비행 스케줄이 없습니다.' : '그 다음 비행 스케줄이 없습니다.';
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe" onClick={onClose}>

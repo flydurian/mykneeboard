@@ -1,7 +1,7 @@
 {
   "name": "mykneeboard",
   "private": true,
-  "version": "2.2.3",
+  "version": "2.2.5",
   "type": "module",
   "scripts": {
     "dev": "node generate-version.js && vite",
@@ -44,6 +44,8 @@
     "@tailwindcss/postcss": "^4.1.14",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.21",
     "firebase-tools": "^14.18.0",
     "postcss": "^8.5.6",

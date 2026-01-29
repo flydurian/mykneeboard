@@ -335,7 +335,7 @@ const App: React.FC = () => {
   const [isOffline, setIsOffline] = useState(false);
   const [syncStatus, setSyncStatus] = useState({ pendingCount: 0, isSyncing: false });
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
-  const [selectedFlightType, setSelectedFlightType] = useState<'last' | 'next' | undefined>(undefined);
+  const [selectedFlightType, setSelectedFlightType] = useState<'last' | 'next' | 'nextNext' | undefined>(undefined);
   const [currencyModalData, setCurrencyModalData] = useState<CurrencyModalData | null>(null);
   const [monthlyModalData, setMonthlyModalData] = useState<MonthlyModalData | null>(null);
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
@@ -449,7 +449,7 @@ const App: React.FC = () => {
       console.log('🔧 오프라인 모드 UI 상태 복원 완료');
     }
   }, [isOffline, isLoading]);
-  const [noFlightModal, setNoFlightModal] = useState({ isOpen: false, type: 'last' as 'last' | 'next' });
+  const [noFlightModal, setNoFlightModal] = useState<{ isOpen: boolean; type?: 'last' | 'next' | 'nextNext' }>({ isOpen: false });
   const [isPassportVisaWarningOpen, setIsPassportVisaWarningOpen] = useState(false);
   const [passportVisaWarnings, setPassportVisaWarnings] = useState<WarningData[]>([]);
   const [isExpiryDateModalOpen, setIsExpiryDateModalOpen] = useState(false);
@@ -1522,8 +1522,9 @@ const App: React.FC = () => {
       }
 
       if (result.conflicts.length > 0) {
-        setConflicts(result.conflicts);
-        setShowConflictModal(true);
+        // 충돌 로그가 있으면 경고 표시 (ConflictInfo[]가 아니므로 state 설정 불가)
+        console.warn('동기화 충돌 로그:', result.conflicts);
+        // setShowConflictModal(true); // 충돌 정보가 없으므로 모달을 띄우지 않음
       }
     } catch (error) {
       console.error('동기화 중 오류:', error);
@@ -1635,7 +1636,22 @@ const App: React.FC = () => {
                   company: authData.company
                 });
               }
+
               console.log('📋 오프라인 사용자 정보 로드 완료');
+
+              // 오프라인 모드 데이터 로드 (메모 등)
+              try {
+                // 병렬로 데이터 로드 시작
+                Promise.allSettled([
+                  getCrewMemos(offlineUser.uid).then(res => setCrewMemos(res)),
+                  getCityMemos(offlineUser.uid).then(res => setCityMemos(res)),
+                  getDocumentExpiryDates(offlineUser.uid).then(res => setCardExpiryDates(res))
+                ]).then(() => {
+                  console.log('✅ 오프라인 데이터(메모 등) 로드 완료');
+                });
+              } catch (dataLoadError) {
+                console.error('❌ 오프라인 데이터 로드 실패:', dataLoadError);
+              }
             } catch (error) {
               console.error('❌ 오프라인 사용자 정보 로드 실패:', error);
               setUserInfo({
@@ -1728,15 +1744,7 @@ const App: React.FC = () => {
           };
 
           // 1. 데이터베이스 연결 테스트 (비차단)
-          import('./src/firebase/database').then(async ({ testDatabaseConnection }) => {
-            // 이건 메인 로딩을 막지 않도록 별도로 실행
-            try {
-              const result = await testDatabaseConnection(user.uid);
-              if (!result.success) {
-                console.error('❌ 데이터베이스 연결 실패:', result.error);
-              }
-            } catch (e) { console.error('DB Test Error', e); }
-          });
+
 
           // 2. 사용자 정보 가져오기 (EMPL 정보 포함)
           // 5초 타임아웃
@@ -2542,7 +2550,7 @@ const App: React.FC = () => {
   }, []);
 
   // 이륙/착륙 상태 변경 핸들러
-  const handleStatusChange = useCallback(async (flightId: string, status: Partial<FlightStatus>) => {
+  const handleStatusChange = useCallback(async (flightId: string | number, status: Partial<FlightStatus>) => {
     if (!user?.uid) return;
 
     try {
@@ -2556,7 +2564,7 @@ const App: React.FC = () => {
 
       // Mutation 사용
       await updateFlightMutation.mutateAsync({
-        flightId: parseInt(flightId),
+        flightId: Number(flightId),
         dataToUpdate: { status: updatedStatus },
         userId: user.uid
       });
@@ -2609,11 +2617,11 @@ const App: React.FC = () => {
     setCalendarMonth(month);
   }, []);
 
-  const handleMonthClick = useCallback((month: number, monthFlights?: Flight[]) => {
+  const handleMonthClick = useCallback((month: number, year: number, monthFlights?: Flight[]) => {
     // 해당 월의 비행 데이터 필터링 (monthFlights가 제공되지 않은 경우에만)
     const flightsToUse = monthFlights || flights.filter(flight => {
       const flightDate = new Date(flight.date);
-      return flightDate.getMonth() === month;
+      return flightDate.getMonth() === month && flightDate.getFullYear() === year;
     });
 
     // BlockTimeCard와 동일한 getDutyTime 로직
@@ -2651,12 +2659,12 @@ const App: React.FC = () => {
 
     // block 시간 계산
     const blockTime = getDutyTime(flightsToUse);
-    setMonthlyModalData({ month, flights: flightsToUse, blockTime });
+    setMonthlyModalData({ month, year, flights: flightsToUse, blockTime });
   }, [flights]);
 
   // 월별 스케줄 모달에서 월 변경 핸들러
-  const handleMonthlyModalMonthChange = (month: number) => {
-    handleMonthClick(month);
+  const handleMonthlyModalMonthChange = (month: number, year: number) => {
+    handleMonthClick(month, year);
   };
 
   const handleCurrencyCardClick = (type: 'takeoff' | 'landing', currencyInfo: CurrencyInfo) => {
@@ -3695,11 +3703,13 @@ const App: React.FC = () => {
                       <CurrencyCard title="착륙" currencyInfo={landingCurrency} onClick={() => handleCurrencyCardClick('landing', landingCurrency)} />
                       {selectedCurrencyCards.map((cardType) => {
                         // 임시 데이터 - 실제로는 각 카드 타입에 맞는 데이터를 가져와야 함
-                        const tempCurrencyInfo = {
-                          current: 0,
-                          required: 0,
-                          lastFlight: null,
-                          nextRequired: null
+                        // 임시 데이터 - 실제로는 각 카드 타입에 맞는 데이터를 가져와야 함
+                        const tempCurrencyInfo: CurrencyInfo = {
+                          count: 0,
+                          isCurrent: false,
+                          expiryDate: null,
+                          daysUntilExpiry: null,
+                          recentEvents: []
                         };
 
                         const cardNames: { [key: string]: string } = {

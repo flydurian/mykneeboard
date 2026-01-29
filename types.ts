@@ -40,6 +40,12 @@ export interface Flight {
     month: string;
     firebaseKey: string;
   };
+  // Cache 및 호환성을 위한 선택적 속성
+  airline?: string;
+  departure?: string;
+  arrival?: string;
+  time?: string;
+  aircraft?: string;
 }
 
 export interface DDayInfo {
@@ -63,6 +69,7 @@ export interface CurrencyModalData {
 
 export interface MonthlyModalData {
   month: number;
+  year: number;
   flights: Flight[];
   blockTime: string;
 }

@@ -164,18 +164,7 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
         }
 
         // 도착 전 구간(출발은 했지만 아직 도착 전)에는 베이스 공항을 제외하고 표시
-        try {
-            if (type === 'last' && flight.departureDateTimeUtc && flight.arrivalDateTimeUtc && flight.route) {
-                const nowUtc = new Date();
-                const depUtc = new Date(flight.departureDateTimeUtc);
-                const arrUtc = new Date(flight.arrivalDateTimeUtc);
-                if (depUtc <= nowUtc && nowUtc < arrUtc) {
-                    // 베이스 공항을 제외한 공항 코드 반환
-                    const code = getAirportCodeForCard(flight.route || 'ICN/ICN', type, baseIata);
-                    return code;
-                }
-            }
-        } catch { }
+
 
         const code = getAirportCodeForCard(flight.route || 'ICN/ICN', type, baseIata);
         return code;
@@ -225,7 +214,7 @@ const FlightCard: React.FC<FlightCardProps> = memo(({ flight, type, onClick, tod
                         flightNumber={flight.flightNumber}
                         isActualFlight={isActualFlight(flight)}
                         onStatusChange={onStatusChange}
-                        flightId={flight.id}
+                        flightId={String(flight.id)}
                         type={type}
                     />
                 ) : (

@@ -741,7 +741,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                     <div className="flex-1 min-h-0 flex flex-col">
                         {isEditing ? (
                             <div
-                                ref={textareaRef}
+                                ref={textareaRef as any}
                                 contentEditable={true}
                                 suppressContentEditableWarning={true}
                                 onInput={handleTextChange}
@@ -808,7 +808,8 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                     textIndent: '0',
                                     paddingLeft: '0'
                                 }}
-                                css={`
+                                {...({
+                                    css: `
                                     /* 목록 항목의 자동 줄바꿈 들여쓰기 */
                                     .memo-content-area {
                                         text-indent: 0;
@@ -834,7 +835,7 @@ const CrewMemoModal: React.FC<CrewMemoModalProps> = ({
                                         text-indent: -2em;
                                         padding-left: 2em;
                                     }
-                                `}
+                                ` } as any)}
                                 dangerouslySetInnerHTML={{
                                     __html: memo && memo.length > 0
                                         ? memo

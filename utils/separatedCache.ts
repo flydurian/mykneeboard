@@ -1,4 +1,5 @@
-import { indexedDBCache, Flight } from './indexedDBCache';
+import { indexedDBCache } from './indexedDBCache';
+import { Flight } from '../types';
 
 export interface SeparatedFlightData {
   international: Flight[];
@@ -15,14 +16,14 @@ export class SeparatedCache {
   async saveSeparatedFlights(flights: Flight[], userId: string): Promise<void> {
     try {
       // 국제선과 국내선 분리
-      const international = flights.filter(flight => 
-        flight.departure && flight.arrival && 
+      const international = flights.filter(flight =>
+        flight.departure && flight.arrival &&
         (flight.departure.length === 3 && flight.arrival.length === 3) ||
         (flight.departure !== 'ICN' && flight.arrival !== 'ICN')
       );
-      
-      const domestic = flights.filter(flight => 
-        flight.departure && flight.arrival && 
+
+      const domestic = flights.filter(flight =>
+        flight.departure && flight.arrival &&
         (flight.departure === 'ICN' || flight.arrival === 'ICN') &&
         (flight.departure.length === 3 && flight.arrival.length === 3)
       );
@@ -87,7 +88,7 @@ export class SeparatedCache {
       const db = await indexedDBCache['getDB']();
       const transaction = db.transaction(['flights'], 'readonly');
       const flightStore = transaction.objectStore('flights');
-      
+
       const request = flightStore.index('userId').getAll(userId);
       const allFlights = await new Promise<Flight[]>((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
@@ -108,13 +109,13 @@ export class SeparatedCache {
       const db = await indexedDBCache['getDB']();
       const transaction = db.transaction(['metadata'], 'readwrite');
       const metadataStore = transaction.objectStore('metadata');
-      
+
       const metadataWithKey = {
         userId: `${userId}_separated`,
         data: metadata,
         timestamp: Date.now()
       };
-      
+
       metadataStore.put(metadataWithKey);
 
       await new Promise((resolve, reject) => {
@@ -133,7 +134,7 @@ export class SeparatedCache {
       const db = await indexedDBCache['getDB']();
       const transaction = db.transaction(['metadata'], 'readonly');
       const metadataStore = transaction.objectStore('metadata');
-      
+
       const request = metadataStore.get(`${userId}_separated`);
       const result = await new Promise<any>((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
@@ -162,10 +163,10 @@ export class SeparatedCache {
   async clearSeparatedCache(userId: string): Promise<void> {
     try {
       const db = await indexedDBCache['getDB']();
-      
+
       // 새로운 트랜잭션으로 안전하게 처리
       const transaction = db.transaction(['flights', 'metadata'], 'readwrite');
-      
+
       const flightStore = transaction.objectStore('flights');
       const metadataStore = transaction.objectStore('metadata');
 
@@ -197,7 +198,7 @@ export class SeparatedCache {
 
       // 트랜잭션 완료 대기
       await transactionPromise;
-      
+
     } catch (error) {
       console.error('❌ 분리된 캐시 정리 실패:', error);
       // 오류가 발생해도 앱이 중단되지 않도록 함
@@ -210,7 +211,7 @@ export class SeparatedCache {
       const db = await indexedDBCache['getDB']();
       const transaction = db.transaction(['flights'], 'readonly');
       const flightStore = transaction.objectStore('flights');
-      
+
       const request = flightStore.index('userId').getAll(userId);
       return await new Promise<Flight[]>((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
@@ -226,7 +227,7 @@ export class SeparatedCache {
   private clearExistingDataInTransaction(flightStore: IDBObjectStore, key: string, userId: string): void {
     const index = flightStore.index('userId');
     const request = index.openCursor(userId);
-    
+
     request.onsuccess = (event) => {
       const cursor = (event.target as IDBRequest).result;
       if (cursor) {
@@ -243,10 +244,10 @@ export class SeparatedCache {
   // 고유 ID 생성 함수 (성능 최적화)
   private generateUniqueId(flight: Flight, index: number, userId: string, cacheKey: string): string {
     // 기존 ID가 있고 유효한 경우 사용
-    if (flight.id && flight.id !== '' && flight.id !== 'undefined') {
-      return flight.id;
+    if (flight.id) {
+      return flight.id.toString();
     }
-    
+
     // 성능 최적화: 간단한 조합으로 고유 ID 생성
     const timestamp = Date.now();
     return `${cacheKey}_${timestamp}_${index}`;
@@ -260,7 +261,7 @@ export class SeparatedCache {
   }> {
     try {
       const metadata = await this.loadSeparatedFlights(userId);
-      
+
       if (!metadata) {
         return {
           international: { exists: false, count: 0 },

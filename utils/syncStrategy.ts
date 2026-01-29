@@ -34,7 +34,7 @@ class SyncStrategy {
       const queue = this.getSyncQueue();
       queue.push(syncOperation);
       this.saveSyncQueue(queue);
-  
+
     } catch (error) {
       console.error('동기화 큐 추가 실패:', error);
     }
@@ -61,25 +61,25 @@ class SyncStrategy {
 
   // 개선된 동기화 실행 (변경된 사항만)
   async sync(
-    userId: string, 
+    userId: string,
     localFlights: Flight[],
     onConflictResolution?: (conflicts: ConflictInfo[]) => Promise<{ flightId: number; useLocal: boolean }[]>
   ): Promise<SyncResult> {
     if (this.isSyncing) {
-      return { 
-        success: false, 
-        syncedCount: 0, 
-        errors: ['이미 동기화 중입니다.'], 
+      return {
+        success: false,
+        syncedCount: 0,
+        errors: ['이미 동기화 중입니다.'],
         conflicts: [],
         resolvedConflicts: 0
       };
     }
 
     this.isSyncing = true;
-    const result: SyncResult = { 
-      success: true, 
-      syncedCount: 0, 
-      errors: [], 
+    const result: SyncResult = {
+      success: true,
+      syncedCount: 0,
+      errors: [],
       conflicts: [],
       resolvedConflicts: 0
     };
@@ -87,21 +87,21 @@ class SyncStrategy {
     try {
       // 1단계: 서버 데이터 가져오기
       const serverFlights = await this.fetchServerData(userId);
-      
+
       // 2단계: 변경된 사항만 감지
       const changedFlights = this.detectChangedFlights(localFlights, serverFlights);
 
-      
+
       // 3단계: 충돌 감지 (변경된 항공편 중에서만)
       const conflicts = ConflictResolver.detectConflicts(changedFlights.local, changedFlights.server);
-      
+
       // 4단계: 충돌 해결 (변경된 항공편만)
       if (conflicts.length > 0 && onConflictResolution) {
         await this.resolveConflictsWithUserChoice(conflicts, result, onConflictResolution, userId);
       } else if (conflicts.length > 0) {
         await this.resolveConflictsAutomatically(conflicts, result);
       }
-      
+
       // 5단계: 로컬 변경사항 전송 (동기화 큐에서만)
       await this.sendLocalChanges(userId, result);
 
@@ -128,7 +128,7 @@ class SyncStrategy {
   } {
     const changedLocal: Flight[] = [];
     const changedServer: Flight[] = [];
-    
+
     // 로컬에서 변경된 항공편 찾기
     for (const localFlight of localFlights) {
       const serverFlight = serverFlights.find(f => f.id === localFlight.id);
@@ -143,7 +143,7 @@ class SyncStrategy {
         changedLocal.push(localFlight);
       }
     }
-    
+
     // 서버에만 있는 새로운 항공편 찾기
     for (const serverFlight of serverFlights) {
       const localFlight = localFlights.find(f => f.id === serverFlight.id);
@@ -151,7 +151,7 @@ class SyncStrategy {
         changedServer.push(serverFlight);
       }
     }
-    
+
     return { local: changedLocal, server: changedServer };
   }
 
@@ -159,15 +159,15 @@ class SyncStrategy {
   private hasChanges(local: Flight, server: Flight): boolean {
     // 상태 변경 확인
     if (local.status.departed !== server.status.departed ||
-        local.status.landed !== server.status.landed) {
+      local.status.landed !== server.status.landed) {
       return true;
     }
-    
+
     // 버전 변경 확인
     if (local.version !== server.version) {
       return true;
     }
-    
+
     // 마지막 수정 시간 확인 (5분 이상 차이나면 변경된 것으로 간주)
     if (local.lastModified && server.lastModified) {
       const localTime = new Date(local.lastModified).getTime();
@@ -177,34 +177,34 @@ class SyncStrategy {
         return true;
       }
     }
-    
+
     return false;
   }
 
   // 사용자 선택을 통한 충돌 해결 (변경된 사항만)
   private async resolveConflictsWithUserChoice(
-    conflicts: ConflictInfo[], 
+    conflicts: ConflictInfo[],
     result: SyncResult,
     onConflictResolution: (conflicts: ConflictInfo[]) => Promise<{ flightId: number; useLocal: boolean }[]>,
     userId: string
   ): Promise<void> {
     try {
       const resolutions = await onConflictResolution(conflicts);
-      
+
       // ✨ 각 충돌에 대해 사용자의 선택을 처리
       for (const conflict of conflicts) {
         try {
           const resolution = resolutions.find(r => r.flightId === conflict.flightId);
           if (!resolution) continue;
-          
+
           // 1. 사용자의 선택에 따라 '최종 기준'이 될 데이터를 정합니다.
           let chosenData;
           if (resolution.useLocal) {
             chosenData = conflict.localData;
-    
+
           } else {
             chosenData = conflict.serverData;
-    
+
           }
 
           // 2. 선택된 데이터에서 'status' 객체를 통째로 가져옵니다.
@@ -222,17 +222,17 @@ class SyncStrategy {
             status: finalStatus,
             lastModified: new Date().toISOString() // 동기화 시점의 시간으로 업데이트
           };
-          
-  
-          
+
+
+
           // 4. Firebase 문서를 업데이트합니다.
           const { updateFlight } = await import('../src/firebase/database');
           await updateFlight(conflict.flightId, dataToUpdate, userId);
-          
-  
+
+
           result.resolvedConflicts++;
           result.conflicts.push(`사용자 선택 해결: ${conflict.flightId}`);
-          
+
         } catch (error) {
           console.error(`충돌 해결 적용 실패: ${conflict.flightId} - ${error}`);
           result.errors.push(`충돌 해결 적용 실패: ${conflict.flightId} - ${error}`);
@@ -260,7 +260,7 @@ class SyncStrategy {
   // 로컬 변경사항 전송 (변경된 사항만)
   private async sendLocalChanges(userId: string, result: SyncResult): Promise<void> {
     const queue = this.getSyncQueue();
-    
+
     // 변경된 작업만 필터링
     const changedOperations = queue.filter(operation => {
       // 최근 5분 내의 작업만 처리
@@ -268,9 +268,9 @@ class SyncStrategy {
       const currentTime = Date.now();
       return (currentTime - operationTime) < 5 * 60 * 1000; // 5분
     });
-    
-    
-    
+
+
+
     for (const operation of changedOperations) {
       try {
         await this.processOperation(operation, userId);
@@ -278,7 +278,7 @@ class SyncStrategy {
         this.removeFromQueue(operation.id);
       } catch (error) {
         operation.retryCount++;
-        
+
         if (operation.retryCount >= this.MAX_RETRY_COUNT) {
           result.errors.push(`최대 재시도 횟수 초과: ${operation.type}`);
           this.removeFromQueue(operation.id);
@@ -293,7 +293,7 @@ class SyncStrategy {
   // 개별 작업 처리
   private async processOperation(operation: SyncOperation, userId: string): Promise<void> {
     const { updateFlight } = await import('../src/firebase/database');
-    
+
     switch (operation.type) {
       case 'update_status':
         // ✨ 중요: 완전한 status 객체를 사용하여 부분적 업데이트 방지
@@ -302,9 +302,9 @@ class SyncStrategy {
           lastModified: operation.data.lastModified, // ✨ 큐에 저장된 원본 시간 사용
           version: operation.data.version
         };
-        
 
-        
+
+
         await updateFlight(operation.data.flightId.toString(), updateData, userId);
         break;
       case 'add_flight':
@@ -328,21 +328,22 @@ class SyncStrategy {
   // 재시도 횟수 업데이트
   private updateRetryCount(operationId: string, retryCount: number): void {
     const queue = this.getSyncQueue();
-    const updatedQueue = queue.map(op => 
+    const updatedQueue = queue.map(op =>
       op.id === operationId ? { ...op, retryCount } : op
     );
     this.saveSyncQueue(updatedQueue);
   }
 
   // 동기화 상태 확인
-  getSyncStatus(): { pendingCount: number; lastSync: Date | null } {
+  getSyncStatus(): { pendingCount: number; lastSync: Date | null; isSyncing: boolean } {
     const queue = this.getSyncQueue();
-    const lastSync = queue.length > 0 ? 
+    const lastSync = queue.length > 0 ?
       new Date(Math.max(...queue.map(op => op.timestamp))) : null;
-    
+
     return {
       pendingCount: queue.length,
-      lastSync
+      lastSync,
+      isSyncing: this.isSyncing
     };
   }
 

@@ -635,9 +635,29 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
     console.warn('⚠️ 크루 컬럼 인덱스 자동 감지 실패, 기본 인덱스 사용', e);
   }
 
+  // 헤더에서 년도/월 추출 (MONTH : 202601 형식) - 상위 5개 행 스캔
+  let parsedYear: number | null = null;
+  let parsedMonth: number | null = null;
+
+  // 상위 5개 행을 확인
+  const headerRowsToCheck = jsonData.slice(0, 5);
+  for (const row of headerRowsToCheck) {
+    if (row && Array.isArray(row)) {
+      const rowText = row.join(' ').toUpperCase();
+      const monthMatch = rowText.match(/MONTH\s*:\s*(\d{4})(\d{2})/);
+      if (monthMatch) {
+        parsedYear = parseInt(monthMatch[1]);
+        parsedMonth = parseInt(monthMatch[2]);
+        console.log(`📅 파일 헤더에서 날짜 감지: ${parsedYear}년 ${parsedMonth}월`);
+        break; // 찾았으면 중단
+      }
+    }
+  }
+
   // 해당 월의 말일까지 필터링 (UTC 메서드 사용)
-  const currentMonth = new Date().getUTCMonth() + 1; // 1-12
-  const currentYear = new Date().getUTCFullYear();
+  // 파싱된 날짜가 있으면 그것을 사용하고, 없으면 현재 날짜 사용
+  const currentMonth = parsedMonth || (new Date().getUTCMonth() + 1); // 1-12
+  const currentYear = parsedYear || new Date().getUTCFullYear();
   const lastDayOfMonth = new Date(currentYear, currentMonth, 0).getDate();
 
   // 비행 데이터를 stateful하게 파싱하고 병합

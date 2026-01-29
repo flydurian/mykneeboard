@@ -311,47 +311,7 @@ const transformCrewFieldsForRead = (flightData: any) => {
   return copy;
 };
 
-// Firebase 데이터베이스 연결 테스트
-export const testDatabaseConnection = async (userId: string) => {
-  try {
 
-    if (!auth.currentUser) {
-      // Firebase 인증되지 않음
-      return { success: false, error: 'Firebase 인증되지 않음' };
-    }
-
-    const testRef = ref(database, `users/${userId}/test`);
-
-    // 읽기 권한 테스트
-    try {
-      await get(testRef);
-      // 읽기 권한 확인됨
-    } catch (readError) {
-      return { success: false, error: '읽기 권한 없음', details: readError };
-    }
-
-    // 쓰기 권한 테스트 (테스트 데이터 생성 후 삭제)
-    try {
-      const testData = { test: true, timestamp: Date.now() };
-      const newRef = await pushData(`users/${userId}/test`, testData);
-      // 쓰기 권한 확인됨
-
-      // 테스트 데이터 삭제
-      if (newRef) {
-        const deleteRef = ref(database, `users/${userId}/test/${newRef}`);
-        await remove(deleteRef);
-      }
-
-      return { success: true, message: 'Firebase 데이터베이스 연결 성공' };
-    } catch (writeError) {
-      return { success: false, error: '쓰기 권한 없음', details: writeError };
-    }
-
-  } catch (error) {
-    console.error('❌ Firebase 데이터베이스 연결 테스트 실패:', error);
-    return { success: false, error: '연결 테스트 실패', details: error };
-  }
-};
 
 // 사용자의 모든 월의 비행 데이터 가져오기
 export const getAllFlights = async (userId: string) => {
@@ -914,6 +874,14 @@ export const saveDocumentExpiryDates = async (userId: string, expiryDates: { [ke
     // 데이터 암호화 (AES-GCM)
     const encryptedExpiryDates = await encryptDocumentExpiryDates(expiryDates, userId);
 
+    // IndexedDB에 암호화된 상태로 저장 (오프라인 대응)
+    await indexedDBCache.saveDocumentExpiryDates(encryptedExpiryDates, userId);
+
+    // 오프라인 모드면 여기서 종료
+    if (isFirebaseOffline()) {
+      return true;
+    }
+
     const success = await writeData(expiryDatesPath, encryptedExpiryDates);
     return success;
   } catch (error) {
@@ -926,48 +894,85 @@ export const saveDocumentExpiryDates = async (userId: string, expiryDates: { [ke
 export const getDocumentExpiryDates = async (userId: string) => {
   try {
     const expiryDatesPath = `users/${userId}/documentExpiryDates`;
-    const encryptedExpiryDates = await readData(expiryDatesPath);
+    let encryptedExpiryDates: { [key: string]: string } | null = null;
 
+    // 오프라인 모드가 아니면 Firebase에서 시도
+    if (!isFirebaseOffline()) {
+      encryptedExpiryDates = await readData(expiryDatesPath);
+    }
+
+    // 데이터가 없으면 IndexedDB 캐시에서 확인
     if (!encryptedExpiryDates) {
-      return {};
+      const cachedDates = await indexedDBCache.loadDocumentExpiryDates(userId);
+      if (Object.keys(cachedDates).length > 0) {
+        encryptedExpiryDates = cachedDates;
+      } else {
+        return {};
+      }
     }
 
     // 데이터 복호화 (기존 방식 우선)
     const decryptedExpiryDates = await decryptDocumentExpiryDates(encryptedExpiryDates, userId);
 
     // 업그레이드가 필요한지 확인 (기존 방식으로 복호화된 데이터가 있는지)
-    const needsUpgrade = Object.values(encryptedExpiryDates).some((encryptedDate: string) => {
-      try {
-        // 기존 방식으로 복호화 시도
-        const legacyResult = decryptDataLegacy(encryptedDate);
-        return isValidDateFormat(legacyResult);
-      } catch {
-        return false;
+    // 오프라인일 때는 업그레이드 생략 (Firebase 저장이 안되므로)
+    if (!isFirebaseOffline()) {
+      const needsUpgrade = Object.values(encryptedExpiryDates).some((encryptedDate: string) => {
+        try {
+          // 기존 방식으로 복호화 시도
+          const legacyResult = decryptDataLegacy(encryptedDate);
+          return isValidDateFormat(legacyResult);
+        } catch {
+          return false;
+        }
+      });
+
+      // 업그레이드가 필요한 경우에만 실행
+      if (needsUpgrade) {
+        try {
+          // 모든 데이터를 새로운 방식으로 업그레이드
+          const upgradedExpiryDates = await upgradeDocumentExpiryDates(encryptedExpiryDates, userId);
+
+          // 업그레이드된 데이터를 Firebase에 저장
+          await writeData(expiryDatesPath, upgradedExpiryDates);
+
+          // IndexedDB에도 저장
+          await indexedDBCache.saveDocumentExpiryDates(upgradedExpiryDates, userId);
+
+          // 업그레이드된 데이터로 다시 복호화
+          const upgradedDecryptedDates = await decryptDocumentExpiryDates(upgradedExpiryDates, userId);
+          return upgradedDecryptedDates;
+        } catch (upgradeError) {
+          console.error('업그레이드 오류:', upgradeError);
+          // 업그레이드 실패 시 기존 데이터 반환
+          return decryptedExpiryDates;
+        }
       }
-    });
+    }
 
-    // 업그레이드가 필요한 경우에만 실행
-    if (needsUpgrade) {
-      try {
-        // 모든 데이터를 새로운 방식으로 업그레이드
-        const upgradedExpiryDates = await upgradeDocumentExpiryDates(encryptedExpiryDates, userId);
-
-        // 업그레이드된 데이터를 Firebase에 저장
-        await writeData(expiryDatesPath, upgradedExpiryDates);
-
-        // 업그레이드된 데이터로 다시 복호화
-        const upgradedDecryptedDates = await decryptDocumentExpiryDates(upgradedExpiryDates, userId);
-        return upgradedDecryptedDates;
-      } catch (upgradeError) {
-        console.error('업그레이드 오류:', upgradeError);
-        // 업그레이드 실패 시 기존 데이터 반환
-        return decryptedExpiryDates;
-      }
+    // 읽은 데이터(Firebase 또는 Cache)를 최신 상태로 캐시에 저장
+    if (encryptedExpiryDates && !isFirebaseOffline()) {
+      // 비동기로 저장 (사용자 경험 저하 방지)
+      indexedDBCache.saveDocumentExpiryDates(encryptedExpiryDates, userId).catch(e =>
+        console.warn('⚠️ 문서 만료일 캐시 업데이트 실패:', e)
+      );
     }
 
     return decryptedExpiryDates;
   } catch (error) {
     console.error('Error getting document expiry dates:', error);
+
+    // 오류 발생 시 캐시에서 시도
+    try {
+      const cachedDates = await indexedDBCache.loadDocumentExpiryDates(userId);
+      if (Object.keys(cachedDates).length > 0) {
+        const decryptedExpiryDates = await decryptDocumentExpiryDates(cachedDates, userId);
+        return decryptedExpiryDates;
+      }
+    } catch (cacheError) {
+      console.error('Failed to load expiry dates from cache:', cacheError);
+    }
+
     return {};
   }
 };

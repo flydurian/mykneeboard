@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Flight } from '../../types';
+import { Flight, CrewMember } from '../../types';
 import { XIcon, MemoIcon } from '../icons';
 import { parse, subMinutes, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -25,9 +25,9 @@ const DeleteIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" })
 interface FlightDetailModalProps {
     flight: Flight | null;
     onClose: () => void;
-    onUpdateStatus: (flightId: number, statusToToggle: 'departed' | 'landed') => void;
-    onStatusChange?: (flightId: string, status: Partial<{ departed: boolean; landed: boolean }>) => void;
-    flightType?: 'last' | 'next'; // 추가: 비행 타입
+    onUpdateStatus: (flightId: number, statusToToggle: 'departed' | 'landed') => Promise<void>;
+    onStatusChange?: (flightId: string | number, status: Partial<{ departed: boolean; landed: boolean }>) => void;
+    flightType?: 'last' | 'next' | 'nextNext'; // 추가: 비행 타입
     currentUser?: { displayName: string | null; empl?: string; userName?: string; company?: string } | null; // 현재 사용자 정보 추가 (EMPL, userName, company 포함)
     onCrewClick: (crewName: string, empl?: string, crewType?: 'flight' | 'cabin') => void;
     onMemoClick?: (crewName: string) => void; // ✨ 메모 클릭 핸들러 추가
@@ -46,16 +46,16 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
     const [editingRegNo, setEditingRegNo] = useState<string>('');
     const [isCabinCrewExpanded, setIsCabinCrewExpanded] = useState(false);
     const [timeDisplayMode, setTimeDisplayMode] = useState<'local' | 'utc' | 'kst'>('local'); // L/Z/K 버튼 상태
-    const [cabinCrewList, setCabinCrewList] = useState(() => {
+    const [cabinCrewList, setCabinCrewList] = useState<CrewMember[]>(() => {
         if (flight?.cabinCrew) {
-            return Array.isArray(flight.cabinCrew) ? flight.cabinCrew : Object.values(flight.cabinCrew);
+            return Array.isArray(flight.cabinCrew) ? flight.cabinCrew : Object.values(flight.cabinCrew) as unknown as CrewMember[];
         }
         return [];
     });
     const [newCabinCrewMember, setNewCabinCrewMember] = useState({ empl: '', name: '', rank: '', gisu: '' });
-    const [crewList, setCrewList] = useState(() => {
+    const [crewList, setCrewList] = useState<CrewMember[]>(() => {
         if (flight?.crew) {
-            return Array.isArray(flight.crew) ? flight.crew : Object.values(flight.crew);
+            return Array.isArray(flight.crew) ? flight.crew : Object.values(flight.crew) as unknown as CrewMember[];
         }
         return [];
     });
@@ -64,7 +64,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
     useEffect(() => {
         if (flight?.crew) {
             // Firebase에서 오는 crew 데이터가 객체인 경우 배열로 변환
-            const crewArray = Array.isArray(flight.crew) ? flight.crew : Object.values(flight.crew);
+            const crewArray = Array.isArray(flight.crew) ? flight.crew : Object.values(flight.crew) as unknown as CrewMember[];
             setCrewList(crewArray);
         } else {
             setCrewList([]);
@@ -75,7 +75,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
     useEffect(() => {
         if (flight?.cabinCrew) {
             // Firebase에서 오는 cabinCrew 데이터가 객체인 경우 배열로 변환
-            const cabinCrewArray = Array.isArray(flight.cabinCrew) ? flight.cabinCrew : Object.values(flight.cabinCrew);
+            const cabinCrewArray = Array.isArray(flight.cabinCrew) ? flight.cabinCrew : Object.values(flight.cabinCrew) as unknown as CrewMember[];
             setCabinCrewList(cabinCrewArray);
         } else {
             setCabinCrewList([]);
@@ -213,8 +213,8 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                 // version 업데이트 (수정사항이 있을 때마다)
                 const updatedFlight = {
                     ...flight,
-                    crew: crewObject,
-                    cabinCrew: cabinCrewObject,
+                    crew: crewObject as any,
+                    cabinCrew: cabinCrewObject as any,
                     regNo: editingRegNo.trim() || null,
                     version: (flight.version || 0) + 1,
                     lastModified: new Date().toISOString()
@@ -283,10 +283,10 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                 };
 
                 // UI용 배열로 변환
-                const updatedCrewList = Object.values(updatedCrewObject);
+                const updatedCrewList = Object.values(updatedCrewObject) as unknown as CrewMember[];
                 setCrewList(updatedCrewList);
                 setEditingCrew(null);
-                setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '' });
+                setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '', gisu: '' });
 
                 // 즉시 Firebase에 저장
                 if (onEditFlight) {
@@ -297,7 +297,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                     // version 업데이트 (수정사항이 있을 때마다)
                     const updatedFlight = {
                         ...flight,
-                        crew: crewObject,
+                        crew: crewObject as any,
                         version: (flight.version || 0) + 1,
                         lastModified: new Date().toISOString()
                     };
@@ -322,7 +322,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
     // 승무원 편집 취소
     const handleCancelCrewEdit = () => {
         setEditingCrew(null);
-        setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '' });
+        setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '', gisu: '' });
     };
 
     // 승무원 삭제 (기존 데이터 유지하면서 삭제)
@@ -337,10 +337,10 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
 
         if (crewIndexToDelete !== undefined) {
             // 해당 인덱스의 승무원을 삭제하고 객체에서 제거
-            const { [crewIndexToDelete]: deleted, ...remainingCrewObject } = existingCrewObject;
+            const { [crewIndexToDelete]: deleted, ...remainingCrewObject } = existingCrewObject as any;
 
             // UI용 배열로 변환
-            const updatedCrewList = Object.values(remainingCrewObject);
+            const updatedCrewList = Object.values(remainingCrewObject) as unknown as CrewMember[];
             setCrewList(updatedCrewList);
 
             // 즉시 Firebase에 저장
@@ -352,7 +352,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                 // version 업데이트 (수정사항이 있을 때마다)
                 const updatedFlight = {
                     ...flight,
-                    crew: crewObject,
+                    crew: crewObject as any,
                     version: (flight.version || 0) + 1,
                     lastModified: new Date().toISOString()
                 };
@@ -377,7 +377,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
         if (newCrewMember.empl && newCrewMember.name && newCrewMember.rank && newCrewMember.posnType && newCrewMember.posn) {
             // 기존 crew 데이터 가져오기 (Firebase에서 온 원본 데이터)
             const existingCrewArray = flight?.crew ?
-                (Array.isArray(flight.crew) ? flight.crew : Object.values(flight.crew)) : [];
+                (Array.isArray(flight.crew) ? flight.crew : Object.values(flight.crew) as unknown as CrewMember[]) : [];
 
             // 중복 EMPL 확인 (기존 데이터와 현재 crewList 모두 확인)
             const isDuplicate = [...existingCrewArray, ...crewList].some(crew => crew.empl === newCrewMember.empl);
@@ -409,7 +409,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
             };
 
             // UI용 배열로 변환
-            const updatedCrewList = Object.values(updatedCrewObject);
+            const updatedCrewList = Object.values(updatedCrewObject) as unknown as CrewMember[];
             setCrewList(updatedCrewList);
             setNewCrewMember({ empl: '', name: '', rank: '', posnType: '', posn: '', gisu: '' });
 
@@ -422,7 +422,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
                 // version 업데이트 (수정사항이 있을 때마다)
                 const updatedFlight = {
                     ...flight,
-                    crew: crewObject,
+                    crew: crewObject as any,
                     version: (flight.version || 0) + 1,
                     lastModified: new Date().toISOString()
                 };
@@ -513,7 +513,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
 
                 const updatedFlight = {
                     ...flight,
-                    cabinCrew: cabinCrewObject,
+                    cabinCrew: cabinCrewObject as any,
                     lastModified: new Date().toISOString(),
                     version: (flight.version || 0) + 1
                 };
@@ -546,7 +546,7 @@ const FlightDetailModal: React.FC<FlightDetailModalProps> = ({ flight, onClose, 
 
             const updatedFlight = {
                 ...flight,
-                cabinCrew: cabinCrewObject,
+                cabinCrew: cabinCrewObject as any,
                 lastModified: new Date().toISOString(),
                 version: (flight.version || 0) + 1
             };

@@ -10,6 +10,7 @@ export class IndexedDBCache {
   private readonly REST_INFO_STORE = 'restInfo';
   private readonly USER_SETTINGS_STORE = 'userSettings';
   private readonly FLIGHT_SCHEDULES_STORE = 'flightSchedules';
+  private readonly DOCUMENT_EXPIRY_STORE = 'documentExpiry';
   private readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7일 - 장시간 비행모드 대응
 
   private db: IDBDatabase | null = null;
@@ -70,9 +71,15 @@ export class IndexedDBCache {
           flightSchedulesStore.createIndex('arrival', 'arrival', { unique: false });
           flightSchedulesStore.createIndex('cachedAt', 'cachedAt', { unique: false });
         }
+
+        // 문서 만료일 저장소
+        if (!db.objectStoreNames.contains(this.DOCUMENT_EXPIRY_STORE)) {
+          const expiryStore = db.createObjectStore(this.DOCUMENT_EXPIRY_STORE, { keyPath: 'userId' });
+        }
       };
     });
   }
+
 
   // 사용자 설정 저장 (회사/베이스) - 기존 설정과 병합
   async saveUserSettings(userId: string, settings: { company?: string; base?: string }): Promise<void> {
@@ -552,6 +559,57 @@ export class IndexedDBCache {
       return result;
     } catch (error) {
       console.error('❌ IndexedDB 도시 메모 불러오기 실패:', error);
+      return {};
+    }
+  }
+
+  // 문서 만료일 저장
+  async saveDocumentExpiryDates(expiryDates: { [key: string]: string }, userId: string): Promise<void> {
+    try {
+      const db = await this.getDB();
+      if (!db.objectStoreNames.contains(this.DOCUMENT_EXPIRY_STORE)) return;
+
+      const tx = db.transaction([this.DOCUMENT_EXPIRY_STORE], 'readwrite');
+      const store = tx.objectStore(this.DOCUMENT_EXPIRY_STORE);
+
+      const data = {
+        userId,
+        expiryDates,
+        timestamp: Date.now()
+      };
+
+      store.put(data);
+
+      await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (error) {
+      console.error('❌ IndexedDB 문서 만료일 저장 실패:', error);
+    }
+  }
+
+  // 문서 만료일 불러오기
+  async loadDocumentExpiryDates(userId: string): Promise<{ [key: string]: string }> {
+    try {
+      const db = await this.getDB();
+      if (!db.objectStoreNames.contains(this.DOCUMENT_EXPIRY_STORE)) return {};
+
+      const tx = db.transaction([this.DOCUMENT_EXPIRY_STORE], 'readonly');
+      const store = tx.objectStore(this.DOCUMENT_EXPIRY_STORE);
+      const request = store.get(userId);
+
+      const result = await new Promise<any>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      if (result && result.expiryDates) {
+        return result.expiryDates;
+      }
+      return {};
+    } catch (error) {
+      console.error('❌ IndexedDB 문서 만료일 불러오기 실패:', error);
       return {};
     }
   }
