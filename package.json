@@ -1,7 +1,7 @@
 {
   "name": "mykneeboard",
   "private": true,
-  "version": "2.2.5",
+  "version": "2.2.6",
   "type": "module",
   "scripts": {
     "dev": "node generate-version.js && vite",

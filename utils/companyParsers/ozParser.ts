@@ -89,8 +89,8 @@ const calculateShowUpTime = (departureDate: string, departureTime: string, route
     const departureDateTimeString = `${departureDate}T${departureTime}`;
     const departureUtc = fromZonedTime(departureDateTimeString, depTz);
 
-    // Show Up 시간 계산 (1시간 20분 = 80분 빼기)
-    const showUpUtc = new Date(departureUtc.getTime() - 80 * 60 * 1000);
+    // Show Up 시간 계산 (1시간 35분 = 95분 빼기)
+    const showUpUtc = new Date(departureUtc.getTime() - 95 * 60 * 1000);
 
     // 유효한 Date 객체인지 확인
     if (isNaN(showUpUtc.getTime())) {
