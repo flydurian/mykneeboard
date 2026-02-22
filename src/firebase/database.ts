@@ -319,7 +319,10 @@ export const getAllFlights = async (userId: string) => {
     // 오프라인 상태 체크
     if (isFirebaseOffline()) {
       console.log('⚠️ getAllFlights: 오프라인 모드 - 캐시된 데이터 사용');
-      throw new Error('OFFLINE_MODE');
+      const cachedFlights = await indexedDBCache.loadFlights(userId);
+      if (cachedFlights && cachedFlights.length > 0) {
+        return cachedFlights;
+      }
     }
 
     if (!userId) {
@@ -411,11 +414,31 @@ export const getAllFlights = async (userId: string) => {
         return 0;
       });
 
+      // 💾 IndexedDB 캐시 업데이트
+      if (sortedFlights.length > 0) {
+        try {
+          await indexedDBCache.saveFlights(sortedFlights, userId);
+          console.log(`✅ IndexedDB 캐시 업데이트 완료: ${sortedFlights.length}개 비행`);
+        } catch (cacheError) {
+          console.warn('⚠️ IndexedDB 캐시 업데이트 실패:', cacheError);
+        }
+      }
 
       return sortedFlights;
 
     } catch (dbError) {
       console.error('❌ Firebase 데이터베이스 읽기 오류:', dbError);
+
+      // 오프라인이거나 네트워크 오류 시 IndexedDB 캐시 로드 시도
+      try {
+        const cachedFlights = await indexedDBCache.loadFlights(userId);
+        if (cachedFlights && cachedFlights.length > 0) {
+          console.log('✅ 네트워크 오류로 인한 IndexedDB 캐시 사용 성공');
+          return cachedFlights;
+        }
+      } catch (cacheError) {
+        console.error('❌ 캐시 로드 실패:', cacheError);
+      }
 
       // 권한 오류인 경우 빈 배열 반환
       if (dbError.code === 'PERMISSION_DENIED') {
@@ -517,6 +540,16 @@ export const addFlight = async (flightData: any, userId: string) => {
     }
   }
 
+  // 💾 IndexedDB 캐시 업데이트 (단일 항목 추가)
+  try {
+    if (newKey) {
+      const flightWithId = { ...cleanedFlightData, id: safeParseInt(newKey) };
+      await indexedDBCache.updateFlightData(flightWithId);
+    }
+  } catch (e) {
+    console.warn('⚠️ IndexedDB 캐시 업데이트 실패 (addFlight):', e);
+  }
+
   return newKey;
 };
 
@@ -573,6 +606,14 @@ export const updateFlight = async (flightId: number, dataToUpdate: any, userId: 
                   }
 
                   found = true;
+
+                  // 💾 IndexedDB 캐시 업데이트 (이륙/착륙 상태 등)
+                  try {
+                    await indexedDBCache.updateFlight(flightId, dataToUpdate, userId);
+                  } catch (e) {
+                    console.warn('⚠️ IndexedDB 캐시 업데이트 실패 (updateFlight):', e);
+                  }
+
                   break;
                 }
               }
@@ -615,12 +656,15 @@ export const deleteFlight = async (flightId: string, storagePath: { year: string
 
   const result = await deleteData(fullPath);
 
-  // 🔧 알림 인덱스 삭제
-  if (result && flightDate && validFlightId) {
+  // 🔧 알림 인덱스 삭제 및 💾 IndexedDB 캐시 업데이트
+  if (result) {
     try {
-      await remove(ref(database, getAlarmIndexPath(flightDate, userId, validFlightId)));
+      if (flightDate && validFlightId) {
+        await remove(ref(database, getAlarmIndexPath(flightDate, userId, validFlightId)));
+      }
+      await indexedDBCache.deleteFlight(Number(validFlightId));
     } catch (e) {
-      console.warn('알림 인덱스 삭제 실패:', e);
+      console.warn('⚠️ 후속 작업 실패 (deleteFlight):', e);
     }
   }
 
@@ -894,6 +938,16 @@ export const saveDocumentExpiryDates = async (userId: string, expiryDates: { [ke
 export const getDocumentExpiryDates = async (userId: string) => {
   try {
     const expiryDatesPath = `users/${userId}/documentExpiryDates`;
+
+    // ⚡ 오프라인 상태이면 즉시 캐시에서 로드
+    if (isFirebaseOffline()) {
+      const cachedDates = await indexedDBCache.loadDocumentExpiryDates(userId);
+      if (Object.keys(cachedDates).length > 0) {
+        console.log('📴 오프라인 모드: 문서 만료일 캐시 로드');
+        return await decryptDocumentExpiryDates(cachedDates, userId);
+      }
+      return {};
+    }
     let encryptedExpiryDates: { [key: string]: string } | null = null;
 
     // 오프라인 모드가 아니면 Firebase에서 시도
@@ -1000,6 +1054,15 @@ export const saveCrewMemos = async (userId: string, memos: { [key: string]: stri
 // Crew 메모 불러오기
 export const getCrewMemos = async (userId: string): Promise<{ [key: string]: string }> => {
   try {
+    // ⚡ 오프라인 상태이면 즉시 캐시에서 로드
+    if (isFirebaseOffline()) {
+      const cachedEncryptedMemos = await indexedDBCache.loadCrewMemos(userId);
+      if (Object.keys(cachedEncryptedMemos).length > 0) {
+        console.log('📴 오프라인 모드: Crew 메모 캐시 로드');
+        return await decryptCrewMemos(cachedEncryptedMemos, userId);
+      }
+      return {};
+    }
 
     const memosRef = ref(database, `users/${userId}/crewMemos`);
     const snapshot = await get(memosRef);
@@ -1095,6 +1158,15 @@ export const saveCityMemos = async (userId: string, memos: { [key: string]: stri
 // 도시 메모 불러오기
 export const getCityMemos = async (userId: string): Promise<{ [key: string]: string }> => {
   try {
+    // ⚡ 오프라인 상태이면 즉시 캐시에서 로드
+    if (isFirebaseOffline()) {
+      const cachedEncryptedMemos = await indexedDBCache.loadCityMemos(userId);
+      if (Object.keys(cachedEncryptedMemos).length > 0) {
+        console.log('📴 오프라인 모드: 도시 메모 캐시 로드');
+        return await decryptCityMemos(cachedEncryptedMemos, userId);
+      }
+      return {};
+    }
 
     const userRef = ref(database, `users/${userId}/cityMemos`);
     const snapshot = await get(userRef);
@@ -1451,3 +1523,175 @@ export const subscribeToFlightSchedules = (userId: string, year: string, callbac
   return unsubscribe;
 };
 
+
+// --- Friends Feature Functions ---
+
+// 이메일 주소에서 특수문자 제거 (Firebase 키용)
+const sanitizeEmail = (email: string): string => {
+  return email.toLowerCase().replace(/\./g, ',');
+};
+
+// 이메일-UID 매핑 저장
+export const saveEmailToUidMapping = async (email: string, userId: string): Promise<void> => {
+  try {
+    if (!email || !userId || isFirebaseOffline()) return;
+    const sanitizedEmail = sanitizeEmail(email);
+    const mappingRef = ref(database, `emailToUid/${sanitizedEmail}`);
+    await set(mappingRef, userId);
+  } catch (error) {
+    console.error('이메일-UID 매핑 저장 실패:', error);
+  }
+};
+
+// 이메일로 UID 찾기
+export const getUidByEmail = async (email: string): Promise<string | null> => {
+  try {
+    if (isFirebaseOffline()) return null;
+    const sanitizedEmail = sanitizeEmail(email);
+    const mappingRef = ref(database, `emailToUid/${sanitizedEmail}`);
+    const snapshot = await get(mappingRef);
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.error('이메일로 UID 찾기 실패:', error);
+    return null;
+  }
+};
+
+// 친구 요청 보내기
+export const sendFriendRequest = async (fromUserId: string, fromEmail: string, fromName: string, toEmail: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    if (isFirebaseOffline()) return { success: false, message: '오프라인 상태에서는 친구 요청을 보낼 수 없습니다.' };
+
+    const toUserId = await getUidByEmail(toEmail);
+    if (!toUserId) {
+      return { success: false, message: '등록되지 않은 이메일입니다.' };
+    }
+
+    if (fromUserId === toUserId) {
+      return { success: false, message: '자기 자신에게 친구 요청을 보낼 수 없습니다.' };
+    }
+
+    // 이미 친구인지 확인
+    const friendsRef = ref(database, `users/${fromUserId}/friends/${toUserId}`);
+    const friendSnapshot = await get(friendsRef);
+    if (friendSnapshot.exists()) {
+      return { success: false, message: '이미 친구 관계입니다.' };
+    }
+
+    // 이미 보낸 요청이 있는지 확인 (중복 요청 방지)
+    const requestRef = ref(database, `users/${toUserId}/friendRequests/${fromUserId}`);
+    await set(requestRef, {
+      from: fromUserId,
+      email: fromEmail,
+      name: fromName,
+      status: 'pending',
+      timestamp: Date.now()
+    });
+
+    return { success: true, message: '친구 요청을 보냈습니다.' };
+  } catch (error) {
+    console.error('친구 요청 보내기 실패:', error);
+    return { success: false, message: '친구 요청 중 오류가 발생했습니다.' };
+  }
+};
+
+// 친구 요청 수락
+export const acceptFriendRequest = async (userId: string, friendUserId: string): Promise<void> => {
+  try {
+    if (isFirebaseOffline()) return;
+
+    // 친구 목록에 추가 (양방향)
+    const myFriendRef = ref(database, `users/${userId}/friends/${friendUserId}`);
+    const theirFriendRef = ref(database, `users/${friendUserId}/friends/${userId}`);
+
+    await Promise.all([
+      set(myFriendRef, true),
+      set(theirFriendRef, true)
+    ]);
+
+    // 요청 삭제
+    const requestRef = ref(database, `users/${userId}/friendRequests/${friendUserId}`);
+    await remove(requestRef);
+  } catch (error) {
+    console.error('친구 요청 수락 실패:', error);
+  }
+};
+
+// 친구 요청 거절/삭제
+export const rejectFriendRequest = async (userId: string, friendUserId: string): Promise<void> => {
+  try {
+    if (isFirebaseOffline()) return;
+    const requestRef = ref(database, `users/${userId}/friendRequests/${friendUserId}`);
+    await remove(requestRef);
+  } catch (error) {
+    console.error('친구 요청 거절 실패:', error);
+  }
+};
+
+// 친구 목록 가져오기 (UID 리스트)
+export const getFriends = async (userId: string): Promise<string[]> => {
+  try {
+    if (isFirebaseOffline()) return [];
+    const friendsRef = ref(database, `users/${userId}/friends`);
+    const snapshot = await get(friendsRef);
+    if (!snapshot.exists()) return [];
+    return Object.keys(snapshot.val());
+  } catch (error) {
+    console.error('친구 목록 가져오기 실패:', error);
+    return [];
+  }
+};
+
+// 친구 해제 (양방향 삭제)
+export const removeFriend = async (userId: string, friendUserId: string): Promise<void> => {
+  try {
+    if (isFirebaseOffline()) return;
+    const myFriendRef = ref(database, `users/${userId}/friends/${friendUserId}`);
+    const theirFriendRef = ref(database, `users/${friendUserId}/friends/${userId}`);
+    await Promise.all([
+      remove(myFriendRef),
+      remove(theirFriendRef)
+    ]);
+  } catch (error) {
+    console.error('친구 해제 실패:', error);
+  }
+};
+
+// 친구 요청 목록 가져오기
+export const getFriendRequests = async (userId: string): Promise<any[]> => {
+  try {
+    if (isFirebaseOffline()) return [];
+    const requestsRef = ref(database, `users/${userId}/friendRequests`);
+    const snapshot = await get(requestsRef);
+    if (!snapshot.exists()) return [];
+
+    const requestsData = snapshot.val();
+    return Object.keys(requestsData).map(key => ({
+      friendUserId: key,
+      ...requestsData[key]
+    }));
+  } catch (error) {
+    console.error('친구 요청 목록 가져오기 실패:', error);
+    return [];
+  }
+};
+
+// UID로 사용자 정보 가져오기 (친구 목록 표시용)
+export const getUserInfoByUid = async (userId: string): Promise<any | null> => {
+  try {
+    if (isFirebaseOffline()) return null;
+    const userRef = ref(database, `users/${userId}`);
+    const snapshot = await get(userRef);
+    if (!snapshot.exists()) return null;
+    const data = snapshot.val();
+    return {
+      displayName: data.displayName || data.userName || '사용자',
+      email: data.email || '',
+      company: data.company || '',
+      base: data.base || ''
+    };
+  } catch (error) {
+    console.error('사용자 정보 가져오기 실패:', error);
+    return null;
+  }
+};

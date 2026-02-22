@@ -3,12 +3,42 @@
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
+        ".write": "auth != null && auth.uid == $uid",
+        "friends": {
+          ".read": "auth != null",
+          "$friendUid": {
+            ".write": "auth != null && (auth.uid == $uid || auth.uid == $friendUid)"
+          }
+        },
+        "friendRequests": {
+          ".read": "auth != null && auth.uid == $uid",
+          "$fromUid": {
+            ".write": "auth != null"
+          }
+        },
+        "displayName": {
+          ".read": "auth != null"
+        },
+        "userName": {
+          ".read": "auth != null"
+        },
+        "company": {
+          ".read": "auth != null"
+        },
+        "base": {
+          ".read": "auth != null"
+        }
+      }
+    },
+    "emailToUid": {
+      ".read": "auth != null",
+      "$sanitizedEmail": {
+        ".write": "auth != null"
       }
     },
     "flights": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
+        ".read": "auth != null && (auth.uid == $uid || root.child('users').child($uid).child('friends').child(auth.uid).exists())",
         ".write": "auth != null && auth.uid == $uid"
       }
     },

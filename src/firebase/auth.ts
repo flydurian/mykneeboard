@@ -1,7 +1,7 @@
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
   updateProfile,
   updatePassword,
@@ -96,18 +96,18 @@ const createOfflineUser = (authData: OfflineAuthData): User => {
     providerData: [],
     refreshToken: '',
     tenantId: null,
-    delete: async () => {},
+    delete: async () => { },
     getIdToken: async () => '',
     getIdTokenResult: async () => ({} as any),
-    reload: async () => {},
+    reload: async () => { },
     toJSON: () => ({})
   } as User;
 };
 
 // 사용자 정보 가져오기 함수 (Firebase Authentication + settings 사용, 오프라인 지원)
-export const getUserInfo = async (uid: string): Promise<{status: UserStatus | null, email: string, displayName: string, company: string, empl?: string, userName?: string} | null> => {
+export const getUserInfo = async (uid: string): Promise<{ status: UserStatus | null, email: string, displayName: string, company: string, empl?: string, userName?: string } | null> => {
   try {
-    
+
     // 오프라인 모드인 경우 로컬 스토리지에서 데이터 가져오기
     if (!isOnline) {
       const offlineData = getOfflineAuthData();
@@ -123,20 +123,20 @@ export const getUserInfo = async (uid: string): Promise<{status: UserStatus | nu
       }
       return null;
     }
-    
+
     // 온라인 모드: Firebase Authentication에서 기본 정보 가져오기
     const user = auth.currentUser;
     if (!user || user.uid !== uid) {
       console.error('❌ 현재 사용자와 UID가 일치하지 않음');
       return null;
     }
-    
+
     // settings에서 회사 정보 가져오기
     const settingsRef = ref(database, `users/${uid}/settings`);
     const settingsSnapshot = await get(settingsRef);
-    
-    
-    let result: {status: UserStatus | null, email: string, displayName: string, company: string, empl?: string, userName?: string} = {
+
+
+    let result: { status: UserStatus | null, email: string, displayName: string, company: string, empl?: string, userName?: string } = {
       status: 'approved', // 모든 사용자는 기본적으로 승인됨
       email: user.email || '',
       displayName: user.displayName || '',
@@ -144,11 +144,11 @@ export const getUserInfo = async (uid: string): Promise<{status: UserStatus | nu
       empl: '',
       userName: ''
     };
-    
+
     // settings 데이터가 있으면 회사 정보 및 EMPL ID 업데이트 (암호화 없음)
     if (settingsSnapshot.exists()) {
       const settingsData = settingsSnapshot.val();
-      
+
       if (settingsData.airline) {
         result.company = settingsData.airline;
       }
@@ -159,7 +159,7 @@ export const getUserInfo = async (uid: string): Promise<{status: UserStatus | nu
         result.userName = settingsData.userName;
       }
     }
-    
+
     // 온라인 로그인 성공 시 오프라인 데이터 저장
     const offlineAuthData: OfflineAuthData = {
       uid: user.uid,
@@ -172,11 +172,15 @@ export const getUserInfo = async (uid: string): Promise<{status: UserStatus | nu
       isOfflineMode: false
     };
     saveOfflineAuthData(offlineAuthData);
-    
+
+    // 이메일-UID 매핑 저장 (친구 추가용)
+    const { saveEmailToUidMapping } = await import('./database');
+    saveEmailToUidMapping(result.email, user.uid).catch(e => console.error('이메일 매핑 저장 실패:', e));
+
     return result;
   } catch (error) {
     console.error('❌ 사용자 정보 확인 오류:', error);
-    
+
     // 오류 발생 시 오프라인 데이터로 폴백
     const offlineData = getOfflineAuthData();
     if (offlineData && offlineData.uid === uid) {
@@ -189,7 +193,7 @@ export const getUserInfo = async (uid: string): Promise<{status: UserStatus | nu
         userName: offlineData.userName
       };
     }
-    
+
     return null;
   }
 };
@@ -199,7 +203,7 @@ export const getUserInfo = async (uid: string): Promise<{status: UserStatus | nu
 const isNetworkError = (error: any): boolean => {
   const errorMessage = error?.message || '';
   const errorCode = error?.code || '';
-  
+
   return (
     errorMessage.includes('net::ERR_INTERNET_DISCONNECTED') ||
     errorMessage.includes('net::ERR_NETWORK_CHANGED') ||
@@ -218,26 +222,26 @@ export const loginUser = async (email: string, password: string): Promise<{ succ
     if (!isOnline) {
       return { success: false, error: "네트워크 연결을 확인해주세요." };
     }
-    
+
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    
+
     // Firebase Authentication을 통한 로그인 성공 (모든 사용자 허용)
-    
+
     // 모든 사용자 로그인 허용 (승인 시스템 제거)
     return { success: true };
   } catch (error) {
     const authError = error as AuthError;
-    
+
     // 네트워크 오류인 경우 특별 처리
     if (isNetworkError(authError)) {
       isOnline = false;
       stopFirebaseListener();
       return { success: false, error: "인터넷 연결을 확인해주세요." };
     }
-    
+
     let errorMessage = "로그인에 실패했습니다.";
-    
+
     switch (authError.code) {
       case 'auth/user-not-found':
         errorMessage = "등록되지 않은 이메일입니다.";
@@ -257,7 +261,7 @@ export const loginUser = async (email: string, password: string): Promise<{ succ
       default:
         errorMessage = authError.message || "로그인에 실패했습니다.";
     }
-    
+
     return { success: false, error: errorMessage };
   }
 };
@@ -269,47 +273,51 @@ export const registerUser = async (email: string, password: string, displayName:
     if (!isOnline) {
       return { success: false, error: "네트워크 연결을 확인해주세요." };
     }
-    
+
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    
+
     // 사용자 프로필 업데이트 (사용자 이름 설정)
     await updateProfile(user, {
       displayName: displayName
     });
-    
+
     // 모든 회원가입 시 사용자 정보를 settings에 저장
     const { saveUserSettings } = await import('./database');
     const settingsData: { airline: string; userName: string; empl?: string } = {
       airline: company,
       userName: displayName
     };
-    
+
     // KE 회원가입 시 EMPL ID도 저장
     if (company === 'KE' && empl) {
       settingsData.empl = empl;
     }
-    
+
     // 7C 회원가입 시 제주항공 로고 적용을 위한 설정 저장
     if (company === '7C') {
       settingsData.airline = '7C'; // 제주항공 코드로 설정
     }
-    
+
     await saveUserSettings(user.uid, settingsData);
-    
+
+    // 이메일-UID 매핑 저장 (친구 추가용)
+    const { saveEmailToUidMapping } = await import('./database');
+    await saveEmailToUidMapping(email, user.uid);
+
     return { success: true };
   } catch (error) {
     const authError = error as AuthError;
-    
+
     // 네트워크 오류인 경우 특별 처리
     if (isNetworkError(authError)) {
       isOnline = false;
       stopFirebaseListener();
       return { success: false, error: "인터넷 연결을 확인해주세요." };
     }
-    
+
     let errorMessage = "회원가입에 실패했습니다.";
-    
+
     switch (authError.code) {
       case 'auth/email-already-in-use':
         errorMessage = "이미 사용 중인 이메일입니다.";
@@ -323,7 +331,7 @@ export const registerUser = async (email: string, password: string, displayName:
       default:
         errorMessage = authError.message || "회원가입에 실패했습니다.";
     }
-    
+
     return { success: false, error: errorMessage };
   }
 };
@@ -334,10 +342,10 @@ export const logoutUser = async (): Promise<{ success: boolean; error?: string }
     // 현재 사용자 ID 가져오기 (데이터 삭제용)
     const currentUser = auth.currentUser;
     const userId = currentUser?.uid;
-    
+
     // 오프라인 데이터 삭제 (온라인/오프라인 관계없이)
     clearOfflineAuthData();
-    
+
     // 모든 사용자 데이터 삭제 (테마 설정 제외)
     try {
       const { clearAllUserData } = await import('../../utils/logoutDataCleanup');
@@ -346,17 +354,17 @@ export const logoutUser = async (): Promise<{ success: boolean; error?: string }
       console.error('❌ 사용자 데이터 삭제 중 오류:', dataCleanupError);
       // 데이터 삭제 실패해도 로그아웃은 계속 진행
     }
-    
+
     // 네트워크 상태 확인
     if (!isOnline) {
       return { success: true };
     }
-    
+
     await signOut(auth);
     return { success: true };
   } catch (error) {
     const authError = error as AuthError;
-    
+
     // 네트워크 오류인 경우 특별 처리
     if (isNetworkError(authError)) {
       isOnline = false;
@@ -364,7 +372,7 @@ export const logoutUser = async (): Promise<{ success: boolean; error?: string }
       // 오프라인 데이터는 이미 삭제됨
       return { success: true };
     }
-    
+
     return { success: false, error: authError.message || "로그아웃에 실패했습니다." };
   }
 };
@@ -398,7 +406,7 @@ function setupNetworkListeners(callback: (user: User | null) => void) {
     isOnline = true;
     startFirebaseListener(callback);
   });
-  
+
   window.addEventListener('offline', () => {
     isOnline = false;
     stopFirebaseListener();
@@ -409,7 +417,7 @@ function setupNetworkListeners(callback: (user: User | null) => void) {
 export const onAuthStateChange = (callback: (user: User | null) => void) => {
   // 네트워크 이벤트 리스너 설정
   setupNetworkListeners(callback);
-  
+
   // 4. 앱 시작 시 초기 상태 확인
   if (navigator.onLine) {
     startFirebaseListener(callback);
@@ -424,7 +432,7 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
       callback(null);
     }
   }
-  
+
   // 기존 구독 해제 함수 반환
   return () => {
     stopFirebaseListener();
@@ -458,28 +466,28 @@ export const isAdmin = async (userId: string): Promise<boolean> => {
     console.log('🔍 Firebase 경로: admin/' + userId);
     console.log('🔍 Database 객체:', database);
     console.log('🔍 Database URL:', database?.app?.options?.databaseURL);
-    
+
     const adminRef = ref(database, `admin/${userId}`);
     console.log('🔍 AdminRef 생성됨:', adminRef);
-    
+
     const snapshot = await get(adminRef);
     console.log('🔍 Snapshot 받음:', snapshot);
-    
+
     console.log('🔍 Firebase 응답 - exists:', snapshot.exists());
     console.log('🔍 Firebase 응답 - value:', snapshot.val());
     console.log('🔍 Firebase 응답 - type:', typeof snapshot.val());
     console.log('🔍 Firebase 응답 - key:', snapshot.key);
-    
+
     const adminStatus = snapshot.exists() && snapshot.val() === true;
-    
+
     console.log('🔍 최종 관리자 상태:', adminStatus);
-    
+
     // 관리자 정보를 localStorage에 캐싱
     localStorage.setItem(`admin_status_${userId}`, JSON.stringify({
       isAdmin: adminStatus,
       cachedAt: Date.now()
     }));
-    
+
     return adminStatus;
   } catch (error) {
     console.error('❌ 관리자 권한 확인 실패:', error);
@@ -531,7 +539,7 @@ export const updateUserPassword = async (currentPassword: string, newPassword: s
   } catch (error) {
     const authError = error as AuthError;
     let errorMessage = "비밀번호 변경에 실패했습니다.";
-    
+
     switch (authError.code) {
       case 'auth/wrong-password':
         errorMessage = "현재 비밀번호가 올바르지 않습니다.";
@@ -545,7 +553,7 @@ export const updateUserPassword = async (currentPassword: string, newPassword: s
       default:
         errorMessage = authError.message || "비밀번호 변경에 실패했습니다.";
     }
-    
+
     return { success: false, error: errorMessage };
   }
 };
@@ -557,19 +565,19 @@ export const resetPassword = async (email: string): Promise<{ success: boolean; 
     if (!isOnline) {
       return { success: false, error: "네트워크 연결을 확인해주세요." };
     }
-    
+
     await sendPasswordResetEmail(auth, email);
     return { success: true };
   } catch (error) {
     const authError = error as AuthError;
-    
+
     // 네트워크 오류인 경우 특별 처리
     if (isNetworkError(authError)) {
       isOnline = false;
       stopFirebaseListener();
       return { success: false, error: "인터넷 연결을 확인해주세요." };
     }
-    
+
     let errorMessage = "비밀번호 재설정 이메일 발송에 실패했습니다.";
 
     switch (authError.code) {

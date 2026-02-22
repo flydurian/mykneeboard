@@ -61,6 +61,7 @@ const PassportVisaWarningModal = lazy(() => import('./components/modals/Passport
 const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal'));
 const DeleteDataModal = lazy(() => import('./components/modals/DeleteDataModal'));
 const SearchModal = lazy(() => import('./components/modals/SearchModal'));
+const FriendsTab = lazy(() => import('./components/FriendsTab'));
 
 
 import { fetchAirlineData, fetchAirlineDataWithInfo, searchAirline, getAirlineByCode, AirlineInfo, AirlineDataInfo, convertFlightNumberToIATA } from './utils/airlineData';
@@ -499,14 +500,16 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('theme');
     return saved || 'dark'; // 기본값을 'dark'로 설정
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'rest' | 'flightData'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'friends' | 'rest' | 'flightData'>(() => {
     // 저장소 손실 시에도 dashboard 탭이 기본으로 표시되도록 설정
     const saved = localStorage.getItem('activeTab');
-    return (saved as 'dashboard' | 'rest' | 'flightData') || 'dashboard';
+    return (saved as any) || 'dashboard';
   });
+  const [friendModalData, setFriendModalData] = useState<MonthlyModalData | null>(null);
+  const [friendUserInfo, setFriendUserInfo] = useState<any>(null);
 
   // 탭 전환 함수 (오프라인 상태에서도 정상 작동)
-  const handleTabChange = useCallback((tab: 'dashboard' | 'rest' | 'flightData') => {
+  const handleTabChange = useCallback((tab: 'dashboard' | 'friends' | 'rest' | 'flightData') => {
     console.log('🔄 탭 전환:', tab, '오프라인:', isOffline);
     setActiveTab(tab);
 
@@ -2593,6 +2596,46 @@ const App: React.FC = () => {
   }, [flights, monthlyModalData, selectedFlight, user, updateFlightMutation]);
 
   // 모달 관련 핸들러들 - useCallback으로 최적화
+  // 친구 스케줄 보기 핸들러
+  const handleViewFriendSchedule = async (friendUid: string, friendName: string) => {
+    try {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth(); // 0-indexed
+
+      const friendFlights = await getAllFlights(friendUid);
+
+      if (friendFlights && friendFlights.length > 0) {
+        // 현재 월의 비행만 필터링
+        const filteredFlights = friendFlights.filter((f: Flight) => {
+          const fDate = new Date(f.date);
+          return fDate.getFullYear() === currentYear && fDate.getMonth() === currentMonth;
+        });
+
+        const blockMinutes = filteredFlights.reduce((acc: number, f: Flight) => {
+          return acc + (f.block || 0);
+        }, 0);
+
+        const h = Math.floor(blockMinutes / 60);
+        const m = blockMinutes % 60;
+        const blockTimeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+        setFriendModalData({
+          month: currentMonth,
+          year: currentYear,
+          flights: filteredFlights,
+          blockTime: blockTimeStr
+        });
+        setFriendUserInfo({ displayName: friendName });
+      } else {
+        alert('친구의 비행 데이터가 없습니다.');
+      }
+    } catch (error) {
+      console.error('친구 스케줄 가져오기 실패:', error);
+      alert('친구의 스케줄을 가져오는 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleCalendarClick = useCallback(() => {
     // 달력을 열 때 항상 오늘이 속한 연/월로 이동
     const now = new Date();
@@ -3554,7 +3597,7 @@ const App: React.FC = () => {
           <div className="w-full max-w-screen-xl mx-auto">
             <div className="glass-panel rounded-2xl p-1 mb-6 flex justify-between items-center sticky top-4 z-30">
               <div className="flex space-x-1 w-full">
-                {['dashboard', 'rest', 'flightData'].map((tab) => (
+                {['dashboard', 'friends', 'rest', 'flightData'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => handleTabChange(tab as any)}
@@ -3570,7 +3613,7 @@ const App: React.FC = () => {
                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                       />
                     )}
-                    {tab === 'dashboard' ? '대시보드' : tab === 'rest' ? '휴식 계산' : '비행 데이터'}
+                    {tab === 'dashboard' ? '대시보드' : tab === 'rest' ? '휴식 계산' : tab === 'flightData' ? '비행 데이터' : '친구'}
                   </button>
                 ))}
               </div>
@@ -3755,6 +3798,27 @@ const App: React.FC = () => {
                       })}
                     </div>
                   </section>
+                </motion.div>
+              )}
+
+              {activeTab === 'friends' && (
+                <motion.div
+                  key="friends"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Suspense fallback={
+                    <div className="text-center py-10 text-gray-400">
+                      친구 목록을 불러오고 있습니다...
+                    </div>
+                  }>
+                    <FriendsTab
+                      user={user}
+                      myFlights={flights}
+                    />
+                  </Suspense>
                 </motion.div>
               )}
 
@@ -4176,6 +4240,20 @@ const App: React.FC = () => {
           onStatusChange={handleStatusChange}
           userInfo={userInfo}
         />
+
+        {/* 친구 스케줄 모달 */}
+        {friendModalData && (
+          <MonthlyScheduleModal
+            data={friendModalData}
+            onClose={() => setFriendModalData(null)}
+            onFlightClick={(flight) => {
+              setSelectedFlight(flight);
+              setSelectedFlightType('next');
+            }}
+            onMonthChange={() => { }} // 친구 모달에서는 월 전환 미구현 (간단하게)
+            userInfo={friendUserInfo}
+          />
+        )}
         <CalendarModal
           isOpen={isCalendarModalOpen}
           onClose={handleCalendarClose}
