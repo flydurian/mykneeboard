@@ -116,3 +116,6 @@ temp/
 .vercel
 .env*.local
 dist/
+
+# Generated at build time (contains API keys)
+public/firebase-messaging-sw.js
