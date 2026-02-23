@@ -177,6 +177,12 @@ export const getUserInfo = async (uid: string): Promise<{ status: UserStatus | n
     const { saveEmailToUidMapping } = await import('./database');
     saveEmailToUidMapping(result.email, user.uid).catch(e => console.error('이메일 매핑 저장 실패:', e));
 
+    // displayName을 Realtime Database에도 저장 (친구가 프로필 조회 시 사용)
+    if (user.displayName) {
+      set(ref(database, `users/${user.uid}/displayName`), user.displayName)
+        .catch(e => console.error('displayName DB 저장 실패:', e));
+    }
+
     return result;
   } catch (error) {
     console.error('❌ 사용자 정보 확인 오류:', error);

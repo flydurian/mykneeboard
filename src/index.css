@@ -192,6 +192,20 @@ body.pwa-standalone {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* iOS Safari border-radius 호환성 - 둥근 모서리 강제 적용 */
+@supports (-webkit-touch-callout: none) {
+  [class*="rounded"] {
+    -webkit-appearance: none;
+    -webkit-border-radius: inherit;
+  }
+  .rounded { -webkit-border-radius: 0.25rem; border-radius: 0.25rem; }
+  .rounded-md { -webkit-border-radius: 0.375rem; border-radius: 0.375rem; }
+  .rounded-lg { -webkit-border-radius: 0.5rem; border-radius: 0.5rem; }
+  .rounded-xl { -webkit-border-radius: 0.75rem; border-radius: 0.75rem; }
+  .rounded-2xl { -webkit-border-radius: 1rem; border-radius: 1rem; }
+  .rounded-full { -webkit-border-radius: 9999px; border-radius: 9999px; }
+}
+
 /* iPad Safari 호환성 */
 @supports (-webkit-touch-callout: none) {
   body {

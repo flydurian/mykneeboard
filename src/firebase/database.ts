@@ -1676,19 +1676,75 @@ export const getFriendRequests = async (userId: string): Promise<any[]> => {
   }
 };
 
+// 친구 목록 실시간 구독
+export const subscribeFriends = (userId: string, callback: (uids: string[]) => void): (() => void) => {
+  const friendsRef = ref(database, `users/${userId}/friends`);
+  const unsubscribe = onValue(friendsRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback(Object.keys(snapshot.val()));
+    } else {
+      callback([]);
+    }
+  }, (error) => {
+    console.error('친구 목록 구독 오류:', error);
+    callback([]);
+  });
+  return unsubscribe;
+};
+
+// 친구 요청 실시간 구독
+export const subscribeFriendRequests = (userId: string, callback: (requests: any[]) => void): (() => void) => {
+  const requestsRef = ref(database, `users/${userId}/friendRequests`);
+  const unsubscribe = onValue(requestsRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      callback(Object.keys(data).map(key => ({ friendUserId: key, ...data[key] })));
+    } else {
+      callback([]);
+    }
+  }, (error) => {
+    console.error('친구 요청 구독 오류:', error);
+    callback([]);
+  });
+  return unsubscribe;
+};
+
 // UID로 사용자 정보 가져오기 (친구 목록 표시용)
+// settings 하위에 저장된 프로필 정보를 읽어옴
 export const getUserInfoByUid = async (userId: string): Promise<any | null> => {
   try {
     if (isFirebaseOffline()) return null;
-    const userRef = ref(database, `users/${userId}`);
-    const snapshot = await get(userRef);
-    if (!snapshot.exists()) return null;
-    const data = snapshot.val();
+    const basePath = `users/${userId}`;
+
+    // settings 하위 필드와 직접 필드를 모두 시도
+    const [
+      settingsUserNameSnap,
+      settingsCompanySnap,
+      settingsAirlineSnap,
+      settingsBaseSnap,
+      displayNameSnap,
+    ] = await Promise.all([
+      get(ref(database, `${basePath}/settings/userName`)),
+      get(ref(database, `${basePath}/settings/company`)),
+      get(ref(database, `${basePath}/settings/airline`)),
+      get(ref(database, `${basePath}/settings/base`)),
+      get(ref(database, `${basePath}/displayName`)),
+    ]);
+
+    const settingsUserName = settingsUserNameSnap.exists() ? settingsUserNameSnap.val() : null;
+    const displayName = displayNameSnap.exists() ? displayNameSnap.val() : null;
+    const company = settingsCompanySnap.exists() ? settingsCompanySnap.val() :
+      (settingsAirlineSnap.exists() ? settingsAirlineSnap.val() : '');
+    const base = settingsBaseSnap.exists() ? settingsBaseSnap.val() : '';
+
+    const name = displayName || settingsUserName;
+    if (!name) return null;
+
     return {
-      displayName: data.displayName || data.userName || '사용자',
-      email: data.email || '',
-      company: data.company || '',
-      base: data.base || ''
+      displayName: name,
+      email: '',
+      company: company || '',
+      base: base || ''
     };
   } catch (error) {
     console.error('사용자 정보 가져오기 실패:', error);

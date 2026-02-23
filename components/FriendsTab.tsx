@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    getFriends,
-    getFriendRequests,
     sendFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,
     removeFriend,
     getUserInfoByUid,
-    getAllFlights
+    getAllFlights,
+    subscribeFriends,
+    subscribeFriendRequests
 } from '../src/firebase/database';
 import { RefreshCwIcon, XIcon } from './icons';
 import { AirlineLogo } from './icons';
@@ -61,34 +61,46 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
     const [friendSchedules, setFriendSchedules] = useState<{ [uid: string]: Flight[] }>({});
     const [loadingSchedules, setLoadingSchedules] = useState<Set<string>>(new Set());
 
-    const fetchFriendsAndRequests = async () => {
-        if (!user?.uid) return;
+    // 친구 UID 변경 시 프로필 정보 로드
+    const loadFriendProfiles = useCallback(async (uids: string[]) => {
+        if (uids.length === 0) {
+            setFriendsList([]);
+            setIsFetching(false);
+            return;
+        }
         setIsFetching(true);
         try {
-            const [uids, requestsList] = await Promise.all([
-                getFriends(user.uid),
-                getFriendRequests(user.uid)
-            ]);
-
             const friendsData = await Promise.all(
                 uids.map(async (uid) => {
                     const info = await getUserInfoByUid(uid);
                     return { uid, ...info };
                 })
             );
-
-            setFriendsList(friendsData.filter(f => f.displayName));
-            setRequests(requestsList);
+            setFriendsList(friendsData.filter(f => f.displayName).sort((a, b) => a.displayName.localeCompare(b.displayName, 'ko')));
         } catch (error) {
-            console.error('데이터 가져오기 실패:', error);
+            console.error('프로필 로드 실패:', error);
         } finally {
             setIsFetching(false);
         }
-    };
+    }, []);
 
+    // 실시간 구독
     useEffect(() => {
-        fetchFriendsAndRequests();
-    }, [user]);
+        if (!user?.uid) return;
+
+        const unsubFriends = subscribeFriends(user.uid, (uids) => {
+            loadFriendProfiles(uids);
+        });
+
+        const unsubRequests = subscribeFriendRequests(user.uid, (requestsList) => {
+            setRequests(requestsList);
+        });
+
+        return () => {
+            unsubFriends();
+            unsubRequests();
+        };
+    }, [user?.uid, loadFriendProfiles]);
 
     // 친구 스케줄 로드
     const loadFriendSchedule = useCallback(async (uid: string) => {
@@ -149,7 +161,6 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
     const handleAccept = async (friendUserId: string) => {
         try {
             await acceptFriendRequest(user.uid, friendUserId);
-            fetchFriendsAndRequests();
             setMessage({ text: '친구 요청을 수락했습니다.', type: 'success' });
         } catch (error) {
             setMessage({ text: '수락 중 오류가 발생했습니다.', type: 'error' });
@@ -159,7 +170,6 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
     const handleReject = async (friendUserId: string) => {
         try {
             await rejectFriendRequest(user.uid, friendUserId);
-            fetchFriendsAndRequests();
             setMessage({ text: '친구 요청을 처리했습니다.', type: 'info' });
         } catch (error) {
             setMessage({ text: '처리 중 오류가 발생했습니다.', type: 'error' });
@@ -180,7 +190,6 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
                 return next;
             });
             setConfirmRemoveUid(null);
-            fetchFriendsAndRequests();
         } catch (error) {
             console.error('친구 해제 실패:', error);
         }
@@ -340,7 +349,7 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
                     </h3>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={fetchFriendsAndRequests}
+                            onClick={() => { if (user?.uid) loadFriendProfiles(friendsList.map(f => f.uid)); }}
                             className={`p-1.5 text-gray-400 hover:text-white transition-all rounded-lg hover:bg-white/10 ${isFetching ? 'animate-spin' : ''}`}
                         >
                             <RefreshCwIcon className="w-4 h-4" />
@@ -363,7 +372,7 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
                 ) : friendsList.length === 0 ? (
                     <p className="text-center py-2 text-gray-500 text-xs">+ 버튼으로 친구를 추가하세요</p>
                 ) : (
-                    <div className="space-y-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
                         {friendsList.map((friend, idx) => {
                             const isSelected = selectedFriends.has(friend.uid);
                             const color = isSelected ? friendColorMap[friend.uid] || FRIEND_COLORS[idx % FRIEND_COLORS.length] : null;
@@ -371,44 +380,42 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
                             return (
                                 <div
                                     key={friend.uid}
-                                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all border ${isSelected
+                                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all border cursor-pointer ${isSelected
                                         ? `${color!.bg} ${color!.border} border`
                                         : 'bg-white/5 border-transparent hover:bg-white/10'
                                         }`}
+                                    onClick={() => !isConfirming && toggleFriend(friend.uid)}
                                 >
-                                    {/* 체크박스 (클릭 영역) */}
-                                    <div
-                                        onClick={() => toggleFriend(friend.uid)}
-                                        className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
-                                    >
-                                        <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? `${color!.dot} border-transparent` : 'border-gray-500'}`}>
-                                            {isSelected && (
-                                                <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="font-medium text-sm text-gray-200 truncate">
-                                            {friend.displayName}
-                                        </span>
-                                        {friend.company && (
-                                            <AirlineLogo airline={friend.company} className="flex-shrink-0" />
+                                    {/* 체크박스 */}
+                                    <div className={`w-3 h-3 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? `${color!.dot} border-transparent` : 'border-gray-500'}`}>
+                                        {isSelected && (
+                                            <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
                                         )}
                                     </div>
-                                    {/* 로딩 / 삭제 */}
-                                    {isSelected && loadingSchedules.has(friend.uid) ? (
-                                        <RefreshCwIcon className="w-3 h-3 animate-spin text-gray-400 flex-shrink-0" />
-                                    ) : isConfirming ? (
-                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                    <span className="font-medium text-xs text-gray-200 truncate flex-1 min-w-0">
+                                        {friend.displayName}
+                                    </span>
+                                    {friend.company && (
+                                        <AirlineLogo airline={friend.company} className="flex-shrink-0 w-3.5 h-3.5" />
+                                    )}
+                                    {/* 로딩 */}
+                                    {isSelected && loadingSchedules.has(friend.uid) && (
+                                        <RefreshCwIcon className="w-2.5 h-2.5 animate-spin text-gray-400 flex-shrink-0" />
+                                    )}
+                                    {/* 삭제 확인 */}
+                                    {isConfirming ? (
+                                        <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleRemoveFriend(friend.uid)}
-                                                className="text-[10px] bg-red-600/30 hover:bg-red-600/50 text-red-400 px-1.5 py-0.5 rounded transition-all"
+                                                className="text-[9px] bg-red-600/30 hover:bg-red-600/50 text-red-400 px-1 py-0.5 rounded transition-all"
                                             >
                                                 해제
                                             </button>
                                             <button
                                                 onClick={() => setConfirmRemoveUid(null)}
-                                                className="text-[10px] bg-white/10 hover:bg-white/20 text-gray-400 px-1.5 py-0.5 rounded transition-all"
+                                                className="text-[9px] bg-white/10 hover:bg-white/20 text-gray-400 px-1 py-0.5 rounded transition-all"
                                             >
                                                 취소
                                             </button>
@@ -416,11 +423,10 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
                                     ) : (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setConfirmRemoveUid(friend.uid); }}
-                                            className="p-0.5 text-gray-600 hover:text-red-400 transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
-                                            style={{ opacity: 1 }}
+                                            className="p-0.5 text-gray-600 hover:text-red-400 transition-all flex-shrink-0"
                                             title="친구 해제"
                                         >
-                                            <XIcon className="w-3 h-3" />
+                                            <XIcon className="w-2.5 h-2.5" />
                                         </button>
                                     )}
                                 </div>
@@ -485,7 +491,7 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
                 <div className="grid grid-cols-7 gap-0.5">
                     {calendarDays.map((day, idx) => {
                         if (day === null) {
-                            return <div key={`empty-${idx}`} className="min-h-[60px]" />;
+                            return <div key={`empty-${idx}`} className="min-h-[48px]" />;
                         }
 
                         const today = new Date();
@@ -511,7 +517,7 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
                         return (
                             <div
                                 key={`day-${day}`}
-                                className={`min-h-[60px] rounded-lg p-0.5 border transition-all ${isToday ? 'border-indigo-500/50 bg-indigo-500/10' : 'border-white/5 bg-white/[0.02]'
+                                className={`min-h-[48px] rounded-lg p-0.5 border transition-all ${isToday ? 'border-indigo-500/50 bg-indigo-500/10' : 'border-white/5 bg-white/[0.02]'
                                     }`}
                             >
                                 {/* 날짜 숫자 */}
@@ -524,7 +530,7 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
 
                                 {/* 내 스케줄 */}
                                 {myDayFlights.map((f, i) => (
-                                    <div key={`my-${i}`} className={`${MY_COLOR.bg} ${MY_COLOR.text} text-[9px] leading-tight rounded px-0.5 py-px mb-px truncate`}>
+                                    <div key={`my-${i}`} className={`${MY_COLOR.bg} ${MY_COLOR.text} text-[10px] leading-tight rounded px-0.5 py-px mb-px truncate`}>
                                         {getScheduleLabel(f)}
                                     </div>
                                 ))}
@@ -532,7 +538,7 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
                                 {/* 친구 스케줄 */}
                                 {friendEntries.map(entry => (
                                     entry.flights.map((f, i) => (
-                                        <div key={`${entry.uid}-${i}`} className={`${entry.color.bg} ${entry.color.text} text-[9px] leading-tight rounded px-0.5 py-px mb-px truncate`}>
+                                        <div key={`${entry.uid}-${i}`} className={`${entry.color.bg} ${entry.color.text} text-[10px] leading-tight rounded px-0.5 py-px mb-px truncate`}>
                                             {getScheduleLabel(f)}
                                         </div>
                                     ))

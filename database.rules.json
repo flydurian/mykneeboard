@@ -16,6 +16,23 @@
             ".write": "auth != null"
           }
         },
+        "flights": {
+          ".read": "auth != null && (auth.uid == $uid || root.child('users').child($uid).child('friends').child(auth.uid).exists())"
+        },
+        "settings": {
+          "userName": {
+            ".read": "auth != null"
+          },
+          "company": {
+            ".read": "auth != null"
+          },
+          "airline": {
+            ".read": "auth != null"
+          },
+          "base": {
+            ".read": "auth != null"
+          }
+        },
         "displayName": {
           ".read": "auth != null"
         },
