@@ -682,20 +682,20 @@ export const syncAlarmIndexes = async (userId: string) => {
       return;
     }
 
-    const updates: { [key: string]: any } = {};
+    const promises: Promise<void>[] = [];
     let count = 0;
 
     allFlights.forEach(flight => {
       // Show Up 시간이 있고, 유효한 ID가 있는 경우
       if (flight.showUpDateTimeUtc && flight.date && flight.id) {
         const alarmPath = getAlarmIndexPath(flight.date, userId, String(flight.id));
-        updates[alarmPath] = createAlarmData(flight);
+        promises.push(set(ref(database, alarmPath), createAlarmData(flight)));
         count++;
       }
     });
 
     if (count > 0) {
-      await update(ref(database), updates);
+      await Promise.all(promises);
       console.log(`✅ ${count}개의 비행에 대한 알림 인덱스 생성 완료`);
     } else {
       console.log('업데이트할 알림 인덱스 없음');
@@ -1041,9 +1041,13 @@ export const saveCrewMemos = async (userId: string, memos: { [key: string]: stri
     // IndexedDB에 암호화된 상태로 저장 (오프라인 대응)
     await indexedDBCache.saveCrewMemos(encryptedMemos, userId);
 
-    // Firebase에 저장
-    const memosRef = ref(database, `users/${userId}/crewMemos`);
-    await set(memosRef, encryptedMemos);
+    // 오프라인이면 Firebase 저장 스킵 (IndexedDB에만 저장)
+    if (!isFirebaseOffline()) {
+      const memosRef = ref(database, `users/${userId}/crewMemos`);
+      await set(memosRef, encryptedMemos);
+    } else {
+      console.log('📴 오프라인 모드: Crew 메모 IndexedDB에만 저장');
+    }
 
   } catch (error) {
     console.error('Error saving crew memos:', error);
@@ -1065,7 +1069,13 @@ export const getCrewMemos = async (userId: string): Promise<{ [key: string]: str
     }
 
     const memosRef = ref(database, `users/${userId}/crewMemos`);
-    const snapshot = await get(memosRef);
+    // 3초 타임아웃 적용 (오프라인 시 무한 대기 방지)
+    const snapshot = await Promise.race([
+      get(memosRef),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Firebase crew memos timeout')), 3000)
+      )
+    ]) as any;
 
     if (!snapshot.exists()) {
       // IndexedDB 캐시에서 확인
@@ -1145,9 +1155,13 @@ export const saveCityMemos = async (userId: string, memos: { [key: string]: stri
     // IndexedDB에 암호화된 상태로 저장 (오프라인 대응)
     await indexedDBCache.saveCityMemos(encryptedMemos, userId);
 
-    // Firebase에 저장
-    const userRef = ref(database, `users/${userId}/cityMemos`);
-    await set(userRef, encryptedMemos);
+    // 오프라인이면 Firebase 저장 스킵 (IndexedDB에만 저장)
+    if (!isFirebaseOffline()) {
+      const userRef = ref(database, `users/${userId}/cityMemos`);
+      await set(userRef, encryptedMemos);
+    } else {
+      console.log('📴 오프라인 모드: 도시 메모 IndexedDB에만 저장');
+    }
 
   } catch (error) {
     console.error('Error saving city memos:', error);
@@ -1169,7 +1183,13 @@ export const getCityMemos = async (userId: string): Promise<{ [key: string]: str
     }
 
     const userRef = ref(database, `users/${userId}/cityMemos`);
-    const snapshot = await get(userRef);
+    // 3초 타임아웃 적용 (오프라인 시 무한 대기 방지)
+    const snapshot = await Promise.race([
+      get(userRef),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Firebase city memos timeout')), 3000)
+      )
+    ]) as any;
 
     if (!snapshot.exists()) {
       // IndexedDB 캐시에서 확인

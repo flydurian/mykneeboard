@@ -59,6 +59,14 @@
         ".write": "auth != null && auth.uid == $uid"
       }
     },
+    "schedules": {
+      "$date": {
+        "$uid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
     "memos": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
