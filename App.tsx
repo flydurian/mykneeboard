@@ -62,6 +62,7 @@ const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal')
 const DeleteDataModal = lazy(() => import('./components/modals/DeleteDataModal'));
 const SearchModal = lazy(() => import('./components/modals/SearchModal'));
 const FriendsTab = lazy(() => import('./components/FriendsTab'));
+const KakaoCallback = lazy(() => import('./components/KakaoCallback'));
 
 
 import { fetchAirlineData, fetchAirlineDataWithInfo, searchAirline, getAirlineByCode, AirlineInfo, AirlineDataInfo, convertFlightNumberToIATA } from './utils/airlineData';
@@ -151,6 +152,182 @@ const checkNetworkStatus = async (): Promise<boolean> => {
     }
   } catch (error) {
     return navigator.onLine;
+  }
+};
+
+// --- 긴급 데이터 복구용 글로벌 함수 (임시) ---
+(window as any).runRecovery = async (oldUid: string) => {
+  console.log('🔄 긴급 복구를 시작합니다... 대상 oldUid:', oldUid);
+  try {
+    const { ref, get, set } = await import('firebase/database');
+    const { database } = await import('./src/firebase/config');
+    const { decryptData, encryptData, decryptDataLegacy } = await import('./utils/encryption');
+
+    const newUid = 'kakao:4768929779';
+
+    // 1. Firebase 서버 데이터 복구 (경로 및 로직 강화)
+    const serverPaths = [
+      // 신규 계정 경로 (재암호화용)
+      `users/${newUid}/documentExpiryDates`,
+      `users/${newUid}/settings`,
+      `users/${newUid}/crewMemos`,
+      `users/${newUid}/cityMemos`,
+      // 구 계정 경로 (데이터 마이그레이션용)
+      `users/${oldUid}/documentExpiryDates`,
+      `users/${oldUid}/settings`,
+      `users/${oldUid}/crewMemos`,
+      `users/${oldUid}/cityMemos`,
+      `memos/${oldUid}`,
+      `cityMemos/${oldUid}`
+    ];
+
+    let serverUpdated = 0;
+
+    for (const path of serverPaths) {
+      console.log(`\n📡 [서버] 탐색 중: ${path}...`);
+      const snapshot = await get(ref(database, path));
+      if (!snapshot.exists()) continue;
+
+      const data = snapshot.val();
+      if (!data || typeof data !== 'object') continue;
+
+      const updatedData: any = { ...data };
+      let pathChanged = false;
+
+      // 헬퍼: 값 하나를 복구 시도
+      const tryRecoverValue = async (val: any) => {
+        if (typeof val !== 'string' || val.length < 5) return null;
+
+        // 1. 새 키로 열리는지 확인
+        try { if (await decryptData(val, newUid)) return null; } catch (e) { }
+
+        // 2. 구 키로 시도
+        try {
+          const dec = await decryptData(val, oldUid);
+          if (dec) return await encryptData(dec, newUid);
+        } catch (e) { }
+
+        // 3. 레거시 시도
+        try {
+          const dec = decryptDataLegacy(val);
+          if (dec && dec !== val) return await encryptData(dec, newUid);
+        } catch (e) { }
+
+        return null;
+      };
+
+      // 루프: 데이터 구조 순회 (1단계 깊이)
+      for (const [key, value] of Object.entries(data)) {
+        // 값이 문자열인 경우
+        const recovered = await tryRecoverValue(value);
+        if (recovered) {
+          updatedData[key] = recovered;
+          pathChanged = true;
+          serverUpdated++;
+          console.log(`  ✅ [서버] 복구 성공: ${key}`);
+          continue;
+        }
+
+        // 값이 객체인 경우 (documentExpiryDates 내부 등)
+        if (value && typeof value === 'object') {
+          for (const [subKey, subValue] of Object.entries(value)) {
+            const subRecovered = await tryRecoverValue(subValue);
+            if (subRecovered) {
+              if (!updatedData[key]) updatedData[key] = { ...value };
+              updatedData[key][subKey] = subRecovered;
+              pathChanged = true;
+              serverUpdated++;
+              console.log(`  ✅ [서버] 심층 복구 성공: ${key}.${subKey}`);
+            }
+          }
+        }
+      }
+
+      if (pathChanged) {
+        // 결과물을 항상 신규 계정 경로(newUid)에 저장하여 마이그레이션 완결
+        const targetPath = path.replace(oldUid, newUid);
+        console.log(`💾 [서버] ${targetPath} 업데이트 중...`);
+        await set(ref(database, targetPath), updatedData);
+      }
+    }
+
+    // 2. 로컬 IndexedDB 데이터 복구
+    console.log('\n📦 [로컬] IndexedDB 복구를 시도합니다...');
+    let localUpdated = 0;
+
+    const dbOpenReq = indexedDB.open('FlightDashboardDB');
+    await new Promise((resolve, reject) => {
+      dbOpenReq.onsuccess = async (e: any) => {
+        const db = e.target.result;
+        const stores = ['flights', 'crewMemos', 'cityMemos', 'documentExpiry', 'userSettings'];
+
+        for (const storeName of stores) {
+          if (!db.objectStoreNames.contains(storeName)) continue;
+
+          try {
+            // 1. 모든 항목을 먼저 읽기 (Read-only)
+            const allItems: any[] = await new Promise((res, rej) => {
+              const readTx = db.transaction(storeName, 'readonly');
+              const store = readTx.objectStore(storeName);
+              const req = store.getAll();
+              req.onsuccess = () => res(req.result);
+              req.onerror = () => rej(req.error);
+            });
+
+            // 2. 비동기 암호화 작업 수행 (트랜잭션 밖에서)
+            const updates = [];
+            for (const item of allItems) {
+              let itemChanged = false;
+              if (item.userId === oldUid) {
+                item.userId = newUid;
+                itemChanged = true;
+              }
+
+              for (const [key, val] of Object.entries(item)) {
+                if (typeof val === 'string' && val.length > 20) {
+                  let dec = null;
+                  try { dec = await decryptData(val, oldUid); } catch (e) { }
+                  if (!dec) { try { dec = decryptDataLegacy(val); } catch (e) { } }
+
+                  if (dec) {
+                    console.log(`✅ [로컬] ${storeName} 복호화 성공: [${key}]`);
+                    item[key] = await encryptData(dec, newUid);
+                    itemChanged = true;
+                    localUpdated++;
+                  }
+                }
+              }
+              if (itemChanged) updates.push(item);
+            }
+
+            // 3. 변경사항이 있는 경우에만 새 트랜잭션으로 업데이트
+            if (updates.length > 0) {
+              console.log(`💾 [로컬] ${storeName} 업데이트 중 (${updates.length}건)...`);
+              const writeTx = db.transaction(storeName, 'readwrite');
+              const writeStore = writeTx.objectStore(storeName);
+              for (const item of updates) {
+                writeStore.put(item);
+              }
+              await new Promise((res, rej) => {
+                writeTx.oncomplete = () => res(null);
+                writeTx.onerror = () => rej(writeTx.error);
+              });
+            }
+          } catch (err) {
+            console.error(`❌ [로컬] ${storeName} 복구 중 오류:`, err);
+          }
+        }
+        resolve(null);
+      };
+      dbOpenReq.onerror = () => reject(dbOpenReq.error);
+    });
+
+    console.log(`\n🎉 모든 복구 작업 완료!`);
+    console.log(`- 서버 데이터 갱신: ${serverUpdated}건`);
+    console.log(`- 로컬 캐시 갱신: ${localUpdated}건`);
+    console.log('브라우저를 새로고침하여 메모와 여권 정보를 확인하세요.');
+  } catch (error) {
+    console.error('복구 중 오류 발생:', error);
   }
 };
 
@@ -3381,6 +3558,21 @@ const App: React.FC = () => {
     );
   }
 
+  // ✨ [핵심 수정] 카카오 로그인 콜백 URL 우선 처리 (로그인/로그아웃 무관)
+  if (new URLSearchParams(window.location.search).has('code') || new URLSearchParams(window.location.search).has('error')) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans">
+        <Suspense fallback={<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mt-20"></div>}>
+          <KakaoCallback
+            onSuccess={() => console.log('카카오 로그인 및 데이터 마이그레이션 성공')}
+            onError={(err) => setLoginError(err)}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
+
   // ✨ [핵심 수정] 로그인 여부에 따라 명확하게 화면을 분기합니다.
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans">
@@ -3396,28 +3588,77 @@ const App: React.FC = () => {
             </p>
           </div>
 
-          <div className="glass-panel rounded-2xl p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 text-center mb-6">
-              로그인
-            </h2>
-            <button
-              onClick={handleLoginClick}
-              className="w-full glass-button py-3 px-4 rounded-2xl font-medium text-lg"
-              style={{
-                WebkitAppearance: 'none',
-                appearance: 'none',
-                borderRadius: '1rem',
-                overflow: 'hidden',
-                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-                maskImage: '-webkit-radial-gradient(white, black)'
-              }}
-            >
-              로그인하기
-            </button>
-            <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-4">
-              계정이 없으신가요? <button onClick={handleShowRegister} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium">회원가입</button>
-            </p>
-          </div>
+          {new URLSearchParams(window.location.search).has('code') || new URLSearchParams(window.location.search).has('error') ? (
+            <Suspense fallback={<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>}>
+              <KakaoCallback
+                onSuccess={() => console.log('카카오 로그인 성공')}
+                onError={(err) => setLoginError(err)}
+              />
+            </Suspense>
+          ) : (
+            <div className="glass-panel rounded-2xl p-8 w-full max-w-md">
+              <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 text-center mb-6">
+                로그인
+              </h2>
+
+              {/* 카카오 로그인 버튼 */}
+              <button
+                onClick={() => {
+                  const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY;
+                  if (!REST_API_KEY) {
+                    alert('카카오 REST API 키가 설정되지 않았습니다. (.env.local 확인 필요)');
+                    return;
+                  }
+
+                  // 로그인 상태라면 마이그레이션을 위해 UID 백업
+                  if (auth.currentUser) {
+                    localStorage.setItem('migration_old_uid', auth.currentUser.uid);
+                  } else {
+                    // 비로그인 상태에서의 카카오 시작은 무조건 "신규 계정" 또는 단독 로그인이므로 백업된 UID를 안전하게 지움
+                    localStorage.removeItem('migration_old_uid');
+                  }
+
+                  const REDIRECT_URI = window.location.origin + '/auth/kakao/callback';
+                  const KAKAO_AUTH_URL = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+                  window.location.href = KAKAO_AUTH_URL;
+                }}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-2xl font-medium text-lg mb-4"
+                style={{
+                  backgroundColor: '#FEE500',
+                  color: '#000000',
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 3C6.47715 3 2 6.58172 2 11C2 13.8443 3.49653 16.34 5.76011 17.8444L4.85106 21.0567C4.77382 21.3298 5.06173 21.5645 5.31175 21.4395L8.72917 19.7303C9.76174 19.9079 10.8522 20 12 20C17.5228 20 22 16.4183 22 12C22 7.58172 17.5228 4 12 4V3Z" fill="#000000" />
+                </svg>
+                카카오로 시작하기
+              </button>
+
+              <div className="relative flex py-5 items-center">
+                <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                <span className="flex-shrink-0 mx-4 text-gray-400 text-sm">또는 기존 계정</span>
+                <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+              </div>
+
+              <button
+                onClick={handleLoginClick}
+                className="w-full glass-button py-3 px-4 rounded-2xl font-medium text-lg"
+                style={{
+                  WebkitAppearance: 'none',
+                  appearance: 'none',
+                  borderRadius: '1rem',
+                  overflow: 'hidden',
+                  WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                  maskImage: '-webkit-radial-gradient(white, black)'
+                }}
+              >
+                이메일로 로그인하기
+              </button>
+              <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-4">
+                계정이 없으신가요? <button onClick={handleShowRegister} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium">이메일 회원가입</button>
+              </p>
+            </div>
+          )}
 
           <footer className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
             <div className="flex justify-center items-center gap-4">

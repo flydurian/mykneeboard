@@ -14,7 +14,7 @@ interface UserSettingsModalProps {
 }
 
 const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, currentUser, selectedAirline = 'OZ', setSelectedAirline, userInfo, onSettingsUpdate }) => {
-    const [activeTab, setActiveTab] = useState<'name' | 'password' | 'theme' | 'airline' | 'base'>('airline');
+    const [activeTab, setActiveTab] = useState<'name' | 'password' | 'theme' | 'airline' | 'base' | 'account'>('airline');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -257,13 +257,21 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                     </button>
                     <button
                         onClick={() => setActiveTab('password')}
-                        className={`flex-1 py-2 px-2 sm:px-4 font-medium text-sm sm:text-base transition-colors ${activeTab === 'password'
+                        className={`flex-1 py-2 px-1 sm:px-3 font-medium text-xs sm:text-sm transition-colors ${activeTab === 'password'
                             ? 'text-indigo-400 border-b-2 border-indigo-400'
                             : 'text-white/50 hover:text-white/90'
                             }`}
                     >
-                        <span className="hidden sm:inline">비밀번호</span>
-                        <span className="sm:hidden">비밀번호</span>
+                        비밀번호
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('account')}
+                        className={`flex-1 py-2 px-1 sm:px-3 font-medium text-xs sm:text-sm transition-colors ${activeTab === 'account'
+                            ? 'text-indigo-400 border-b-2 border-indigo-400'
+                            : 'text-white/50 hover:text-white/90'
+                            }`}
+                    >
+                        계정
                     </button>
                 </div>
 
@@ -417,6 +425,72 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                     </div>
                 )}
 
+                {/* 계정 탭 (카카오 이전) */}
+                {activeTab === 'account' && (
+                    <div className="flex flex-col gap-4">
+                        {currentUser?.uid?.startsWith('kakao:') ? (
+                            <div className="p-6 bg-green-500/10 border border-green-500/20 rounded-xl relative overflow-hidden flex flex-col items-center justify-center text-center">
+                                <div className="w-16 h-16 bg-[#FEE500] rounded-full flex items-center justify-center mb-4 shadow-lg">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 3C6.47715 3 2 6.58172 2 11C2 13.8443 3.49653 16.34 5.76011 17.8444L4.85106 21.0567C4.77382 21.3298 5.06173 21.5645 5.31175 21.4395L8.72917 19.7303C9.76174 19.9079 10.8522 20 12 20C17.5228 20 22 16.4183 22 12C22 7.58172 17.5228 4 12 4V3Z" fill="#000000" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-green-400 font-bold text-lg mb-2">카카오 계정 연동 완료</h3>
+                                <p className="text-gray-300 text-sm">
+                                    회원님은 현재 안전한 카카오 소셜 계정으로<br />로그인되어 있습니다.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                                        <svg width="60" height="60" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v6h2v-6h-2zm0-4v2h2V7h-2z" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-orange-300 font-bold mb-3 flex items-center gap-2">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v6h2v-6h-2zm0-4v2h2V7h-2z" fill="currentColor" />
+                                        </svg>
+                                        카카오 소셜 계정으로 전환 안내
+                                    </h3>
+                                    <p className="text-sm text-gray-300 mb-3 leading-relaxed relative z-10">
+                                        기존 이메일 로그인을 사용 중이신 경우, 버튼을 눌러 소셜 계정으로 완전히 이전할 수 있습니다.<br /><br />
+                                        <span className="text-white font-semibold block px-3 py-2 bg-black/20 rounded-lg">전환 시 모든 지난 비행 기록, 메모 등 내 개인 데이터가 100% 안전하게 복사 이전되며, 기존 이메일 계정은 즉각 영구 삭제됩니다.</span>
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY;
+                                        if (!REST_API_KEY) {
+                                            alert('카카오 REST API 키가 설정되지 않았습니다. (.env.local 확인 필요)');
+                                            return;
+                                        }
+
+                                        // [버그 픽스] 콜백에서 기존 세션 유실 방지를 위해 로컬 스토리지에 기존 UID 백업
+                                        if (currentUser?.uid) {
+                                            localStorage.setItem('migration_old_uid', currentUser.uid);
+                                        }
+
+                                        const REDIRECT_URI = window.location.origin + '/auth/kakao/callback';
+                                        window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+                                    }}
+                                    className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-bold transition-all shadow-lg hover:brightness-95 active:scale-95"
+                                    style={{
+                                        backgroundColor: '#FEE500',
+                                        color: '#000000',
+                                    }}
+                                >
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 3C6.47715 3 2 6.58172 2 11C2 13.8443 3.49653 16.34 5.76011 17.8444L4.85106 21.0567C4.77382 21.3298 5.06173 21.5645 5.31175 21.4395L8.72917 19.7303C9.76174 19.9079 10.8522 20 12 20C17.5228 20 22 16.4183 22 12C22 7.58172 17.5228 4 12 4V3Z" fill="#000000" />
+                                    </svg>
+                                    카카오 로그인 계정으로 100% 이전하기
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
 
 
                 {/* 회사 탭 */}

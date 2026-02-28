@@ -2,8 +2,8 @@
   "rules": {
     "users": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid",
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)",
         "friends": {
           ".read": "auth != null",
           "$friendUid": {
@@ -55,40 +55,40 @@
     },
     "flights": {
       "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || root.child('users').child($uid).child('friends').child(auth.uid).exists())",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)"
       }
     },
     "schedules": {
       "$date": {
         "$uid": {
-          ".read": "auth != null && auth.uid == $uid",
-          ".write": "auth != null && auth.uid == $uid"
+          ".read": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)",
+          ".write": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)"
         }
       }
     },
     "memos": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)"
       }
     },
     "cityMemos": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)"
       }
     },
     "qualificationStatus": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)"
       }
     },
     "userSessions": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin').child(auth.uid).val() === true)"
       }
     },
     "fs": {

@@ -12,9 +12,35 @@ export async function requestFcmToken(userId: string) {
         // 1. Notification Permission Request
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-            // 2. Get Token
+            // 2. Get Token (Wait for service worker registration before getting token)
+            let registration;
+            if ('serviceWorker' in navigator) {
+                // Wait until the service worker is registered
+                registration = await navigator.serviceWorker.ready;
+
+                // [버그 픽스] Service Worker가 ready 상태여도 active worker가 없으면 PushManager 구독이 취소됨
+                // 따라서 registration.active가 완전히 존재할 때까지 대기
+                if (!registration.active) {
+                    console.log('🚧 Service Worker is not active yet, waiting...');
+                    await new Promise<void>((resolve) => {
+                        const checkInterval = setInterval(() => {
+                            if (registration?.active) {
+                                clearInterval(checkInterval);
+                                resolve();
+                            }
+                        }, 100);
+                        // 최대 3초 대기 후 강제 진행 (무한 루프 방지)
+                        setTimeout(() => {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }, 3000);
+                    });
+                }
+            }
+
             const token = await getToken(messaging, {
-                vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY // Optional: Public VAPID Key if configured
+                vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY, // Optional: Public VAPID Key if configured
+                serviceWorkerRegistration: registration
             });
 
             if (token) {

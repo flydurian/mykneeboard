@@ -1,8 +1,60 @@
 import { ref, get, set, push, update, remove, onValue, off, goOffline, goOnline } from "firebase/database";
 import { database, auth } from "./config";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { encryptDocumentExpiryDates, decryptDocumentExpiryDates, upgradeDocumentExpiryDates, encryptCrewMemos, decryptCrewMemos, upgradeCrewMemos, encryptCityMemos, decryptCityMemos, upgradeCityMemos } from "../../utils/encryption";
+import {
+  encryptDocumentExpiryDates,
+  decryptDocumentExpiryDates,
+  upgradeDocumentExpiryDates,
+  encryptCrewMemos,
+  decryptCrewMemos,
+  upgradeCrewMemos,
+  encryptCityMemos,
+  decryptCityMemos,
+  upgradeCityMemos,
+  upgradeUserSettings,
+  decryptData,
+  isValidDateFormat
+} from "../../utils/encryption";
 import { indexedDBCache } from "../../utils/indexedDBCache";
+
+// 마이그레이션 완료 추적을 위한 상수 및 헬퍼 함수
+const MIGRATION_STEPS = ['cityMemos', 'crewMemos', 'documentExpiryDates', 'userSettings'];
+
+/**
+ * 마이그레이션 단계별 완료를 기록하고 모든 단계 완료 시 이전 UID를 삭제합니다.
+ */
+const markMigrationStepComplete = (userId: string, step: string) => {
+  const oldUid = localStorage.getItem('migration_old_uid');
+  if (!oldUid) return;
+
+  try {
+    const statusKey = `migration_status_${userId}`;
+    const completedStr = localStorage.getItem(statusKey);
+    let completed: string[] = [];
+    try {
+      completed = completedStr ? JSON.parse(completedStr) : [];
+    } catch (e) {
+      completed = [];
+    }
+
+    if (!Array.isArray(completed)) completed = [];
+
+    if (!completed.includes(step)) {
+      completed.push(step);
+      localStorage.setItem(statusKey, JSON.stringify(completed));
+      // console.log(`✅ 마이그레이션 단계 완료: ${step} (${completed.length}/${MIGRATION_STEPS.length})`);
+    }
+
+    // 모든 필수 노드가 업그레이드(또는 확인) 되었는지 검사
+    if (MIGRATION_STEPS.every(s => completed.includes(s))) {
+      // console.log('🎉 모든 데이터 마이그레이션 및 업그레이드 확인됨. 임시 이전 UID 정보를 삭제합니다.');
+      localStorage.removeItem('migration_old_uid');
+      localStorage.removeItem(statusKey);
+    }
+  } catch (err) {
+    console.warn('⚠️ 마이그레이션 상태 기록 오류:', err);
+  }
+};
 
 // 오프라인 상태 관리
 let isOfflineMode = false;
@@ -68,12 +120,6 @@ const decryptDataLegacy = (encryptedData: string): string => {
   }
 };
 
-// 날짜 형식 검증
-const isValidDateFormat = (dateString: string): boolean => {
-  if (!dateString) return false;
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  return dateRegex.test(dateString);
-};
 
 // 네트워크 오류 감지 함수
 const isNetworkError = (error: any): boolean => {
@@ -330,7 +376,7 @@ export const getAllFlights = async (userId: string) => {
       return [];
     }
 
-    console.log(`🔍 getAllFlights 호출됨: userId=${userId}`);
+    // console.log(`🔍 getAllFlights 호출됨: userId=${userId}`);
 
     // 현재 인증 상태 확인 (디버깅용)
     const currentUser = auth.currentUser;
@@ -696,7 +742,7 @@ export const syncAlarmIndexes = async (userId: string) => {
 
     if (count > 0) {
       await Promise.all(promises);
-      console.log(`✅ ${count}개의 비행에 대한 알림 인덱스 생성 완료`);
+      // console.log(`✅ ${count}개의 비행에 대한 알림 인덱스 생성 완료`);
     } else {
       console.log('업데이트할 알림 인덱스 없음');
     }
@@ -873,10 +919,40 @@ export const getUserSettings = async (userId: string) => {
       return { airline: 'OZ' }; // 기본값 설정
     }
 
-    const normalizedSettings = {
+    let normalizedSettings = {
       ...settings,
       base: settings.base ? String(settings.base).toUpperCase() : settings.base
     };
+
+    // [마이그레이션] 업그레이드 필요성 확인 및 자동 업그레이드
+    if (!isFirebaseOffline()) {
+      const oldUid = localStorage.getItem('migration_old_uid');
+
+      // 암호화된 필드(airline, empl, userName)가 있는지 확인
+      const hasEncryptedFields = settings.airline || settings.empl || settings.userName;
+
+      if (hasEncryptedFields) {
+        try {
+          // upgradeUserSettings가 내부적으로 AES-GCM 복호화 실패 여부를 판단함
+          const upgradedSettings = await upgradeUserSettings(settings, userId, oldUid || undefined);
+
+          // 단순 비교를 통해 변경사항이 있는지 확인 (JSON 문자열 비교)
+          if (JSON.stringify(upgradedSettings) !== JSON.stringify(settings)) {
+            // console.log('🔄 사용자 설정 자동 업그레이드 실행');
+            await saveUserSettings(userId, upgradedSettings);
+            normalizedSettings = {
+              ...upgradedSettings,
+              base: upgradedSettings.base ? String(upgradedSettings.base).toUpperCase() : upgradedSettings.base
+            };
+          }
+
+          // 마이그레이션 단계 완료 표시
+          markMigrationStepComplete(userId, 'userSettings');
+        } catch (upgradeError) {
+          console.error('사용자 설정 업그레이드 오류:', upgradeError);
+        }
+      }
+    }
 
     // 최신 설정을 IndexedDB에 동기화 (오프라인 대비)
     try {
@@ -944,7 +1020,8 @@ export const getDocumentExpiryDates = async (userId: string) => {
       const cachedDates = await indexedDBCache.loadDocumentExpiryDates(userId);
       if (Object.keys(cachedDates).length > 0) {
         console.log('📴 오프라인 모드: 문서 만료일 캐시 로드');
-        return await decryptDocumentExpiryDates(cachedDates, userId);
+        const oldUid = localStorage.getItem('migration_old_uid');
+        return await decryptDocumentExpiryDates(cachedDates, userId, oldUid || undefined);
       }
       return {};
     }
@@ -965,21 +1042,28 @@ export const getDocumentExpiryDates = async (userId: string) => {
       }
     }
 
-    // 데이터 복호화 (기존 방식 우선)
-    const decryptedExpiryDates = await decryptDocumentExpiryDates(encryptedExpiryDates, userId);
+    // 데이터 복호화
+    const oldUid = localStorage.getItem('migration_old_uid');
+    const decryptedExpiryDates = await decryptDocumentExpiryDates(encryptedExpiryDates, userId, oldUid || undefined);
 
     // 업그레이드가 필요한지 확인 (기존 방식으로 복호화된 데이터가 있는지)
-    // 오프라인일 때는 업그레이드 생략 (Firebase 저장이 안되므로)
     if (!isFirebaseOffline()) {
-      const needsUpgrade = Object.values(encryptedExpiryDates).some((encryptedDate: string) => {
-        try {
-          // 기존 방식으로 복호화 시도
-          const legacyResult = decryptDataLegacy(encryptedDate);
-          return isValidDateFormat(legacyResult);
-        } catch {
-          return false;
+      let needsUpgrade = false;
+      if (encryptedExpiryDates) {
+        for (const encryptedDate of Object.values(encryptedExpiryDates)) {
+          if (!encryptedDate || typeof encryptedDate !== 'string') continue;
+          try {
+            const aesResult = await decryptData(encryptedDate, userId);
+            if (!isValidDateFormat(aesResult)) {
+              needsUpgrade = true;
+              break;
+            }
+          } catch {
+            needsUpgrade = true;
+            break;
+          }
         }
-      });
+      }
 
       // 업그레이드가 필요한 경우에만 실행
       if (needsUpgrade) {
@@ -995,18 +1079,25 @@ export const getDocumentExpiryDates = async (userId: string) => {
 
           // 업그레이드된 데이터로 다시 복호화
           const upgradedDecryptedDates = await decryptDocumentExpiryDates(upgradedExpiryDates, userId);
+
+          // 마이그레이션 단계 완료 표시
+          markMigrationStepComplete(userId, 'documentExpiryDates');
+
           return upgradedDecryptedDates;
         } catch (upgradeError) {
           console.error('업그레이드 오류:', upgradeError);
-          // 업그레이드 실패 시 기존 데이터 반환
           return decryptedExpiryDates;
+        }
+      } else {
+        // 업그레이드가 필요 없는 경우 (이미 새 키로 암호화됨)
+        if (encryptedExpiryDates && Object.keys(encryptedExpiryDates).length > 0) {
+          markMigrationStepComplete(userId, 'documentExpiryDates');
         }
       }
     }
 
-    // 읽은 데이터(Firebase 또는 Cache)를 최신 상태로 캐시에 저장
+    // 읽은 데이터 캐시에 업데이트
     if (encryptedExpiryDates && !isFirebaseOffline()) {
-      // 비동기로 저장 (사용자 경험 저하 방지)
       indexedDBCache.saveDocumentExpiryDates(encryptedExpiryDates, userId).catch(e =>
         console.warn('⚠️ 문서 만료일 캐시 업데이트 실패:', e)
       );
@@ -1015,18 +1106,13 @@ export const getDocumentExpiryDates = async (userId: string) => {
     return decryptedExpiryDates;
   } catch (error) {
     console.error('Error getting document expiry dates:', error);
-
-    // 오류 발생 시 캐시에서 시도
     try {
       const cachedDates = await indexedDBCache.loadDocumentExpiryDates(userId);
       if (Object.keys(cachedDates).length > 0) {
-        const decryptedExpiryDates = await decryptDocumentExpiryDates(cachedDates, userId);
-        return decryptedExpiryDates;
+        const oldUid = localStorage.getItem('migration_old_uid');
+        return await decryptDocumentExpiryDates(cachedDates, userId, oldUid || undefined);
       }
-    } catch (cacheError) {
-      console.error('Failed to load expiry dates from cache:', cacheError);
-    }
-
+    } catch (cacheError) { }
     return {};
   }
 };
@@ -1063,7 +1149,8 @@ export const getCrewMemos = async (userId: string): Promise<{ [key: string]: str
       const cachedEncryptedMemos = await indexedDBCache.loadCrewMemos(userId);
       if (Object.keys(cachedEncryptedMemos).length > 0) {
         console.log('📴 오프라인 모드: Crew 메모 캐시 로드');
-        return await decryptCrewMemos(cachedEncryptedMemos, userId);
+        const oldUid = localStorage.getItem('migration_old_uid');
+        return await decryptCrewMemos(cachedEncryptedMemos, userId, oldUid || undefined);
       }
       return {};
     }
@@ -1091,42 +1178,53 @@ export const getCrewMemos = async (userId: string): Promise<{ [key: string]: str
     const encryptedMemos = snapshot.val() as { [key: string]: string };
 
     // 메모 복호화
-    const decryptedMemos = await decryptCrewMemos(encryptedMemos, userId);
+    const oldUid = localStorage.getItem('migration_old_uid');
+    const decryptedMemos = await decryptCrewMemos(encryptedMemos, userId, oldUid || undefined);
 
     // 업그레이드 필요성 확인 및 자동 업그레이드
-    const needsUpgrade = Object.values(encryptedMemos).some(encryptedMemo => {
-      try {
-        const legacyDecrypted = decryptDataLegacy(encryptedMemo);
-        return legacyDecrypted && legacyDecrypted.trim();
-      } catch {
-        return false;
+    if (!isFirebaseOffline()) {
+      let needsUpgrade = false;
+      for (const encryptedMemo of Object.values(encryptedMemos)) {
+        if (typeof encryptedMemo !== 'string') continue;
+        try {
+          const aesResult = await decryptData(encryptedMemo, userId);
+          if (!aesResult || !aesResult.trim() || aesResult === encryptedMemo) {
+            needsUpgrade = true;
+            break;
+          }
+        } catch {
+          needsUpgrade = true;
+          break;
+        }
       }
-    });
 
-    // 업그레이드가 필요한 경우에만 실행
-    if (needsUpgrade) {
-      try {
-        const upgradedMemos = await upgradeCrewMemos(encryptedMemos, userId);
-        await set(memosRef, upgradedMemos);
+      // 업그레이드가 필요한 경우에만 실행
+      if (needsUpgrade) {
+        try {
+          const upgradedMemos = await upgradeCrewMemos(encryptedMemos, userId);
+          await set(memosRef, upgradedMemos);
 
-        // 업그레이드된 데이터로 다시 복호화
-        const upgradedDecryptedMemos = await decryptCrewMemos(upgradedMemos, userId);
+          // IndexedDB 캐시에 암호화된 상태로 저장
+          await indexedDBCache.saveCrewMemos(upgradedMemos, userId);
 
-        // IndexedDB 캐시에 암호화된 상태로 저장
-        await indexedDBCache.saveCrewMemos(upgradedMemos, userId);
+          // 업그레이드된 데이터로 다시 복호화
+          const upgradedDecryptedMemos = await decryptCrewMemos(upgradedMemos, userId);
 
-        return upgradedDecryptedMemos;
-      } catch (upgradeError) {
-        console.error('Crew 메모 업그레이드 오류:', upgradeError);
-        // 업그레이드 실패 시 기존 데이터 반환
+          // 마이그레이션 단계 완료 표시
+          markMigrationStepComplete(userId, 'crewMemos');
 
-        // IndexedDB 캐시에 암호화된 상태로 저장
-        await indexedDBCache.saveCrewMemos(encryptedMemos, userId);
-
-        return decryptedMemos;
+          return upgradedDecryptedMemos;
+        } catch (upgradeError) {
+          console.error('Crew 메모 업그레이드 오류:', upgradeError);
+          return decryptedMemos;
+        }
+      } else {
+        // 업그레이드가 필요 없는 경우 (이미 새 키로 암호화됨)
+        if (encryptedMemos && Object.keys(encryptedMemos).length > 0) {
+          markMigrationStepComplete(userId, 'crewMemos');
+        }
       }
     }
-
 
     // IndexedDB 캐시에 암호화된 상태로 저장
     await indexedDBCache.saveCrewMemos(encryptedMemos, userId);
@@ -1177,7 +1275,8 @@ export const getCityMemos = async (userId: string): Promise<{ [key: string]: str
       const cachedEncryptedMemos = await indexedDBCache.loadCityMemos(userId);
       if (Object.keys(cachedEncryptedMemos).length > 0) {
         console.log('📴 오프라인 모드: 도시 메모 캐시 로드');
-        return await decryptCityMemos(cachedEncryptedMemos, userId);
+        const oldUid = localStorage.getItem('migration_old_uid');
+        return await decryptCityMemos(cachedEncryptedMemos, userId, oldUid || undefined);
       }
       return {};
     }
@@ -1203,42 +1302,58 @@ export const getCityMemos = async (userId: string): Promise<{ [key: string]: str
     }
 
     const encryptedMemos = snapshot.val();
-
-    // 메모 복호화
-    const decryptedMemos = await decryptCityMemos(encryptedMemos, userId);
+    const oldUid = localStorage.getItem('migration_old_uid');
+    const decryptedMemos = await decryptCityMemos(encryptedMemos, userId, oldUid || undefined);
 
     // 업그레이드가 필요한지 확인 (레거시 데이터가 있는 경우)
-    const needsUpgrade = Object.values(encryptedMemos).some((memo: any) =>
-      typeof memo === 'string' && !memo.includes('|')
-    );
+    if (!isFirebaseOffline()) {
+      let needsUpgrade = false;
+      for (const encryptedMemo of Object.values(encryptedMemos)) {
+        if (typeof encryptedMemo !== 'string') continue;
+        try {
+          const aesResult = await decryptData(encryptedMemo, userId);
+          // AES-GCM으로 복호화된 결과가 올바른 문자열이 아니거나 원본과 같으면(복호화 안됨) 업그레이드 필요
+          if (!aesResult || !aesResult.trim() || aesResult === encryptedMemo) {
+            needsUpgrade = true;
+            break;
+          }
+        } catch {
+          needsUpgrade = true;
+          break;
+        }
+      }
 
-    // 업그레이드가 필요한 경우에만 실행
-    if (needsUpgrade) {
-      try {
-        // 업그레이드 실행
-        const upgradedMemos = await upgradeCityMemos(encryptedMemos, userId);
+      // 업그레이드가 필요한 경우에만 실행
+      if (needsUpgrade) {
+        try {
+          // 업그레이드 실행
+          const upgradedMemos = await upgradeCityMemos(encryptedMemos, userId);
 
-        // 업그레이드된 데이터를 Firebase에 저장
-        await set(userRef, upgradedMemos);
+          // 업그레이드된 데이터를 Firebase에 저장
+          await set(userRef, upgradedMemos);
 
-        // 업그레이드된 데이터로 다시 복호화
-        const upgradedDecryptedMemos = await decryptCityMemos(upgradedMemos, userId);
+          // IndexedDB 캐시에 암호화된 상태로 저장
+          await indexedDBCache.saveCityMemos(upgradedMemos, userId);
 
-        // IndexedDB 캐시에 암호화된 상태로 저장
-        await indexedDBCache.saveCityMemos(upgradedMemos, userId);
+          // 업그레이드된 데이터로 다시 복호화
+          const oldUid = localStorage.getItem('migration_old_uid');
+          const upgradedDecryptedMemos = await decryptCityMemos(upgradedMemos, userId, oldUid || undefined);
 
-        return upgradedDecryptedMemos;
-      } catch (upgradeError) {
-        console.error('도시 메모 업그레이드 오류:', upgradeError);
-        // 업그레이드 실패 시 기존 데이터 반환
+          // 마이그레이션 단계 완료 표시
+          markMigrationStepComplete(userId, 'cityMemos');
 
-        // IndexedDB 캐시에 암호화된 상태로 저장
-        await indexedDBCache.saveCityMemos(encryptedMemos, userId);
-
-        return decryptedMemos;
+          return upgradedDecryptedMemos;
+        } catch (upgradeError) {
+          console.error('도시 메모 업그레이드 오류:', upgradeError);
+          return decryptedMemos;
+        }
+      } else {
+        // 업그레이드가 필요 없는 경우 (이미 새 키로 암호화됨)
+        if (encryptedMemos && Object.keys(encryptedMemos).length > 0) {
+          markMigrationStepComplete(userId, 'cityMemos');
+        }
       }
     }
-
 
     // IndexedDB 캐시에 암호화된 상태로 저장
     await indexedDBCache.saveCityMemos(encryptedMemos, userId);
@@ -1769,5 +1884,49 @@ export const getUserInfoByUid = async (userId: string): Promise<any | null> => {
   } catch (error) {
     console.error('사용자 정보 가져오기 실패:', error);
     return null;
+  }
+};
+
+// ==========================================
+// [신규 시스템] 카카오 연동 시 데이터 마이그레이션
+// ==========================================
+// 기존 이메일 계정의 데이터를 새로운 카카오 계정으로 100% 이전하고, 원본을 삭제하는 함수
+export const migrateAccountData = async (oldUid: string, newUid: string): Promise<boolean> => {
+  try {
+    console.log(`🔄 데이터 마이그레이션 시작 (백엔드 API 호출): ${oldUid} -> ${newUid}`);
+    if (!oldUid || !newUid || oldUid === newUid) return false;
+
+    // Vercel Serverless Function 호출 (Admin 권한으로 Permission 우회)
+    const response = await fetch('/api/auth/migrate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ oldUid, newUid }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`백엔드 마이그레이션 실패: ${response.status} ${errText}`);
+    }
+
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(`마이그레이션 API 에러: ${data.error}`);
+    }
+
+    console.log(`✅ 새 카카오 계정(${newUid})으로 데이터 복사 완료 (API 응답):`, data.message);
+
+    // 5. 알림 인덱스 재생성 (방금 새로 만든 계정 기준, 클라이언트 사이드 유지)
+    try {
+      await syncAlarmIndexes(newUid);
+    } catch (e) {
+      console.warn('⚠️ syncAlarmIndexes 실패 (무시됨):', e);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ 카카오 데이터 마이그레이션에 실패:', error);
+    return false;
   }
 };
