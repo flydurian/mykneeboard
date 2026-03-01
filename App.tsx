@@ -19,7 +19,7 @@ const MonthlyScheduleModal = lazy(() => import('./components/modals/MonthlySched
 const CalendarModal = lazy(() => import('./components/modals/CalendarModal'));
 const ConflictResolutionModal = lazy(() => import('./components/modals/ConflictResolutionModal'));
 const AnnualBlockTimeModal = lazy(() => import('./components/modals/AnnualBlockTimeModal'));
-import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights, getUserSettings, saveUserSettings, saveDocumentExpiryDates, getDocumentExpiryDates, saveCrewMemos, getCrewMemos, saveCityMemos, getCityMemos, setFirebaseOfflineMode, syncAlarmIndexes } from './src/firebase/database';
+import { getAllFlights, addFlight, updateFlight, deleteFlight, subscribeToAllFlights, getUserSettings, saveUserSettings, saveDocumentExpiryDates, getDocumentExpiryDates, saveCrewMemos, getCrewMemos, saveCityMemos, getCityMemos, setFirebaseOfflineMode, syncAlarmIndexes, subscribeFriendRequests } from './src/firebase/database';
 import { cacheAllFlightsFromFirebase } from './src/firebase/flightSchedules';
 import { clearKeyCache } from './utils/encryption';
 import { auth, database } from './src/firebase/config';
@@ -524,6 +524,13 @@ const App: React.FC = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isUserSettingsModalOpen, setIsUserSettingsModalOpen] = useState(false);
+
+  // 친구 요청 전역 알림
+  const [friendRequestAlert, setFriendRequestAlert] = useState<{ name: string; id: string } | null>(null);
+  const friendRequestCountRef = React.useRef<number>(-1); // -1 = 아직 초기화 안됨
+
+  // 카카오 전환 권유 팝업
+  const [showKakaoSwitchPopup, setShowKakaoSwitchPopup] = useState(false);
   const [selectedAirline, setSelectedAirline] = useState('OZ');
   const [baseIata, setBaseIata] = useState<string | undefined>(() => {
     const saved = localStorage.getItem('baseIata');
@@ -1956,6 +1963,33 @@ const App: React.FC = () => {
                 syncAlarmIndexes(user.uid).then(() => {
                   localStorage.setItem(MIGRATION_KEY, 'done');
                 });
+              }
+
+              // 🔔 친구 요청 실시간 구독
+              subscribeFriendRequests(user.uid, (requests) => {
+                const currentCount = requests.length;
+                if (friendRequestCountRef.current === -1) {
+                  // 첫 로딩 시 현재 개수만 저장
+                  friendRequestCountRef.current = currentCount;
+                } else if (currentCount > friendRequestCountRef.current) {
+                  // 새 요청 감지
+                  const latestRequest = requests[requests.length - 1];
+                  setFriendRequestAlert({
+                    name: latestRequest.fromName || latestRequest.fromEmail || '누군가',
+                    id: latestRequest.fromUserId || 'unknown'
+                  });
+                  // 5초 후 자동 닫기
+                  setTimeout(() => setFriendRequestAlert(null), 5000);
+                }
+                friendRequestCountRef.current = currentCount;
+              });
+
+              // 🔄 이메일 계정 사용자에게 카카오 전환 권유
+              if (!user.uid.startsWith('kakao:')) {
+                const dismissed = sessionStorage.getItem('kakao_switch_dismissed');
+                if (!dismissed) {
+                  setShowKakaoSwitchPopup(true);
+                }
               }
             } else {
               // 타임아웃이나 null인 경우 기본값
@@ -4509,6 +4543,15 @@ const App: React.FC = () => {
           onClose={handleLoginClose}
           onLogin={handleLogin}
           onShowRegister={handleShowRegister}
+          onKakaoLogin={() => {
+            setIsLoginModalOpen(false);
+            const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY;
+            if (!REST_API_KEY) return;
+            localStorage.removeItem('migration_old_uid');
+            const REDIRECT_URI = window.location.origin + '/auth/kakao/callback';
+            const KAKAO_AUTH_URL = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=friends`;
+            window.location.href = KAKAO_AUTH_URL;
+          }}
           onResetPassword={handlePasswordReset}
           isLoading={isLoginLoading}
           error={loginError}
@@ -4656,6 +4699,63 @@ const App: React.FC = () => {
           currentYear={new Date().getFullYear()}
         />
       </Suspense>
+
+      {/* 🔔 친구 요청 알림 토스트 */}
+      {friendRequestAlert && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] animate-fade-in-up">
+          <div
+            className="glass-panel rounded-2xl px-5 py-3 flex items-center gap-3 shadow-2xl border border-indigo-500/30 cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))' }}
+            onClick={() => { setFriendRequestAlert(null); setActiveTab('friends'); }}
+          >
+            <span className="text-2xl">👋</span>
+            <div>
+              <div className="text-white font-medium text-sm">
+                <span className="text-indigo-400 font-bold">{friendRequestAlert.name}</span>님이 친구 요청을 보냈습니다
+              </div>
+              <div className="text-slate-400 text-xs">탭하여 확인하기</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔄 카카오 전환 권유 팝업 */}
+      {showKakaoSwitchPopup && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9998] p-4">
+          <div className="glass-panel rounded-2xl p-6 w-full max-w-sm text-center"
+            style={{ background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.99))' }}>
+            <div className="text-4xl mb-4">💬</div>
+            <h3 className="text-white font-bold text-lg mb-2">카카오톡 계정으로 전환하세요</h3>
+            <p className="text-slate-400 text-sm mb-5 leading-relaxed">
+              카카오톡 계정으로 전환하면<br />친구 추천 등 더 많은 기능을 사용할 수 있습니다.
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setShowKakaoSwitchPopup(false);
+                  setIsUserSettingsModalOpen(true);
+                }}
+                className="w-full py-2.5 px-4 rounded-xl font-medium flex items-center justify-center gap-2"
+                style={{ backgroundColor: '#FEE500', color: '#000000' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M9.00002 0.599976C4.02917 0.599976 0 3.71296 0 7.55226C0 9.94002 1.55847 12.0452 3.93152 13.2969L2.93303 16.9452C2.85394 17.2359 3.18903 17.4666 3.44245 17.3011L7.76448 14.4258C8.16829 14.4753 8.58029 14.5045 9.00002 14.5045C13.9706 14.5045 18 11.3916 18 7.55226C18 3.71296 13.9706 0.599976 9.00002 0.599976" fill="#000000" />
+                </svg>
+                계정 전환하기
+              </button>
+              <button
+                onClick={() => {
+                  setShowKakaoSwitchPopup(false);
+                  sessionStorage.setItem('kakao_switch_dismissed', 'true');
+                }}
+                className="w-full py-2.5 px-4 rounded-xl font-medium text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 border border-white/10"
+              >
+                나중에 하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div >
   );
