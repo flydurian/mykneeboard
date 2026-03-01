@@ -41,7 +41,7 @@ const ExchangeChartModal: React.FC<ExchangeChartModalProps> = ({
                     ) : error ? (
                         <div className="flex items-center justify-center h-full text-red-400 text-center px-4">{error}</div>
                     ) : chartData && chartData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
                             <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                                 <XAxis
                                     dataKey="date"
