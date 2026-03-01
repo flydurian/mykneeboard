@@ -2150,6 +2150,26 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                     if (cachedData) {
                         setExchangeRate(cachedData);
                         setLoadingExchangeRate(false);
+                        // USD 환율이 아직 없으면 별도 조회
+                        if (!usdExchangeRate && targetCurrency !== 'USD' && networkDetector.getStatus().isOnline) {
+                            try {
+                                const usdResponse = await fetch(`/api/exchange?fromCurrency=${targetCurrency}&toCurrency=USD`);
+                                const usdData = await usdResponse.json();
+                                if (usdData.success && usdData.conversion_rate) {
+                                    const rate = usdData.conversion_rate;
+                                    let displayUnit = 1;
+                                    let displayRate = rate;
+                                    if (targetCurrency === 'VND') {
+                                        displayUnit = 10000;
+                                        displayRate = rate * 10000;
+                                    }
+                                    const usdText = `${displayUnit.toLocaleString()} ${targetCurrency} ≈ ${displayRate.toFixed(4)} USD`;
+                                    setUsdExchangeRate(usdText);
+                                }
+                            } catch (e) {
+                                console.warn('달러 환율 가져오기 실패', e);
+                            }
+                        }
                         return;
                     }
 
