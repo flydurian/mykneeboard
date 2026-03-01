@@ -18,7 +18,7 @@ const ExchangeChartModal: React.FC<ExchangeChartModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[60] p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[110] p-4" onClick={onClose}>
             <div
                 className="bg-slate-900 border border-slate-700/50 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg p-5 sm:p-7 relative animate-fade-in-up"
                 onClick={(e) => e.stopPropagation()}

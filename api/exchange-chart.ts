@@ -32,7 +32,7 @@ export default async function handler(
 
         // Frankfurter API (무료, API 키 불필요)를 사용하여 1개월 time-series 데이터 가져오기
         // 외화 → KRW 기준
-        const apiUrl = `https://api.frankfurter.dev/${startStr}..${endStr}?from=${targetCurrency}&to=KRW`;
+        const apiUrl = `https://api.frankfurter.app/${startStr}..${endStr}?from=${targetCurrency}&to=KRW`;
 
         const response = await fetch(apiUrl, {
             headers: {
