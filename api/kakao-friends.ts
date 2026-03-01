@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (!kakaoResponse.ok) {
             const errData = await kakaoResponse.json().catch(() => ({}));
-            console.error('카카오 친구 API 에러:', kakaoResponse.status, errData);
+            console.error('카카오 친구 API 에러:', kakaoResponse.status, JSON.stringify(errData));
             // 토큰 만료 시 안내
             if (kakaoResponse.status === 401) {
                 return res.status(200).json({
@@ -74,7 +74,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     error: '카카오 토큰이 만료되었습니다. 다시 로그인해주세요.'
                 });
             }
-            return res.status(200).json({ success: false, friends: [], error: '카카오 친구 목록을 가져오지 못했습니다.' });
+            // 권한 부족 (403)
+            if (kakaoResponse.status === 403) {
+                return res.status(200).json({
+                    success: false,
+                    friends: [],
+                    error: `카카오 친구 API 권한이 없습니다. 카카오 검수가 필요합니다. (${errData?.code || kakaoResponse.status})`
+                });
+            }
+            return res.status(200).json({
+                success: false,
+                friends: [],
+                error: `카카오 친구 API 오류 (${kakaoResponse.status}): ${errData?.msg || errData?.message || '알 수 없는 오류'}`
+            });
         }
 
         const kakaoData = await kakaoResponse.json();
