@@ -268,13 +268,14 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-1 sm:p-4 pt-safe" onClick={onClose}>
             <div
-                className="glass-panel rounded-3xl shadow-2xl w-full max-w-5xl p-4 sm:p-6 md:p-8 relative animate-fade-in-up overflow-hidden"
+                className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl w-[98vw] sm:w-full max-w-5xl p-2 sm:p-6 md:p-8 relative animate-fade-in-up flex flex-col overflow-hidden"
                 style={{
                     background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)'
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)',
+                    maxHeight: '95vh'
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
@@ -282,216 +283,223 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-fuchsia-500/5 pointer-events-none" />
 
                 {/* 헤더 영역 */}
-                <div className="relative flex items-center justify-between mb-4 sm:mb-6">
-                    <h2 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+                <div className="relative z-10 flex items-center justify-between mb-2 sm:mb-6 shrink-0 pl-1">
+                    <h2 className="text-lg sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
                         {year}년 {month}월
                     </h2>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                         {/* 월 이동 버튼들 */}
                         <button
                             onClick={goToPreviousMonth}
-                            className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
+                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
                             title="이전 달"
+                            style={{ touchAction: 'manipulation' }}
                         >
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                             </svg>
                         </button>
                         <button
                             onClick={goToNextMonth}
-                            className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
+                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
                             title="다음 달"
+                            style={{ touchAction: 'manipulation' }}
                         >
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
                         <button
                             onClick={onClose}
-                            className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-slate-300 hover:text-red-400 transition-all hover:scale-105 active:scale-95"
+                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-slate-300 hover:text-red-400 transition-all hover:scale-105 active:scale-95 ml-1"
+                            title="닫기"
+                            style={{ touchAction: 'manipulation' }}
                         >
-                            <XIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <XIcon className="w-5 h-5 sm:w-5 sm:h-5" />
                         </button>
                     </div>
                 </div>
 
-                {/* 요일 헤더 */}
-                <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 sm:mb-3">
-                    {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => {
-                        const isSunday = index === 0;
-                        const isSaturday = index === 6;
-                        return (
-                            <div
-                                key={day}
-                                className={`
+                <div className="flex-1 overflow-y-auto min-h-0 pr-1 -mr-1 pb-2 scrollbar-hide">
+                    {/* 요일 헤더 */}
+                    <div className="grid grid-cols-7 gap-0.5 sm:gap-2 mb-1 sm:mb-3">
+                        {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => {
+                            const isSunday = index === 0;
+                            const isSaturday = index === 6;
+                            return (
+                                <div
+                                    key={day}
+                                    className={`
                                     text-center text-xs sm:text-sm font-bold py-2 sm:py-3 rounded-xl border backdrop-blur-sm
                                     ${isSunday
-                                        ? 'bg-gradient-to-br from-rose-500/20 to-rose-600/10 border-rose-500/30 text-rose-300 shadow-lg shadow-rose-500/10'
-                                        : isSaturday
-                                            ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/10 border-blue-500/30 text-blue-300 shadow-lg shadow-blue-500/10'
-                                            : 'bg-white/5 border-white/10 text-slate-300'
-                                    }
+                                            ? 'bg-gradient-to-br from-rose-500/20 to-rose-600/10 border-rose-500/30 text-rose-300 shadow-lg shadow-rose-500/10'
+                                            : isSaturday
+                                                ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/10 border-blue-500/30 text-blue-300 shadow-lg shadow-blue-500/10'
+                                                : 'bg-white/5 border-white/10 text-slate-300'
+                                        }
                                 `}
-                            >
-                                {day}
-                            </div>
-                        );
-                    })}
-                </div>
+                                >
+                                    {day}
+                                </div>
+                            );
+                        })}
+                    </div>
 
-                {/* 달력 그리드 */}
-                <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                    {calendarData.map((day, index) => {
-                        const isToday = (() => {
-                            const today = new Date();
-                            const todayKst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
-                            const todayYear = todayKst.getUTCFullYear();
-                            const todayMonth = todayKst.getUTCMonth() + 1;
-                            const todayDate = todayKst.getUTCDate();
-                            return day.day === todayDate && year === todayYear && month === todayMonth && day.isCurrentMonth;
-                        })();
+                    {/* 달력 그리드 */}
+                    <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                        {calendarData.map((day, index) => {
+                            const isToday = (() => {
+                                const today = new Date();
+                                const todayKst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+                                const todayYear = todayKst.getUTCFullYear();
+                                const todayMonth = todayKst.getUTCMonth() + 1;
+                                const todayDate = todayKst.getUTCDate();
+                                return day.day === todayDate && year === todayYear && month === todayMonth && day.isCurrentMonth;
+                            })();
 
-                        return (
-                            <div
-                                key={index}
-                                className={`
+                            return (
+                                <div
+                                    key={index}
+                                    className={`
                                     min-h-[70px] sm:min-h-[90px] md:min-h-[110px] lg:min-h-[130px] p-1.5 sm:p-2 rounded-xl border backdrop-blur-sm transition-all duration-200
                                     ${day.isCurrentMonth
-                                        ? (day.isHoliday || day.isSunday
-                                            ? 'bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-500/20 hover:border-rose-500/40 hover:shadow-lg hover:shadow-rose-500/10'
-                                            : day.isSaturday
-                                                ? 'bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10'
-                                                : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-lg'
-                                        )
-                                        : 'bg-black/20 border-white/5 text-slate-600'
-                                    }
+                                            ? (day.isHoliday || day.isSunday
+                                                ? 'bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-500/20 hover:border-rose-500/40 hover:shadow-lg hover:shadow-rose-500/10'
+                                                : day.isSaturday
+                                                    ? 'bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10'
+                                                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-lg'
+                                            )
+                                            : 'bg-black/20 border-white/5 text-slate-600'
+                                        }
                                     ${isToday ? 'ring-2 ring-fuchsia-500 ring-offset-2 ring-offset-slate-900 bg-gradient-to-br from-fuchsia-500/20 to-indigo-500/10 shadow-xl shadow-fuchsia-500/20' : ''}
                                 `}
-                            >
-                                <div className={`
+                                >
+                                    <div className={`
                                     text-sm sm:text-base md:text-lg font-bold mb-1
                                     ${day.isCurrentMonth
-                                        ? (day.isHoliday || day.isSunday ? 'text-rose-300' : day.isSaturday ? 'text-blue-300' : 'text-slate-200')
-                                        : 'text-slate-600'
-                                    }
+                                            ? (day.isHoliday || day.isSunday ? 'text-rose-300' : day.isSaturday ? 'text-blue-300' : 'text-slate-200')
+                                            : 'text-slate-600'
+                                        }
                                     ${isToday ? 'text-fuchsia-300' : ''}
                                 `}>
-                                    {day.day}
-                                </div>
+                                        {day.day}
+                                    </div>
 
-                                {/* 이벤트 표시 - 최대 3개 + 나머지 카운트 */}
-                                <div className="space-y-0.5 sm:space-y-1">
-                                    {day.events.slice(0, 3).map((event, eventIndex) => {
-                                        const isStandby = event.flight.flightNumber.includes('STBY') ||
-                                            event.flight.flightNumber.includes('OTHRDUTY') ||
-                                            event.flight.flightNumber.includes('RESERVE') ||
-                                            event.flight.scheduleType === 'STANDBY';
-                                        const isSimSchedule = event.flight.flightNumber.toUpperCase().includes('SIM');
-                                        const isVacationSchedule = event.flight.flightNumber.toUpperCase().includes('ANNUAL LEAVE') ||
-                                            event.flight.flightNumber.toUpperCase().includes('ALV') ||
-                                            event.flight.flightNumber.toUpperCase().includes('ALM') ||
-                                            event.flight.flightNumber.toUpperCase().includes('VAC_R') ||
-                                            event.flight.flightNumber.toUpperCase().includes('VAC');
-                                        const isSpecialSchedule = event.flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
-                                            event.flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
-                                            event.flight.flightNumber.toUpperCase().includes('G/S') ||
-                                            event.flight.flightNumber.toUpperCase().includes('GS') ||
-                                            event.flight.flightNumber.toUpperCase().includes('GROUND SCHOOL') ||
-                                            event.flight.flightNumber.toUpperCase().includes('MEDICAL CHK') ||
-                                            event.flight.flightNumber.toUpperCase().includes('MEDICAL') ||
-                                            event.flight.flightNumber.toUpperCase().includes('안전회의') ||
-                                            event.flight.flightNumber.toUpperCase().includes('SAFETY') ||
-                                            event.flight.flightNumber.toUpperCase().includes('TRAINING') ||
-                                            event.flight.flightNumber.toUpperCase().includes('교육') ||
-                                            event.flight.flightNumber.toUpperCase().includes('BRIEFING') ||
-                                            event.flight.flightNumber.toUpperCase().includes('브리핑') ||
-                                            event.flight.flightNumber.toUpperCase().includes('MEETING') ||
-                                            event.flight.flightNumber.toUpperCase().includes('회의') ||
-                                            event.flight.flightNumber.toUpperCase().includes('CHECK') ||
-                                            event.flight.flightNumber.toUpperCase().includes('점검') ||
-                                            event.flight.flightNumber.toUpperCase().includes('INSPECTION') ||
-                                            event.flight.flightNumber.toUpperCase().includes('검사');
+                                    {/* 이벤트 표시 - 최대 3개 + 나머지 카운트 */}
+                                    <div className="space-y-0.5 sm:space-y-1">
+                                        {day.events.slice(0, 3).map((event, eventIndex) => {
+                                            const isStandby = event.flight.flightNumber.includes('STBY') ||
+                                                event.flight.flightNumber.includes('OTHRDUTY') ||
+                                                event.flight.flightNumber.includes('RESERVE') ||
+                                                event.flight.scheduleType === 'STANDBY';
+                                            const isSimSchedule = event.flight.flightNumber.toUpperCase().includes('SIM');
+                                            const isVacationSchedule = event.flight.flightNumber.toUpperCase().includes('ANNUAL LEAVE') ||
+                                                event.flight.flightNumber.toUpperCase().includes('ALV') ||
+                                                event.flight.flightNumber.toUpperCase().includes('ALM') ||
+                                                event.flight.flightNumber.toUpperCase().includes('VAC_R') ||
+                                                event.flight.flightNumber.toUpperCase().includes('VAC');
+                                            const isSpecialSchedule = event.flight.flightNumber.toUpperCase().includes('G/S STUDENT') ||
+                                                event.flight.flightNumber.toUpperCase().includes('GS STUDENT') ||
+                                                event.flight.flightNumber.toUpperCase().includes('G/S') ||
+                                                event.flight.flightNumber.toUpperCase().includes('GS') ||
+                                                event.flight.flightNumber.toUpperCase().includes('GROUND SCHOOL') ||
+                                                event.flight.flightNumber.toUpperCase().includes('MEDICAL CHK') ||
+                                                event.flight.flightNumber.toUpperCase().includes('MEDICAL') ||
+                                                event.flight.flightNumber.toUpperCase().includes('안전회의') ||
+                                                event.flight.flightNumber.toUpperCase().includes('SAFETY') ||
+                                                event.flight.flightNumber.toUpperCase().includes('TRAINING') ||
+                                                event.flight.flightNumber.toUpperCase().includes('교육') ||
+                                                event.flight.flightNumber.toUpperCase().includes('BRIEFING') ||
+                                                event.flight.flightNumber.toUpperCase().includes('브리핑') ||
+                                                event.flight.flightNumber.toUpperCase().includes('MEETING') ||
+                                                event.flight.flightNumber.toUpperCase().includes('회의') ||
+                                                event.flight.flightNumber.toUpperCase().includes('CHECK') ||
+                                                event.flight.flightNumber.toUpperCase().includes('점검') ||
+                                                event.flight.flightNumber.toUpperCase().includes('INSPECTION') ||
+                                                event.flight.flightNumber.toUpperCase().includes('검사');
 
-                                        const isKESchedule = event.flight.flightNumber.startsWith('KE') ||
-                                            event.flight.flightNumber.match(/^\d+$/) &&
-                                            event.flight.scheduleType === 'FLIGHT';
-                                        const isOZSchedule = event.flight.scheduleType === 'OZ' ||
-                                            (event.flight.flightNumber.match(/^\d+$/) &&
-                                                event.flight.scheduleType !== '7C' &&
-                                                event.flight.scheduleType !== 'FLIGHT') ||
-                                            event.flight.flightNumber.toUpperCase().includes('FIXED SKD') ||
-                                            event.flight.flightNumber.toUpperCase().includes('ORAL');
-                                        const is7CSchedule = event.flight.scheduleType === '7C' &&
-                                            !isSpecialSchedule && !isSimSchedule && !isVacationSchedule;
+                                            const isKESchedule = event.flight.flightNumber.startsWith('KE') ||
+                                                event.flight.flightNumber.match(/^\d+$/) &&
+                                                event.flight.scheduleType === 'FLIGHT';
+                                            const isOZSchedule = event.flight.scheduleType === 'OZ' ||
+                                                (event.flight.flightNumber.match(/^\d+$/) &&
+                                                    event.flight.scheduleType !== '7C' &&
+                                                    event.flight.scheduleType !== 'FLIGHT') ||
+                                                event.flight.flightNumber.toUpperCase().includes('FIXED SKD') ||
+                                                event.flight.flightNumber.toUpperCase().includes('ORAL');
+                                            const is7CSchedule = event.flight.scheduleType === '7C' &&
+                                                !isSpecialSchedule && !isSimSchedule && !isVacationSchedule;
 
-                                        let bgGradient, borderColor, shadowColor;
-                                        if (isVacationSchedule) {
-                                            bgGradient = 'from-rose-600 to-rose-700';
-                                            borderColor = 'border-rose-400/30';
-                                            shadowColor = 'hover:shadow-rose-500/50';
-                                        } else if (isStandby) {
-                                            bgGradient = 'from-amber-600 to-amber-700';
-                                            borderColor = 'border-amber-400/30';
-                                            shadowColor = 'hover:shadow-amber-500/50';
-                                        } else if (isSimSchedule) {
-                                            bgGradient = 'from-emerald-600 to-emerald-700';
-                                            borderColor = 'border-emerald-400/30';
-                                            shadowColor = 'hover:shadow-emerald-500/50';
-                                        } else if (isSpecialSchedule) {
-                                            bgGradient = 'from-purple-600 to-purple-700';
-                                            borderColor = 'border-purple-400/30';
-                                            shadowColor = 'hover:shadow-purple-500/50';
-                                        } else if (is7CSchedule) {
-                                            bgGradient = 'from-orange-600 to-orange-700';
-                                            borderColor = 'border-orange-400/30';
-                                            shadowColor = 'hover:shadow-orange-500/50';
-                                        } else if (isOZSchedule) {
-                                            bgGradient = 'from-indigo-600 to-indigo-700';
-                                            borderColor = 'border-indigo-400/30';
-                                            shadowColor = 'hover:shadow-indigo-500/50';
-                                        } else if (isKESchedule) {
-                                            bgGradient = 'from-sky-600 to-sky-700';
-                                            borderColor = 'border-sky-400/30';
-                                            shadowColor = 'hover:shadow-sky-500/50';
-                                        } else {
-                                            bgGradient = 'from-slate-600 to-slate-700';
-                                            borderColor = 'border-slate-400/30';
-                                            shadowColor = 'hover:shadow-slate-500/50';
-                                        }
+                                            let bgGradient, borderColor, shadowColor;
+                                            if (isVacationSchedule) {
+                                                bgGradient = 'from-rose-600 to-rose-700';
+                                                borderColor = 'border-rose-400/30';
+                                                shadowColor = 'hover:shadow-rose-500/50';
+                                            } else if (isStandby) {
+                                                bgGradient = 'from-amber-600 to-amber-700';
+                                                borderColor = 'border-amber-400/30';
+                                                shadowColor = 'hover:shadow-amber-500/50';
+                                            } else if (isSimSchedule) {
+                                                bgGradient = 'from-emerald-600 to-emerald-700';
+                                                borderColor = 'border-emerald-400/30';
+                                                shadowColor = 'hover:shadow-emerald-500/50';
+                                            } else if (isSpecialSchedule) {
+                                                bgGradient = 'from-purple-600 to-purple-700';
+                                                borderColor = 'border-purple-400/30';
+                                                shadowColor = 'hover:shadow-purple-500/50';
+                                            } else if (is7CSchedule) {
+                                                bgGradient = 'from-orange-600 to-orange-700';
+                                                borderColor = 'border-orange-400/30';
+                                                shadowColor = 'hover:shadow-orange-500/50';
+                                            } else if (isOZSchedule) {
+                                                bgGradient = 'from-indigo-600 to-indigo-700';
+                                                borderColor = 'border-indigo-400/30';
+                                                shadowColor = 'hover:shadow-indigo-500/50';
+                                            } else if (isKESchedule) {
+                                                bgGradient = 'from-sky-600 to-sky-700';
+                                                borderColor = 'border-sky-400/30';
+                                                shadowColor = 'hover:shadow-sky-500/50';
+                                            } else {
+                                                bgGradient = 'from-slate-600 to-slate-700';
+                                                borderColor = 'border-slate-400/30';
+                                                shadowColor = 'hover:shadow-slate-500/50';
+                                            }
 
-                                        return (
-                                            <div
-                                                key={eventIndex}
-                                                className={`
-                                                    text-[9px] sm:text-[10px] md:text-xs
+                                            return (
+                                                <div
+                                                    key={eventIndex}
+                                                    className={`
+                                                    text-[8px] sm:text-[10px] md:text-xs
                                                     bg-gradient-to-r ${bgGradient}
                                                     text-white font-medium
-                                                    px-1.5 sm:px-2 py-1 sm:py-1.5
-                                                    rounded-lg border ${borderColor}
-                                                    cursor-pointer break-words leading-tight
-                                                    shadow-md ${shadowColor}
+                                                    px-1 sm:px-2 py-0.5 sm:py-1.5
+                                                    rounded-full border ${borderColor}
+                                                    cursor-pointer truncate sm:break-words leading-tight
+                                                    shadow-sm sm:shadow-md ${shadowColor}
                                                     transition-all duration-200
                                                     hover:scale-105 hover:shadow-lg
                                                     active:scale-95
                                                     backdrop-blur-sm
+                                                    text-center
                                                 `}
-                                                onClick={() => onFlightClick(event.flight)}
-                                                title={event.title}
-                                            >
-                                                {event.title}
+                                                    onClick={() => onFlightClick(event.flight)}
+                                                    title={event.title}
+                                                >
+                                                    {event.title}
+                                                </div>
+                                            );
+                                        })}
+                                        {day.events.length > 3 && (
+                                            <div className="text-[8px] sm:text-[10px] text-slate-300 font-bold px-1 sm:px-2 py-0.5 text-center bg-white/10 rounded-full border border-white/20 mt-0.5 hover:bg-white/20 transition-colors">
+                                                +{day.events.length - 3}
                                             </div>
-                                        );
-                                    })}
-                                    {day.events.length > 3 && (
-                                        <div className="text-[9px] sm:text-[10px] text-slate-400 font-medium px-1.5 sm:px-2 py-0.5 text-center bg-white/5 rounded-md border border-white/10">
-                                            +{day.events.length - 3}
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>

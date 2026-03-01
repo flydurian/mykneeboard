@@ -250,10 +250,11 @@ self.addEventListener('message', (event) => {
       if (data && data.urls) {
         caches.open(CACHE_NAME)
           .then((cache) => {
-            // 실패하더라도 에러를 발생시키지 않고 가능한 것만 캐시
+            // 실패하더라도 에러를 발생시키지 않고 가능한 것만 캐시 (로그 억제)
             const promises = data.urls.map(url =>
               cache.add(url).catch(err => {
-                console.warn('Failed to cache URL:', url, err);
+                // Vercel 동적 청크 파일들은 304 응답 등으로 인해 cache.add가 실패할 수 있음. 
+                // 어차피 fetch 이벤트에서 on-the-fly 캐싱되므로 여기서 에러 로그 생략
                 return Promise.resolve();
               })
             );

@@ -10,6 +10,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, '.'),
     }
   },
+  optimizeDeps: {
+    include: ['recharts']
+  },
   build: {
     // Performance optimizations
     rollupOptions: {

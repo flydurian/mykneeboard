@@ -178,11 +178,10 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                 className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 pt-safe"
                 onClick={onClose}
             >
-                <div className="glass-panel rounded-2xl shadow-xl w-full max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl relative animate-fade-in-up flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-                    {/* 헤더 영역 */}
-                    <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
+                <div className="glass-panel rounded-xl sm:rounded-2xl shadow-xl w-[95vw] sm:w-full max-w-[95vw] md:max-w-4xl lg:max-w-5xl xl:max-w-6xl relative animate-fade-in-up flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative z-10 flex items-center justify-between p-3 sm:p-6 border-b border-white/10 flex-shrink-0">
                         {/* 제목 */}
-                        <h2 className="text-xl font-bold text-white">
+                        <h2 className="text-xl font-bold text-white pl-1">
                             {year}년 {month + 1}월 스케줄
                             <span className="text-base font-medium text-slate-400 ml-2">
                                 (총 {blockTime})
@@ -190,38 +189,41 @@ const MonthlyScheduleModal: React.FC<MonthlyScheduleModalProps> = ({ data, onClo
                         </h2>
 
                         {/* 네비게이션 및 닫기 버튼들 */}
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-1 sm:space-x-2">
                             <button
                                 onClick={handlePreviousMonth}
-                                className="p-1 text-slate-400 hover:text-white transition-colors"
+                                className="p-2 sm:p-1.5 text-slate-400 hover:text-white transition-colors hover:bg-white/5 rounded-lg"
                                 title="이전 월"
+                                style={{ touchAction: 'manipulation' }}
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                <svg className="w-6 h-6 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                                 </svg>
                             </button>
                             <button
                                 onClick={handleNextMonth}
-                                className="p-1 text-slate-400 hover:text-white transition-colors"
+                                className="p-2 sm:p-1.5 text-slate-400 hover:text-white transition-colors hover:bg-white/5 rounded-lg"
                                 title="다음 월"
+                                style={{ touchAction: 'manipulation' }}
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                <svg className="w-6 h-6 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                 </svg>
                             </button>
                             <button
                                 onClick={onClose}
-                                className="p-1 text-slate-400 hover:text-white transition-colors"
+                                className="p-2 sm:p-1.5 text-slate-400 hover:text-red-400 transition-colors hover:bg-red-500/10 rounded-lg ml-1"
                                 title="닫기"
+                                style={{ touchAction: 'manipulation' }}
                             >
-                                <XIcon className="w-6 h-6" />
+                                <XIcon className="w-6 h-6 sm:w-6 sm:h-6" />
                             </button>
                         </div>
                     </div>
 
                     {/* Content area */}
                     <div
-                        className={`flex-grow overflow-auto p-6 ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
+                        className={`flex-grow overflow-auto p-2 sm:p-6 ${showScrollbar ? 'scrollbar-show' : 'scrollbar-hide'}`}
                         onScroll={handleScroll}
                     >
                         {flights.length > 0 ? (
