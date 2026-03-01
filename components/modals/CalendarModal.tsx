@@ -268,7 +268,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={onClose} onTouchEnd={onClose}>
+        <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={onClose} onTouchEnd={onClose}>
             <div
                 className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl p-2 sm:p-6 md:p-8 relative animate-fade-in-up flex flex-col overflow-hidden"
                 style={{
@@ -333,7 +333,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                                 <div
                                     key={day}
                                     className={`
-                                    text-center text-xs sm:text-sm font-bold py-2 sm:py-3 rounded-xl border backdrop-blur-sm
+                                    text-center text-xs sm:text-sm font-bold py-2 sm:py-3 rounded-xl border
                                     ${isSunday
                                             ? 'bg-gradient-to-br from-rose-500/20 to-rose-600/10 border-rose-500/30 text-rose-300 shadow-lg shadow-rose-500/10'
                                             : isSaturday
@@ -364,17 +364,18 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                                 <div
                                     key={index}
                                     className={`
-                                    min-h-[70px] sm:min-h-[90px] md:min-h-[110px] lg:min-h-[130px] p-1.5 sm:p-2 rounded-xl border backdrop-blur-sm transition-all duration-200
-                                    ${day.isCurrentMonth
-                                            ? (day.isHoliday || day.isSunday
-                                                ? 'bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-500/20 hover:border-rose-500/40 hover:shadow-lg hover:shadow-rose-500/10'
-                                                : day.isSaturday
-                                                    ? 'bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10'
-                                                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-lg'
-                                            )
-                                            : 'bg-black/20 border-white/5 text-slate-600'
+                                    min-h-[70px] sm:min-h-[90px] md:min-h-[110px] lg:min-h-[130px] p-1.5 sm:p-2 rounded-xl transition-all duration-200
+                                    ${isToday
+                                            ? 'border-2 border-fuchsia-500 bg-gradient-to-br from-fuchsia-500/20 to-indigo-500/10'
+                                            : day.isCurrentMonth
+                                                ? (day.isHoliday || day.isSunday
+                                                    ? 'border border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-rose-600/5 hover:border-rose-500/40'
+                                                    : day.isSaturday
+                                                        ? 'border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-600/5 hover:border-blue-500/40'
+                                                        : 'border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
+                                                )
+                                                : 'border border-white/5 bg-black/20 text-slate-600'
                                         }
-                                    ${isToday ? 'shadow-[0_0_0_2px_rgba(217,70,239,0.8),0_0_12px_rgba(217,70,239,0.3)] bg-gradient-to-br from-fuchsia-500/20 to-indigo-500/10' : ''}
                                 `}
                                 >
                                     <div className={`
