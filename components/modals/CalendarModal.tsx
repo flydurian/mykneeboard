@@ -268,7 +268,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={onClose} onTouchEnd={onClose}>
             <div
                 className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl p-2 sm:p-6 md:p-8 relative animate-fade-in-up flex flex-col overflow-hidden"
                 style={{
@@ -279,6 +279,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                     maxWidth: 'calc(100vw - 16px)'
                 }}
                 onClick={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
             >
                 {/* 배경 그라데이션 효과 */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-fuchsia-500/5 pointer-events-none" />
@@ -292,30 +293,30 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                     <div className="flex items-center gap-1 sm:gap-2">
                         {/* 월 이동 버튼들 */}
                         <button
-                            onClick={goToPreviousMonth}
-                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
+                            onClick={(e) => { e.stopPropagation(); goToPreviousMonth(); }}
+                            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); goToPreviousMonth(); }}
+                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
                             title="이전 달"
-                            style={{ touchAction: 'manipulation' }}
                         >
                             <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                             </svg>
                         </button>
                         <button
-                            onClick={goToNextMonth}
-                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
+                            onClick={(e) => { e.stopPropagation(); goToNextMonth(); }}
+                            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); goToNextMonth(); }}
+                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
                             title="다음 달"
-                            style={{ touchAction: 'manipulation' }}
                         >
                             <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
                         <button
-                            onClick={onClose}
-                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-slate-300 hover:text-red-400 transition-all hover:scale-105 active:scale-95 ml-1"
+                            onClick={(e) => { e.stopPropagation(); onClose(); }}
+                            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+                            className="p-3 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-slate-300 hover:text-red-400 transition-all active:scale-95 ml-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
                             title="닫기"
-                            style={{ touchAction: 'manipulation' }}
                         >
                             <XIcon className="w-5 h-5 sm:w-5 sm:h-5" />
                         </button>
@@ -373,7 +374,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
                                             )
                                             : 'bg-black/20 border-white/5 text-slate-600'
                                         }
-                                    ${isToday ? 'ring-2 ring-fuchsia-500 ring-offset-2 ring-offset-slate-900 bg-gradient-to-br from-fuchsia-500/20 to-indigo-500/10 shadow-xl shadow-fuchsia-500/20' : ''}
+                                    ${isToday ? 'shadow-[0_0_0_2px_rgba(217,70,239,0.8),0_0_12px_rgba(217,70,239,0.3)] bg-gradient-to-br from-fuchsia-500/20 to-indigo-500/10' : ''}
                                 `}
                                 >
                                     <div className={`
