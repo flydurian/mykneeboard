@@ -268,14 +268,15 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-1 sm:p-4 pt-safe" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-50 p-2 sm:p-4 pt-safe" onClick={onClose}>
             <div
-                className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl w-[98vw] sm:w-full max-w-5xl p-2 sm:p-6 md:p-8 relative animate-fade-in-up flex flex-col overflow-hidden"
+                className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl p-2 sm:p-6 md:p-8 relative animate-fade-in-up flex flex-col overflow-hidden"
                 style={{
                     background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)',
-                    maxHeight: '95vh'
+                    maxHeight: '95vh',
+                    maxWidth: 'calc(100vw - 16px)'
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
