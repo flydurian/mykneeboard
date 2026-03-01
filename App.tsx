@@ -3688,9 +3688,6 @@ const App: React.FC = () => {
               >
                 이메일로 로그인하기
               </button>
-              <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-4">
-                계정이 없으신가요? <button onClick={handleShowRegister} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium">이메일 회원가입</button>
-              </p>
             </div>
           )}
 
