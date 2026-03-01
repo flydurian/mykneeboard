@@ -474,7 +474,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose, 
                                         }
 
                                         const REDIRECT_URI = window.location.origin + '/auth/kakao/callback';
-                                        window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+                                        window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=friends`;
                                     }}
                                     className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-bold transition-all shadow-lg hover:brightness-95 active:scale-95"
                                     style={{

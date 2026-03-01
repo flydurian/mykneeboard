@@ -1169,7 +1169,8 @@ export const getCrewMemos = async (userId: string): Promise<{ [key: string]: str
       const cachedEncryptedMemos = await indexedDBCache.loadCrewMemos(userId);
       if (Object.keys(cachedEncryptedMemos).length > 0) {
         // 암호화된 캐시 데이터 복호화
-        const decryptedMemos = await decryptCrewMemos(cachedEncryptedMemos, userId);
+        const oldUid = localStorage.getItem('migration_old_uid');
+        const decryptedMemos = await decryptCrewMemos(cachedEncryptedMemos, userId, oldUid || undefined);
         return decryptedMemos;
       }
       return {};
@@ -1236,7 +1237,8 @@ export const getCrewMemos = async (userId: string): Promise<{ [key: string]: str
     const cachedEncryptedMemos = await indexedDBCache.loadCrewMemos(userId);
     if (Object.keys(cachedEncryptedMemos).length > 0) {
       // 암호화된 캐시 데이터 복호화
-      const decryptedMemos = await decryptCrewMemos(cachedEncryptedMemos, userId);
+      const oldUid = localStorage.getItem('migration_old_uid');
+      const decryptedMemos = await decryptCrewMemos(cachedEncryptedMemos, userId, oldUid || undefined);
       return decryptedMemos;
     }
     return {};
@@ -1295,7 +1297,8 @@ export const getCityMemos = async (userId: string): Promise<{ [key: string]: str
       const cachedEncryptedMemos = await indexedDBCache.loadCityMemos(userId);
       if (Object.keys(cachedEncryptedMemos).length > 0) {
         // 암호화된 캐시 데이터 복호화
-        const decryptedMemos = await decryptCityMemos(cachedEncryptedMemos, userId);
+        const oldUid = localStorage.getItem('migration_old_uid');
+        const decryptedMemos = await decryptCityMemos(cachedEncryptedMemos, userId, oldUid || undefined);
         return decryptedMemos;
       }
       return {};
@@ -1365,7 +1368,8 @@ export const getCityMemos = async (userId: string): Promise<{ [key: string]: str
     const cachedEncryptedMemos = await indexedDBCache.loadCityMemos(userId);
     if (Object.keys(cachedEncryptedMemos).length > 0) {
       // 암호화된 캐시 데이터 복호화
-      const decryptedMemos = await decryptCityMemos(cachedEncryptedMemos, userId);
+      const oldUid = localStorage.getItem('migration_old_uid');
+      const decryptedMemos = await decryptCityMemos(cachedEncryptedMemos, userId, oldUid || undefined);
       return decryptedMemos;
     }
     return {};
@@ -1930,3 +1934,96 @@ export const migrateAccountData = async (oldUid: string, newUid: string): Promis
     return false;
   }
 };
+
+// ==========================================
+// [카카오 친구 추천] 카카오 ID ↔ Firebase UID 매핑
+// ==========================================
+
+// 카카오 ID → Firebase UID 매핑 저장
+export const saveKakaoIdToUidMapping = async (kakaoId: string, userId: string): Promise<void> => {
+  try {
+    if (!kakaoId || !userId || isFirebaseOffline()) return;
+    const mappingRef = ref(database, `kakaoIdToUid/${kakaoId}`);
+    await set(mappingRef, userId);
+  } catch (error) {
+    console.error('카카오ID-UID 매핑 저장 실패:', error);
+  }
+};
+
+// 카카오 ID로 Firebase UID 찾기
+export const getUidByKakaoId = async (kakaoId: string): Promise<string | null> => {
+  try {
+    if (isFirebaseOffline()) return null;
+    const mappingRef = ref(database, `kakaoIdToUid/${kakaoId}`);
+    const snapshot = await get(mappingRef);
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.error('카카오ID로 UID 찾기 실패:', error);
+    return null;
+  }
+};
+
+// 카카오 액세스 토큰 저장 (Firebase DB에 저장, 친구 목록 조회용)
+export const saveKakaoAccessToken = async (userId: string, token: string): Promise<void> => {
+  try {
+    if (!userId || !token || isFirebaseOffline()) return;
+    const tokenRef = ref(database, `users/${userId}/kakaoAccessToken`);
+    await set(tokenRef, token);
+  } catch (error) {
+    console.error('카카오 액세스 토큰 저장 실패:', error);
+  }
+};
+
+// 카카오 액세스 토큰 조회
+export const getKakaoAccessToken = async (userId: string): Promise<string | null> => {
+  try {
+    if (isFirebaseOffline()) return null;
+    const tokenRef = ref(database, `users/${userId}/kakaoAccessToken`);
+    const snapshot = await get(tokenRef);
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.error('카카오 액세스 토큰 조회 실패:', error);
+    return null;
+  }
+};
+
+// UID 기반 직접 친구 요청 보내기 (카카오 친구 추천용)
+export const sendFriendRequestByUid = async (fromUserId: string, fromName: string, toUserId: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    if (isFirebaseOffline()) return { success: false, message: '오프라인 상태에서는 친구 요청을 보낼 수 없습니다.' };
+
+    if (fromUserId === toUserId) {
+      return { success: false, message: '자기 자신에게 친구 요청을 보낼 수 없습니다.' };
+    }
+
+    // 이미 친구인지 확인
+    const friendsRef = ref(database, `users/${fromUserId}/friends/${toUserId}`);
+    const friendSnapshot = await get(friendsRef);
+    if (friendSnapshot.exists()) {
+      return { success: false, message: '이미 친구 관계입니다.' };
+    }
+
+    // 이미 보낸 요청이 있는지 확인
+    const existingRef = ref(database, `users/${toUserId}/friendRequests/${fromUserId}`);
+    const existingSnapshot = await get(existingRef);
+    if (existingSnapshot.exists()) {
+      return { success: false, message: '이미 친구 요청을 보냈습니다.' };
+    }
+
+    // 친구 요청 보내기
+    const requestRef = ref(database, `users/${toUserId}/friendRequests/${fromUserId}`);
+    await set(requestRef, {
+      from: fromUserId,
+      email: '',
+      name: fromName,
+      status: 'pending',
+      timestamp: Date.now()
+    });
+
+    return { success: true, message: '친구 요청을 보냈습니다.' };
+  } catch (error) {
+    console.error('친구 요청 보내기 실패:', error);
+    return { success: false, message: '친구 요청 중 오류가 발생했습니다.' };
+  }
+};
+

@@ -13,7 +13,7 @@ import { UploadCloudIcon, CalendarIcon, AirlineLogo, SettingsIcon, ChevronDownIc
 import FlightCard from './components/FlightCard';
 import CurrencyCard from './components/CurrencyCard';
 import BlockTimeCard from './components/BlockTimeCard';
-const FlightDetailModal = lazy(() => import('./components/modals/FlightDetailModal'));
+import FlightDetailModal from './components/modals/FlightDetailModal';
 const CurrencyDetailModal = lazy(() => import('./components/modals/CurrencyDetailModal'));
 const MonthlyScheduleModal = lazy(() => import('./components/modals/MonthlyScheduleModal'));
 const CalendarModal = lazy(() => import('./components/modals/CalendarModal'));
@@ -52,10 +52,10 @@ const RegisterModal = lazy(() => import('./components/RegisterModal'));
 const NoFlightModal = lazy(() => import('./components/modals/NoFlightModal'));
 const UserSettingsModal = lazy(() => import('./components/UserSettingsModal'));
 const CrewHistoryModal = lazy(() => import('./components/modals/CrewHistoryModal'));
-const CrewMemoModal = lazy(() => import('./components/modals/CrewMemoModal'));
-const CityMemoModal = lazy(() => import('./components/modals/CityMemoModal'));
-const CityScheduleModal = lazy(() => import('./components/modals/CityScheduleModal'));
+import CityScheduleModal from './components/modals/CityScheduleModal';
 const AboutModal = lazy(() => import('./components/modals/AboutModal'));
+import CrewMemoModal from './components/modals/CrewMemoModal';
+import CityMemoModal from './components/modals/CityMemoModal';
 const CurrencySettingsModal = lazy(() => import('./components/modals/CurrencySettingsModal'));
 const PassportVisaWarningModal = lazy(() => import('./components/modals/PassportVisaWarningModal'));
 const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal'));
@@ -3619,7 +3619,7 @@ const App: React.FC = () => {
                   }
 
                   const REDIRECT_URI = window.location.origin + '/auth/kakao/callback';
-                  const KAKAO_AUTH_URL = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+                  const KAKAO_AUTH_URL = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=friends`;
                   window.location.href = KAKAO_AUTH_URL;
                 }}
                 className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-2xl font-medium text-lg mb-4"

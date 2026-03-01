@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getDatabase } from 'firebase-admin/database';
 import dotenv from 'dotenv';
 
 // 강제로 .env.local 로드 (Vercel CLI 버그 대응)
@@ -17,6 +18,7 @@ if (!getApps().length) {
         // vercel dev 에서 사용하는 .env.local 의 실제 \n 문자를 개행으로 치환
         // 만약 Vercel 서버에서 내려준 literal \n이라면 이미 줄바꿈이 되어있을 것이고, 문자열 형태의 \\n 이라면 치환함
         const privateKey = privateKeyRaw ? privateKeyRaw.split('\\n').join('\n') : undefined;
+        const databaseURL = sanitizeEnv(process.env.VITE_FIREBASE_DATABASE_URL);
 
         console.log('초기화 시도 중... Project ID:', projectId);
         console.log('ALL ENV KEYS:', Object.keys(process.env).filter(k => k.includes('FIREBASE')));
@@ -29,6 +31,7 @@ if (!getApps().length) {
                 clientEmail: clientEmail as string,
                 privateKey: privateKey as string,
             }),
+            databaseURL,
         });
         console.log('Firebase Admin SDK 성공적으로 초기화됨');
     } catch (error) {
@@ -84,6 +87,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 2. Create custom token
         const customToken = await getAuth().createCustomToken(firebaseUid);
 
+        // 3. kakaoId → Firebase UID 매핑 저장 (친구 추천용)
+        try {
+            const db = getDatabase();
+            await db.ref(`kakaoIdToUid/${kakaoUid}`).set(firebaseUid);
+            // 카카오 액세스 토큰 저장 (친구 목록 조회용)
+            await db.ref(`users/${firebaseUid}/kakaoAccessToken`).set(kakaoAccessToken);
+            console.log(`✅ kakaoId(${kakaoUid}) → UID(${firebaseUid}) 매핑 및 토큰 저장 완료`);
+        } catch (dbError) {
+            console.warn('⚠️ kakaoId 매핑/토큰 저장 실패 (무시됨):', dbError);
+        }
+
         return res.status(200).json({ customToken, firebaseUid });
 
     } catch (error: any) {
@@ -102,3 +116,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     }
 }
+

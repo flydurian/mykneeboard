@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     sendFriendRequest,
+    sendFriendRequestByUid,
     acceptFriendRequest,
     rejectFriendRequest,
     removeFriend,
@@ -45,6 +46,13 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
     const [message, setMessage] = useState({ text: '', type: '' });
     const [showAddModal, setShowAddModal] = useState(false);
     const [confirmRemoveUid, setConfirmRemoveUid] = useState<string | null>(null);
+
+    // 카카오 친구 추천 상태
+    const isKakaoUser = user?.uid?.startsWith('kakao:');
+    const [kakaoFriends, setKakaoFriends] = useState<any[]>([]);
+    const [isLoadingKakao, setIsLoadingKakao] = useState(false);
+    const [kakaoError, setKakaoError] = useState('');
+    const [sentKakaoRequests, setSentKakaoRequests] = useState<Set<string>>(new Set());
 
     // 캘린더 상태
     const now = new Date();
@@ -101,6 +109,52 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
             unsubRequests();
         };
     }, [user?.uid, loadFriendProfiles]);
+
+    // 카카오 친구 추천 목록 로드
+    const fetchKakaoFriends = useCallback(async () => {
+        if (!user?.uid || !isKakaoUser) return;
+        setIsLoadingKakao(true);
+        setKakaoError('');
+        try {
+            const backendOrigin = window.location.hostname === 'localhost' ? 'http://localhost:3000' : window.location.origin;
+            const response = await fetch(`${backendOrigin}/api/kakao-friends?userId=${encodeURIComponent(user.uid)}`);
+            const data = await response.json();
+            if (data.success) {
+                setKakaoFriends(data.friends || []);
+            } else {
+                setKakaoError(data.error || '카카오 친구 목록을 불러오지 못했습니다.');
+                setKakaoFriends([]);
+            }
+        } catch (error) {
+            console.error('카카오 친구 조회 실패:', error);
+            setKakaoError('카카오 친구 목록을 불러오는 중 오류가 발생했습니다.');
+            setKakaoFriends([]);
+        } finally {
+            setIsLoadingKakao(false);
+        }
+    }, [user?.uid, isKakaoUser]);
+
+    // 카카오 로그인 사용자이면 친구 추천 자동 로드
+    useEffect(() => {
+        if (isKakaoUser) {
+            fetchKakaoFriends();
+        }
+    }, [isKakaoUser, fetchKakaoFriends]);
+
+    // 카카오 친구에게 친구 요청 보내기
+    const handleKakaoFriendRequest = async (friendUid: string) => {
+        try {
+            const result = await sendFriendRequestByUid(user.uid, user.displayName || '사용자', friendUid);
+            if (result.success) {
+                setSentKakaoRequests(prev => new Set(prev).add(friendUid));
+                setMessage({ text: result.message, type: 'success' });
+            } else {
+                setMessage({ text: result.message, type: 'error' });
+            }
+        } catch (error) {
+            setMessage({ text: '친구 요청 중 오류가 발생했습니다.', type: 'error' });
+        }
+    };
 
     // 친구 스케줄 로드
     const loadFriendSchedule = useCallback(async (uid: string) => {
@@ -300,6 +354,87 @@ const FriendsTab: React.FC<FriendsTabProps> = ({ user, myFlights }) => {
 
     return (
         <div className="space-y-4">
+            {/* 카카오 친구 추천 */}
+            {isKakaoUser && (
+                <section className="glass-panel rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold flex items-center gap-2">
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ backgroundColor: '#FEE500' }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 3C6.47715 3 2 6.58172 2 11C2 13.8443 3.49653 16.34 5.76011 17.8444L4.85106 21.0567C4.77382 21.3298 5.06173 21.5645 5.31175 21.4395L8.72917 19.7303C9.76174 19.9079 10.8522 20 12 20C17.5228 20 22 16.4183 22 12C22 7.58172 17.5228 4 12 4V3Z" fill="#000" />
+                                </svg>
+                            </span>
+                            카카오 친구 추천
+                        </h3>
+                        <button
+                            onClick={fetchKakaoFriends}
+                            disabled={isLoadingKakao}
+                            className={`p-1.5 text-gray-400 hover:text-white transition-all rounded-lg hover:bg-white/10 ${isLoadingKakao ? 'animate-spin' : ''}`}
+                        >
+                            <RefreshCwIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {isLoadingKakao ? (
+                        <div className="text-center py-3">
+                            <RefreshCwIcon className="w-5 h-5 animate-spin mx-auto text-yellow-500 mb-1" />
+                            <p className="text-gray-500 text-xs">카카오 친구 검색 중...</p>
+                        </div>
+                    ) : kakaoError ? (
+                        <p className="text-center py-2 text-red-400 text-xs">{kakaoError}</p>
+                    ) : kakaoFriends.length === 0 ? (
+                        <p className="text-center py-2 text-gray-500 text-xs">앱을 사용하는 카카오 친구가 없습니다</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {kakaoFriends.map((friend) => {
+                                const isSent = sentKakaoRequests.has(friend.uid);
+                                return (
+                                    <div key={friend.uid} className="flex items-center gap-3 bg-white/5 rounded-xl p-3">
+                                        {/* 프로필 이미지 */}
+                                        {friend.kakaoProfileImage ? (
+                                            <img
+                                                src={friend.kakaoProfileImage}
+                                                alt=""
+                                                className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                                            />
+                                        ) : (
+                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center flex-shrink-0">
+                                                <span className="text-white text-sm font-bold">
+                                                    {(friend.displayName || '?').charAt(0)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {/* 정보 */}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <p className="font-medium text-sm truncate">{friend.displayName}</p>
+                                                {friend.company && (
+                                                    <AirlineLogo airline={friend.company} className="flex-shrink-0 w-4 h-4" />
+                                                )}
+                                            </div>
+                                            {friend.kakaoNickname && friend.kakaoNickname !== friend.displayName && (
+                                                <p className="text-xs text-gray-500 truncate">카카오: {friend.kakaoNickname}</p>
+                                            )}
+                                        </div>
+                                        {/* 친구 추가 버튼 */}
+                                        <button
+                                            onClick={() => handleKakaoFriendRequest(friend.uid)}
+                                            disabled={isSent}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${isSent
+                                                    ? 'bg-gray-600/20 text-gray-500 cursor-not-allowed'
+                                                    : 'bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400'
+                                                }`}
+                                        >
+                                            {isSent ? '요청 완료' : '친구 추가'}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
+            )}
+
             {/* 받은 친구 요청 */}
             <AnimatePresence>
                 {requests.length > 0 && (
