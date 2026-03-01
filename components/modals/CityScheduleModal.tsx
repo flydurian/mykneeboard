@@ -23,6 +23,7 @@ import {
     WiCloudy,
     WiCloudyGusts
 } from 'react-icons/wi';
+import ExchangeChartModal from './ExchangeChartModal';
 
 interface WeatherData {
     main: {
@@ -155,8 +156,13 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
     const [loadingWeather, setLoadingWeather] = useState(false);
     const [weatherError, setWeatherError] = useState<string | null>(null);
     const [exchangeRate, setExchangeRate] = useState<string | null>(null);
+    const [usdExchangeRate, setUsdExchangeRate] = useState<string | null>(null);
     const [loadingExchangeRate, setLoadingExchangeRate] = useState(false);
     const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
+    const [showChartModal, setShowChartModal] = useState(false);
+    const [chartData, setChartData] = useState<any[]>([]);
+    const [loadingChart, setLoadingChart] = useState(false);
+    const [chartError, setChartError] = useState<string | null>(null);
     const [forecast, setForecast] = useState<any[] | null>(null);
     const [threeHourForecast, setThreeHourForecast] = useState<any[] | null>(null);
     const [loadingForecast, setLoadingForecast] = useState(false);
@@ -2183,6 +2189,27 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                             }
                             throw apiError; // 다른 오류는 상위 catch로 전달
                         }
+
+                        // 달러화 환율 정보 가져오기 (원화가 기축이거나 요청이 USD가 아닐 경우)
+                        if (targetCurrency !== 'USD') {
+                            try {
+                                const usdResponse = await fetch(`/api/exchange?fromCurrency=${targetCurrency}&toCurrency=USD`);
+                                const usdData = await usdResponse.json();
+                                if (usdData.success && usdData.conversion_rate) {
+                                    const rate = usdData.conversion_rate;
+                                    let displayUnit = 1;
+                                    let displayRate = rate;
+                                    if (targetCurrency === 'VND') {
+                                        displayUnit = 10000;
+                                        displayRate = rate * 10000;
+                                    }
+                                    const usdText = `${displayUnit.toLocaleString()} ${targetCurrency} ≈ ${displayRate.toFixed(4)} USD`;
+                                    setUsdExchangeRate(usdText);
+                                }
+                            } catch (e) {
+                                console.warn('달러 환율 가져오기 실패', e);
+                            }
+                        }
                     } else {
                         // 오프라인 상태에서 캐시된 데이터가 있으면 사용
                         const offlineCachedData = getCachedData(`exchange_v2_${city}`, 24 * 60 * 60 * 1000); // 24시간
@@ -2232,7 +2259,10 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
             setShowWeather(false);
             setWeather(null);
             setExchangeRate(null);
+            setUsdExchangeRate(null);
             setExchangeRateError(null);
+            setChartData([]);
+            setChartError(null);
             setForecast(null);
             setForecastError(null);
             setThreeHourForecast(null);
@@ -2840,10 +2870,55 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                     )}
 
                                     {getCurrencyFromCode(city) && getCurrencyFromCode(city) !== 'KRW' && (
-                                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 text-center">
-                                            {loadingExchangeRate && <p className="text-sm text-gray-500 dark:text-gray-400">환율 정보 로딩 중...</p>}
-                                            {exchangeRateError && <p className="text-sm text-red-500 dark:text-red-400">{exchangeRateError}</p>}
-                                            {exchangeRate && <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold">{exchangeRate}</p>}
+                                        <div
+                                            className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 text-center cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg p-2 transition-all"
+                                            onClick={async () => {
+                                                setShowChartModal(true);
+                                                setLoadingChart(true);
+                                                setChartError(null);
+                                                try {
+                                                    const targetCurrency = getCurrencyFromCode(city);
+                                                    if (targetCurrency) {
+                                                        const res = await fetch(`/api/exchange-chart?currency=${targetCurrency}`);
+                                                        const json = await res.json();
+                                                        if (res.ok && json.success && json.data) {
+                                                            setChartData(json.data);
+                                                        } else {
+                                                            throw new Error(json.error || '차트 데이터를 불러오지 못했습니다.');
+                                                        }
+                                                    }
+                                                } catch (err: any) {
+                                                    setChartError('1개월 변동 추이를 가져오는데 실패했습니다.');
+                                                } finally {
+                                                    setLoadingChart(false);
+                                                }
+                                            }}
+                                            title="1개월 환율 변동 추이 보기"
+                                        >
+                                            {loadingExchangeRate ? (
+                                                <div className="flex items-center justify-center space-x-2">
+                                                    <div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                                                    <span className="text-sm text-gray-500 font-medium">환율 정보 로딩 중...</span>
+                                                </div>
+                                            ) : exchangeRateError ? (
+                                                <p className="text-sm text-red-500 dark:text-red-400">{exchangeRateError}</p>
+                                            ) : (
+                                                <div className="flex flex-col items-center space-y-1">
+                                                    {exchangeRate && (
+                                                        <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold group-hover:text-blue-500 transition-colors">
+                                                            {exchangeRate}
+                                                        </p>
+                                                    )}
+                                                    {usdExchangeRate && (
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium group-hover:text-green-500 transition-colors">
+                                                            {usdExchangeRate}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-[10px] text-gray-400 hidden group-hover:block transition-all mt-1">
+                                                        👉 클릭하여 1개월 변동 차트 보기
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </>
@@ -2871,6 +2946,17 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                     </div>
                 </div>
             </div>
+
+            {/* 환율 변동 추이 모달 */}
+            <ExchangeChartModal
+                isOpen={showChartModal}
+                onClose={() => setShowChartModal(false)}
+                city={city || ''}
+                currency={getCurrencyFromCode(city || '') || ''}
+                chartData={chartData}
+                loading={loadingChart}
+                error={chartError}
+            />
         </div>
     );
 };

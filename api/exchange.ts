@@ -57,6 +57,7 @@ export default async function handler(
     if (data.result === 'success' && data.conversion_rate) {
       let displayRate = data.conversion_rate;
       let displayUnit = 1;
+      const targetCur = data.target_code || toCurrency;
 
       // VND는 10,000 단위로 표시
       if (data.base_code === 'VND') {
@@ -64,12 +65,20 @@ export default async function handler(
         displayUnit = 10000;
       }
 
+      // toCurrency에 따라 적절한 포맷 적용
+      let exchangeRateText: string;
+      if (targetCur === 'KRW') {
+        exchangeRateText = `${displayUnit.toLocaleString()} ${data.base_code} ≈ ${Math.round(displayRate).toLocaleString('ko-KR')} KRW`;
+      } else {
+        exchangeRateText = `${displayUnit.toLocaleString()} ${data.base_code} ≈ ${displayRate.toFixed(4)} ${targetCur}`;
+      }
+
       return res.status(200).json({
         success: true,
         conversion_rate: data.conversion_rate,
         fromCurrency: data.base_code,
-        toCurrency: data.target_code,
-        exchangeRateText: `${displayUnit.toLocaleString()} ${data.base_code} ≈ ${Math.round(displayRate).toLocaleString('ko-KR')} KRW`
+        toCurrency: targetCur,
+        exchangeRateText
       });
     } else {
       throw new Error(data['error-type'] || `환율 API 오류: ${JSON.stringify(data)}`);
