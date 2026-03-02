@@ -842,9 +842,15 @@ const App: React.FC = () => {
 
     initializeServiceWorker();
 
-    // 버전 체크 및 업데이트 알림 (사용자 요청: 버전이 다를 때만 알림)
+    // 🔄 자동 버전 업데이트: 온라인 시 서버가 더 최신이면 캐시 삭제 후 자동 새로고침
     const checkForUpdate = async () => {
       try {
+        // 오프라인이면 건너뜀
+        if (!navigator.onLine) {
+          console.log('📴 오프라인 상태: 버전 체크 건너뜀');
+          return;
+        }
+
         // 캐시 방지를 위해 타임스탬프 추가
         const response = await fetch(`/version.json?t=${Date.now()}`);
         if (!response.ok) return;
@@ -853,57 +859,43 @@ const App: React.FC = () => {
         const serverVersion = data.version;
         const currentVersion = __APP_VERSION__;
 
-        console.log(`Checking for update: Current=${currentVersion}, Server=${serverVersion}`);
+        console.log(`🔍 버전 체크: 현재=${currentVersion}, 서버=${serverVersion}`);
 
-        if (serverVersion !== currentVersion) {
-          // 이미 알림을 보낸 버전인지 확인
-          const lastNotifiedVersion = localStorage.getItem('lastNotifiedVersion');
-
-          if (lastNotifiedVersion !== serverVersion) {
-            console.log('🔔 New version available:', serverVersion);
-
-            // 시스템 알림 요청 및 표시
-            if ('Notification' in window && window.Notification.permission === 'granted') {
-              const notification = new window.Notification('업데이트 가능', {
-                body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
-                icon: '/pwa-192x192.png',
-                tag: 'update-notification'
-              });
-              notification.onclick = () => {
-                notification.close();
-                window.location.reload();
-              };
-
-              // 알림 보낸 버전 저장
-              localStorage.setItem('lastNotifiedVersion', serverVersion);
-            } else if ('Notification' in window && window.Notification.permission !== 'denied') {
-              window.Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                  const notification = new window.Notification('업데이트 가능', {
-                    body: `새로운 버전(${serverVersion})이 있습니다. 클릭하여 업데이트하세요.`,
-                    icon: '/pwa-192x192.png',
-                    tag: 'update-notification'
-                  });
-                  notification.onclick = () => {
-                    notification.close();
-                    window.location.reload();
-                  };
-
-                  // 알림 보낸 버전 저장
-                  localStorage.setItem('lastNotifiedVersion', serverVersion);
-                }
-              });
-            }
-          } else {
-            console.log('🔕 Version already notified:', serverVersion);
+        if (serverVersion && serverVersion !== currentVersion) {
+          // 무한 새로고침 루프 방지: 이미 이 버전으로 업데이트 시도했는지 확인
+          const lastAttemptedVersion = sessionStorage.getItem('auto_update_attempted');
+          if (lastAttemptedVersion === serverVersion) {
+            console.log('⚠️ 이미 업데이트 시도한 버전:', serverVersion);
+            return;
           }
+
+          console.log('🔄 새 버전 감지! 자동 업데이트 진행:', serverVersion);
+          sessionStorage.setItem('auto_update_attempted', serverVersion);
+
+          // 서비스 워커 캐시 삭제
+          if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map(name => caches.delete(name)));
+            console.log('🗑️ 캐시 삭제 완료');
+          }
+
+          // 서비스 워커 업데이트
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const reg of registrations) {
+              await reg.update();
+            }
+          }
+
+          // 자동 새로고침
+          window.location.reload();
         } else {
-          console.log('✅ Already on latest version');
-          // 최신 버전이면 알림 기록 초기화 (혹시 나중에 다운그레이드 후 다시 업데이트 할 경우 대비, 필수는 아님)
-          // localStorage.removeItem('lastNotifiedVersion'); 
+          console.log('✅ 최신 버전 사용 중');
+          // 최신 버전이면 업데이트 시도 기록 초기화
+          sessionStorage.removeItem('auto_update_attempted');
         }
       } catch (error) {
-        console.error('Failed to check version:', error);
+        console.log('📴 버전 체크 실패 (오프라인 가능):', error);
       }
     };
 
