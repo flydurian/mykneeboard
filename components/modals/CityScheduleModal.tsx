@@ -2899,7 +2899,7 @@ const CityScheduleModal: React.FC<CityScheduleModalProps> = ({ isOpen, onClose, 
                                                 try {
                                                     const targetCurrency = getCurrencyFromCode(city);
                                                     if (targetCurrency) {
-                                                        const res = await fetch(`/api/exchange-chart?currency=${targetCurrency}`);
+                                                        const res = await fetch(`/api/exchange?type=chart&currency=${targetCurrency}`);
                                                         const json = await res.json();
                                                         if (res.ok && json.success && json.data) {
                                                             setChartData(json.data);
