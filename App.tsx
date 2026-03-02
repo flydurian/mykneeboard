@@ -3726,7 +3726,7 @@ const App: React.FC = () => {
 
           <footer className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
             <div className="flex justify-center items-center gap-4">
-              <p>My KneeBoard © 2025. v{DISPLAY_VERSION}</p>
+              <p>My KneeBoard © 2026. v{DISPLAY_VERSION}</p>
               <button
                 onClick={handleAboutClick}
                 className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
@@ -4484,7 +4484,7 @@ const App: React.FC = () => {
 
             <footer className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
               <div className="flex justify-center items-center gap-4">
-                <p>My KneeBoard © 2025. v{DISPLAY_VERSION}</p>
+                <p>My KneeBoard © 2026. v{DISPLAY_VERSION}</p>
                 <button
                   onClick={handleAboutClick}
                   className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"

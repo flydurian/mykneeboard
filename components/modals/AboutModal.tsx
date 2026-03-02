@@ -49,13 +49,15 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                         <div>
                             <h3 className="font-semibold text-white mb-2">기능</h3>
                             <ul className="text-sm space-y-1 list-disc list-inside">
-                                <li>비행 스케줄 관리 (Excel/PDF 업로드)</li>
+                                <li>비행 스케줄 관리 (Excel/PDF/스크린샷 OCR 업로드)</li>
                                 <li>비행 자격 현황 관리 (Landing Currency)</li>
                                 <li>휴식 시간 계산 (2SET/5P/3PILOT)</li>
                                 <li>월별 스케줄 조회 및 Block Time 집계</li>
                                 <li>CREW 검색 및 도시 검색</li>
+                                <li>도시별 날씨/대기질/환율 정보</li>
                                 <li>항공편 스케줄 DB 검색</li>
-                                <li>DATIS 정보 조회</li>
+                                <li>DATIS / METAR / TAF 정보 조회</li>
+                                <li>카카오 로그인 및 친구 추가</li>
                                 <li>오프라인 모드 지원</li>
                             </ul>
                         </div>
@@ -70,6 +72,10 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                                 <div>
                                     <span className="font-medium text-slate-200">스케줄 파싱:</span>
                                     <p className="text-slate-400">대한항공(KE), 아시아나(OZ), 제주항공(7C) 지원</p>
+                                </div>
+                                <div>
+                                    <span className="font-medium text-slate-200">스크린샷 OCR:</span>
+                                    <p className="text-slate-400">Google Gemini Vision AI</p>
                                 </div>
                                 <div>
                                     <span className="font-medium text-slate-200">기상 정보:</span>
