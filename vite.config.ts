@@ -22,15 +22,22 @@ export default defineConfig({
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: {
-          // Vendor chunks for better caching
+          // 핵심 React
           'react-vendor': ['react', 'react-dom'],
+          // Firebase (필수, 항상 로드)
           'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/database'],
-          'utils-vendor': ['date-fns', 'date-fns-tz', 'exceljs'],
+          // 애니메이션 (별도 분리)
+          'motion-vendor': ['framer-motion'],
+          // 차트 (별도 분리)
+          'chart-vendor': ['recharts'],
+          // 날짜 유틸
+          'date-vendor': ['date-fns', 'date-fns-tz'],
+          // exceljs, pdfjs-dist는 manualChunks에서 제외 → 사용 시 dynamic import로 로드
         },
       },
     },
-    // Enable source maps for debugging
-    sourcemap: true,
+    // 프로덕션에서 sourcemap 비활성화 (배포 크기 대폭 절감)
+    sourcemap: false,
     // Optimize chunk size
     chunkSizeWarningLimit: 1000,
     // 빌드 결과물 최적화 (esbuild 사용)
@@ -47,7 +54,7 @@ export default defineConfig({
     },
     // Ensure proper host binding
     host: 'localhost',
-    port: Number(process.env.PORT) || 5173, // Change to default Vite port or Vercel dynamic port
+    port: Number(process.env.PORT) || 5173,
     // Use single port only
     strictPort: true,
     // Add CORS headers to allow WebSocket connections
@@ -69,9 +76,9 @@ export default defineConfig({
     'import.meta.env.VITE_APP_DISPLAY_VERSION': JSON.stringify(pkg.version),
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
-  // esbuild 설정 (개발 시 console.log 유지)
-  // 임시로 console.log 제거 비활성화 (디버깅용)
+  // 프로덕션 빌드에서 console.log, debugger 제거
   esbuild: {
-    drop: [], // process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
   },
 });
+

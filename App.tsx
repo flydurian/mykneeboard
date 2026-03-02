@@ -13,7 +13,7 @@ import { UploadCloudIcon, CalendarIcon, AirlineLogo, SettingsIcon, ChevronDownIc
 import FlightCard from './components/FlightCard';
 import CurrencyCard from './components/CurrencyCard';
 import BlockTimeCard from './components/BlockTimeCard';
-import FlightDetailModal from './components/modals/FlightDetailModal';
+const FlightDetailModal = lazy(() => import('./components/modals/FlightDetailModal'));
 const CurrencyDetailModal = lazy(() => import('./components/modals/CurrencyDetailModal'));
 const MonthlyScheduleModal = lazy(() => import('./components/modals/MonthlyScheduleModal'));
 const CalendarModal = lazy(() => import('./components/modals/CalendarModal'));
@@ -36,8 +36,7 @@ console.log('🚀 환경변수 확인:', {
   VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID ? '설정됨' : '없음'
 });
 import { createSessionTimeout } from './utils/securityUtils';
-import { parseExcelFile } from './utils/excelParser';
-import { parsePDFFile } from './utils/pdfParser';
+// parseExcelFile, parsePDFFile는 사용 시점에 dynamic import로 로드
 import { simpleCache } from './utils/simpleCache';
 import { indexedDBCache } from './utils/indexedDBCache';
 import { separatedCache } from './utils/separatedCache';
@@ -52,10 +51,10 @@ const RegisterModal = lazy(() => import('./components/RegisterModal'));
 const NoFlightModal = lazy(() => import('./components/modals/NoFlightModal'));
 const UserSettingsModal = lazy(() => import('./components/UserSettingsModal'));
 const CrewHistoryModal = lazy(() => import('./components/modals/CrewHistoryModal'));
-import CityScheduleModal from './components/modals/CityScheduleModal';
+const CityScheduleModal = lazy(() => import('./components/modals/CityScheduleModal'));
 const AboutModal = lazy(() => import('./components/modals/AboutModal'));
-import CrewMemoModal from './components/modals/CrewMemoModal';
-import CityMemoModal from './components/modals/CityMemoModal';
+const CrewMemoModal = lazy(() => import('./components/modals/CrewMemoModal'));
+const CityMemoModal = lazy(() => import('./components/modals/CityMemoModal'));
 const CurrencySettingsModal = lazy(() => import('./components/modals/CurrencySettingsModal'));
 const PassportVisaWarningModal = lazy(() => import('./components/modals/PassportVisaWarningModal'));
 const ExpiryDateModal = lazy(() => import('./components/modals/ExpiryDateModal'));
@@ -2285,11 +2284,13 @@ const App: React.FC = () => {
         console.log('🖼️ OCR 파싱 완료:', { flightsCount: newFlights.length });
       } else if (fileExtension === 'pdf') {
         console.log('📄 PDF 파일 파싱 시작');
+        const { parsePDFFile } = await import('./utils/pdfParser');
         newFlights = await parsePDFFile(file, userCompany, userName, empl);
         isPDFFile = true;
         console.log('📄 PDF 파일 파싱 완료:', { flightsCount: newFlights.length });
       } else {
         console.log('📊 Excel 파일 파싱 시작');
+        const { parseExcelFile } = await import('./utils/excelParser');
         newFlights = await parseExcelFile(file, userCompany, userName, empl);
         console.log('📊 Excel 파일 파싱 완료:', { flightsCount: newFlights.length });
       }
