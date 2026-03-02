@@ -2137,11 +2137,11 @@ const App: React.FC = () => {
   // 회사별 허용 파일 형식 결정
   const getAllowedFileTypes = (company: string): string => {
     if (company === 'KE' || company === 'OZ') {
-      return '.xls,.xlsx';
+      return '.xls,.xlsx,.png,.jpg,.jpeg';
     } else if (company === '7C') {
       return '.pdf';
     }
-    return '.xls,.xlsx,.pdf'; // 기본값
+    return '.xls,.xlsx,.pdf,.png,.jpg,.jpeg'; // 기본값
   };
 
   // 파일 업로드 핸들러
@@ -2150,10 +2150,11 @@ const App: React.FC = () => {
     if (!file) return;
 
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    const isImageFile = ['png', 'jpg', 'jpeg'].includes(fileExtension || '');
 
     // 기본 파일 형식 검증
-    if (fileExtension !== 'xls' && fileExtension !== 'xlsx' && fileExtension !== 'pdf') {
-      setUploadError('Excel 파일(.xls, .xlsx) 또는 PDF 파일(.pdf)만 업로드 가능합니다.');
+    if (fileExtension !== 'xls' && fileExtension !== 'xlsx' && fileExtension !== 'pdf' && !isImageFile) {
+      setUploadError('Excel(.xls, .xlsx), PDF(.pdf) 또는 이미지(.png, .jpg) 파일만 업로드 가능합니다.');
       setTimeout(() => setUploadError(''), 5000);
       return;
     }
@@ -2207,19 +2208,19 @@ const App: React.FC = () => {
       }
 
       // 회사별 파일 형식 제한 검증
-      if (userCompany === 'KE' || userCompany === 'OZ') {
-        // KE, OZ는 Excel만 허용
-        if (fileExtension !== 'xls' && fileExtension !== 'xlsx') {
-          setUploadError((userCompany) + ' 항공사는 Excel 파일(.xls, .xlsx)만 업로드 가능합니다.');
-          setTimeout(() => setUploadError(''), 5000);
-          return;
-        }
-      } else if (userCompany === '7C') {
-        // 7C는 PDF만 허용
-        if (fileExtension !== 'pdf') {
-          setUploadError('제주항공(7C)은 PDF 파일(.pdf)만 업로드 가능합니다.');
-          setTimeout(() => setUploadError(''), 5000);
-          return;
+      if (!isImageFile) {
+        if (userCompany === 'KE' || userCompany === 'OZ') {
+          if (fileExtension !== 'xls' && fileExtension !== 'xlsx') {
+            setUploadError((userCompany) + ' 항공사는 Excel 파일(.xls, .xlsx) 또는 스크린샷 이미지만 업로드 가능합니다.');
+            setTimeout(() => setUploadError(''), 5000);
+            return;
+          }
+        } else if (userCompany === '7C') {
+          if (fileExtension !== 'pdf') {
+            setUploadError('제주항공(7C)은 PDF 파일(.pdf)만 업로드 가능합니다.');
+            setTimeout(() => setUploadError(''), 5000);
+            return;
+          }
         }
       }
 
@@ -2243,10 +2244,49 @@ const App: React.FC = () => {
         empl
       });
 
-      if (fileExtension === 'pdf') {
+      if (isImageFile) {
+        console.log('🖼️ 이미지 OCR 파싱 시작');
+        setUploadMessage('🔍 스케줄 이미지 분석 중... AI가 데이터를 추출하고 있습니다.');
+
+        // 이미지를 Base64로 변환
+        const reader = new FileReader();
+        const imageBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string;
+            // data:image/png;base64,... 형식에서 base64 부분만 추출
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const mimeType = file.type || `image/${fileExtension}`;
+
+        // OCR API 호출
+        const ocrResponse = await fetch('/api/ocr-schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64, mimeType })
+        });
+
+        if (!ocrResponse.ok) {
+          const errorData = await ocrResponse.json();
+          throw new Error(errorData.error || '이미지 분석 실패');
+        }
+
+        const ocrResult = await ocrResponse.json();
+        console.log('🖼️ OCR 결과:', { rows: ocrResult.rowCount });
+        setUploadMessage('✅ 이미지 분석 완료! 데이터 처리 중...');
+
+        // OCR 결과를 기존 OZ 파서로 전달
+        const { parseOZExcel } = await import('./utils/companyParsers/ozParser');
+        newFlights = parseOZExcel(ocrResult.data, user?.uid);
+        console.log('🖼️ OCR 파싱 완료:', { flightsCount: newFlights.length });
+      } else if (fileExtension === 'pdf') {
         console.log('📄 PDF 파일 파싱 시작');
         newFlights = await parsePDFFile(file, userCompany, userName, empl);
-        isPDFFile = true; // PDF는 파서에서 이미 Firebase 저장됨
+        isPDFFile = true;
         console.log('📄 PDF 파일 파싱 완료:', { flightsCount: newFlights.length });
       } else {
         console.log('📊 Excel 파일 파싱 시작');
