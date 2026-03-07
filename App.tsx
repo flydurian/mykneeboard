@@ -2247,14 +2247,47 @@ const App: React.FC = () => {
         console.log('🖼️ 이미지 OCR 파싱 시작');
         setUploadMessage('🔍 스케줄 이미지 분석 중... AI가 데이터를 추출하고 있습니다.');
 
-        // 이미지를 Base64로 변환
-        const reader = new FileReader();
+        // 이미지를 Base64로 변환 및 리사이징 (Vercel 4.5MB 제한 회피용)
         const imageBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => {
-            const result = reader.result as string;
-            // data:image/png;base64,... 형식에서 base64 부분만 추출
-            const base64 = result.split(',')[1];
-            resolve(base64);
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              const MAX_SIZE = 1600; // OCR 품질을 해치치 않으면서 용량을 줄일 수 있는 최대 해상도
+
+              if (width > height) {
+                if (width > MAX_SIZE) {
+                  height *= MAX_SIZE / width;
+                  width = MAX_SIZE;
+                }
+              } else {
+                if (height > MAX_SIZE) {
+                  width *= MAX_SIZE / height;
+                  height = MAX_SIZE;
+                }
+              }
+
+              canvas.width = Math.floor(width);
+              canvas.height = Math.floor(height);
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                // 검은 배경 채우기 (투명도 방지)
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, width, height);
+                // JPEG, 80% 퀄리티로 압축 (용량 1~2MB 내외로 축소됨)
+                const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+                resolve(dataURL.split(',')[1]);
+              } else {
+                reject(new Error("Canvas 2D context not available"));
+              }
+            };
+            img.onerror = reject;
+            // object URL 보다는 dataURL을 이미지 소스로
+            img.src = e.target?.result as string;
           };
           reader.onerror = reject;
           reader.readAsDataURL(file);
