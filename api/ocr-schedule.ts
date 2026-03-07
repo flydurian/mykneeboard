@@ -1,5 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '10mb',
+        },
+    },
+};
+
 // Rate limiting: 60 RPM 제한
 const requestTimestamps: number[] = [];
 const MAX_RPM = 55; // 안전 마진 (60RPM 제한에서 5 여유)

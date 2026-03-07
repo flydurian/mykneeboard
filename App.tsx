@@ -2293,7 +2293,8 @@ const App: React.FC = () => {
           reader.readAsDataURL(file);
         });
 
-        const mimeType = file.type || `image/${fileExtension}`;
+        // 리사이징 후 포맷이 JPEG로 고정되므로 헤더도 JPEG로 변경
+        const mimeType = 'image/jpeg';
 
         // OCR API 호출
         const ocrResponse = await fetch('/api/ocr-schedule', {
