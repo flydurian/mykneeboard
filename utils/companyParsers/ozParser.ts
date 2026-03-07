@@ -416,7 +416,8 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
           const emplIndex = findIndex(['EMPL', 'EMPNO', 'EMP#', 'EMP']);
           if (emplIndex !== -1) cabinColumnIndices.empl = emplIndex;
 
-          const nameIndex = findIndex(['NAME']);
+          let nameIndex = findIndex(['ENGLISH', 'ENG', 'ENGNAME']);
+          if (nameIndex === -1) nameIndex = findIndex(['NAME']);
           if (nameIndex !== -1) cabinColumnIndices.name = nameIndex;
 
           const rankIndex = findIndex(['RANK']);
@@ -485,7 +486,8 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
           const emplIndex = findIndex(['EMPL', 'EMPNO', 'EMP#', 'EMP']);
           if (emplIndex !== -1) cockpitColumnIndices.empl = emplIndex;
 
-          const nameIndex = findIndex(['NAME']);
+          let nameIndex = findIndex(['ENGLISH', 'ENG', 'ENGNAME']);
+          if (nameIndex === -1) nameIndex = findIndex(['NAME']);
           if (nameIndex !== -1) cockpitColumnIndices.name = nameIndex;
 
           const rankIndex = findIndex(['RANK']);
