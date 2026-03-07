@@ -104,7 +104,8 @@ CRITICAL RULES FOR "Briefing Info":
 GENERAL RULES:
 1. Always output a 2D JSON array (an array of string arrays).
 2. If a cell has no relevant data, output "".
-3. Return ONLY the JSON array, no markdown formatting, no code blocks, just the raw JSON array.`
+3. Return ONLY the JSON array, no markdown formatting, no code blocks, just the raw JSON array.
+4. BE EXTREMELY ACCURATE with English names (e.g. spelling) and EMPL numbers (e.g. 6-digit integers). Double-check every single character to prevent typos.`
                             },
                             {
                                 inlineData: {
