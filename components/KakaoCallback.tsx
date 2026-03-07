@@ -56,6 +56,7 @@ const KakaoCallback: FC<KakaoCallbackProps> = ({ onSuccess, onError }) => {
 
                 const tokenData = await tokenResponse.json();
                 const kakaoAccessToken = tokenData.access_token;
+                const kakaoRefreshToken = tokenData.refresh_token;
 
                 setStatus('Firebase 인증 중...');
 
@@ -68,7 +69,7 @@ const KakaoCallback: FC<KakaoCallbackProps> = ({ onSuccess, onError }) => {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ kakaoAccessToken }),
+                    body: JSON.stringify({ kakaoAccessToken, kakaoRefreshToken }),
                 });
 
                 if (!apiResponse.ok) {
@@ -100,10 +101,10 @@ const KakaoCallback: FC<KakaoCallbackProps> = ({ onSuccess, onError }) => {
                         throw new Error('데이터 이전 중 알 수 없는 오류가 발생했습니다. 개발자에게 문의해주세요.');
                     }
 
-                    // [수정] 마이그레이션 직후에 migration_old_uid를 바로 삭제하지 않습니다.
-                    // 메모 및 기타 백그라운드 컴포넌트들이 oldUid를 이용하여 기존 키로 복호화 후 
-                    // 새 키로 재암호화하는 과정을 거쳐야 하기 때문입니다.
-                    // localStorage.removeItem('migration_old_uid');
+                    // [수정] 성공적으로 마이그레이션을 마친 후 migration_old_uid를 바로 삭제합니다.
+                    // 메모 복호화 등은 indexedDB 캐시를 통해 마이그레이션이 완료되거나, 새로 로그인될 때 다시 이루어지기 때문에
+                    // 여기서 삭제해야 매번 로그인할 때마다 불필요한 마이그레이션 로직을 타지 않습니다.
+                    localStorage.removeItem('migration_old_uid');
 
                     // [버그 방어] 이전 이메일 계정 시절의 IndexedDB 캐시 찌꺼기가 새 카카오 계정의 DB 검색을 방해하지 못하도록 강제 초기화
                     try {

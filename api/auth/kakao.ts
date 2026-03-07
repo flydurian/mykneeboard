@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { kakaoAccessToken } = req.body;
+    const { kakaoAccessToken, kakaoRefreshToken } = req.body;
 
     if (!kakaoAccessToken) {
         return res.status(400).json({ error: 'Missing kakaoAccessToken' });
@@ -93,6 +93,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await db.ref(`kakaoIdToUid/${kakaoUid}`).set(firebaseUid);
             // 카카오 액세스 토큰 저장 (친구 목록 조회용)
             await db.ref(`users/${firebaseUid}/kakaoAccessToken`).set(kakaoAccessToken);
+            // 카카오 리프레시 토큰 저장 (토큰 자동 갱신용)
+            if (kakaoRefreshToken) {
+                await db.ref(`users/${firebaseUid}/kakaoRefreshToken`).set(kakaoRefreshToken);
+            }
             console.log(`✅ kakaoId(${kakaoUid}) → UID(${firebaseUid}) 매핑 및 토큰 저장 완료`);
         } catch (dbError) {
             console.warn('⚠️ kakaoId 매핑/토큰 저장 실패 (무시됨):', dbError);

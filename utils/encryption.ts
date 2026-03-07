@@ -890,8 +890,6 @@ export const upgradeUserSettings = async (
 
       if (!upgraded.airline && decryptedAirline && decryptedAirline.trim()) {
         // 복호화 성공 시 새로운 방식으로 암호화
-        // 그런데 settings는 현재 프로젝트에서 암호화 없이 저장하는 것이 원칙인 것으로 보임 (database.ts 참고)
-        // 하지만 upgrade 함수가 존재하므로, 여기서는 encryptData를 사용하는 기존 로직을 따름
         upgraded.airline = await encryptData(decryptedAirline, userId);
       } else if (!upgraded.airline) {
         // 복호화 실패 시 빈 문자열로 설정하거나 원본 유지 (안전을 위해)

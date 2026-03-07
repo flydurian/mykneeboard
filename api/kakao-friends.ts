@@ -54,26 +54,76 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!tokenSnap.exists()) {
             return res.status(200).json({ success: true, friends: [], message: '카카오 토큰이 없습니다.' });
         }
-        const kakaoAccessToken = tokenSnap.val();
+        let kakaoAccessToken = tokenSnap.val();
 
-        // 2. 카카오 친구 목록 API 호출
-        const kakaoResponse = await fetch('https://kapi.kakao.com/v1/api/talk/friends', {
-            headers: {
-                Authorization: `Bearer ${kakaoAccessToken}`,
-            },
-        });
+        // 카카오 친구 목록 API 호출 (토큰 자동 갱신 포함)
+        const fetchFriends = async (token: string) => {
+            return fetch('https://kapi.kakao.com/v1/api/talk/friends', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+        };
+
+        let kakaoResponse = await fetchFriends(kakaoAccessToken);
+
+        // 토큰 만료 시 (401) → refresh token으로 자동 갱신
+        if (kakaoResponse.status === 401) {
+            console.log('🔄 카카오 액세스 토큰 만료, 리프레시 토큰으로 갱신 시도...');
+            const refreshSnap = await db.ref(`users/${userId}/kakaoRefreshToken`).get();
+            if (!refreshSnap.exists()) {
+                return res.status(200).json({
+                    success: false,
+                    friends: [],
+                    error: '카카오 토큰이 만료되었고 리프레시 토큰이 없습니다. 다시 로그인해주세요.'
+                });
+            }
+
+            const REST_API_KEY = process.env.VITE_KAKAO_REST_API_KEY?.trim().replace(/^["']|["']$/g, '');
+            if (!REST_API_KEY) {
+                return res.status(200).json({
+                    success: false,
+                    friends: [],
+                    error: '서버에 카카오 REST API KEY가 설정되지 않았습니다.'
+                });
+            }
+
+            const refreshResponse = await fetch('https://kauth.kakao.com/oauth/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+                body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    client_id: REST_API_KEY,
+                    refresh_token: refreshSnap.val(),
+                }),
+            });
+
+            if (!refreshResponse.ok) {
+                const refreshErr = await refreshResponse.json().catch(() => ({}));
+                console.error('❌ 카카오 토큰 갱신 실패:', refreshResponse.status, JSON.stringify(refreshErr));
+                return res.status(200).json({
+                    success: false,
+                    friends: [],
+                    error: '카카오 토큰 갱신에 실패했습니다. 다시 로그인해주세요.'
+                });
+            }
+
+            const newTokenData = await refreshResponse.json();
+            kakaoAccessToken = newTokenData.access_token;
+
+            // 갱신된 토큰을 Firebase DB에 저장
+            await db.ref(`users/${userId}/kakaoAccessToken`).set(kakaoAccessToken);
+            // refresh token도 갱신된 경우 업데이트 (만료 1개월 전부터 새 refresh token이 발급됨)
+            if (newTokenData.refresh_token) {
+                await db.ref(`users/${userId}/kakaoRefreshToken`).set(newTokenData.refresh_token);
+            }
+            console.log('✅ 카카오 토큰 갱신 성공');
+
+            // 갱신된 토큰으로 친구 목록 재호출
+            kakaoResponse = await fetchFriends(kakaoAccessToken);
+        }
 
         if (!kakaoResponse.ok) {
             const errData = await kakaoResponse.json().catch(() => ({}));
             console.error('카카오 친구 API 에러:', kakaoResponse.status, JSON.stringify(errData));
-            // 토큰 만료 시 안내
-            if (kakaoResponse.status === 401) {
-                return res.status(200).json({
-                    success: false,
-                    friends: [],
-                    error: '카카오 토큰이 만료되었습니다. 다시 로그인해주세요.'
-                });
-            }
             // 권한 부족 (403)
             if (kakaoResponse.status === 403) {
                 return res.status(200).json({

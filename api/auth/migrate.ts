@@ -77,7 +77,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 hasAnyData = true;
                 const data = snapshot.val();
                 const newRef = db.ref(`${collection}/${newUid}`);
-                await newRef.set(data);
+                if (collection === 'users') {
+                    // 카카오 인증 정보(kakaoAccessToken 등)가 삭제되지 않도록 병합
+                    await newRef.update(data);
+                } else {
+                    await newRef.set(data);
+                }
                 await oldRef.remove();
                 console.log(`[마이그레이션 성공] ${collection}/${oldUid} -> ${newUid} 이동 완료`);
             }

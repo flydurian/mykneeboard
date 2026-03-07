@@ -131,11 +131,6 @@ export const getUserInfo = async (uid: string): Promise<{ status: UserStatus | n
       return null;
     }
 
-    // settings에서 회사 정보 가져오기
-    const settingsRef = ref(database, `users/${uid}/settings`);
-    const settingsSnapshot = await get(settingsRef);
-
-
     let result: { status: UserStatus | null, email: string, displayName: string, company: string, empl?: string, userName?: string } = {
       status: 'approved', // 모든 사용자는 기본적으로 승인됨
       email: user.email || '',
@@ -145,19 +140,24 @@ export const getUserInfo = async (uid: string): Promise<{ status: UserStatus | n
       userName: ''
     };
 
-    // settings 데이터가 있으면 회사 정보 및 EMPL ID 업데이트 (암호화 없음)
-    if (settingsSnapshot.exists()) {
-      const settingsData = settingsSnapshot.val();
+    // getUserSettings를 호출하여 설정 데이터(복호화된 형태)를 가져옵니다.
+    try {
+      const { getUserSettings } = await import('./database');
+      const settingsData = await getUserSettings(uid);
 
-      if (settingsData.airline) {
-        result.company = settingsData.airline;
+      if (settingsData) {
+        if (settingsData.airline) {
+          result.company = settingsData.airline;
+        }
+        if (settingsData.empl) {
+          result.empl = settingsData.empl;
+        }
+        if (settingsData.userName) {
+          result.userName = settingsData.userName;
+        }
       }
-      if (settingsData.empl) {
-        result.empl = settingsData.empl;
-      }
-      if (settingsData.userName) {
-        result.userName = settingsData.userName;
-      }
+    } catch (e) {
+      console.error('❌ 설정 정보 가져오기 오류:', e);
     }
 
     // 온라인 로그인 성공 시 오프라인 데이터 저장

@@ -13,7 +13,9 @@ import {
   upgradeCityMemos,
   upgradeUserSettings,
   decryptData,
-  isValidDateFormat
+  isValidDateFormat,
+  encryptUserSettings,
+  decryptUserSettings
 } from "../../utils/encryption";
 import { indexedDBCache } from "../../utils/indexedDBCache";
 
@@ -855,7 +857,7 @@ export const subscribeToFlights = (callback: (flights: any) => void, userId: str
   return subscribeToAllFlights(callback, userId);
 };
 
-// 사용자 설정 정보 저장 (암호화 없음)
+// 사용자 설정 정보 저장 (암호화 적용)
 export const saveUserSettings = async (userId: string, settings: { airline?: string; selectedCurrencyCards?: string[]; empl?: string; userName?: string; base?: string; company?: string }) => {
   try {
     const settingsPath = `users/${userId}/settings`;
@@ -863,13 +865,17 @@ export const saveUserSettings = async (userId: string, settings: { airline?: str
     // 기존 설정을 먼저 가져오기
     const existingSettings = await readData(settingsPath) || {};
 
-    // 기존 설정과 새로운 설정을 병합
+    // 새로운 설정을 먼저 암호화
+    const encryptedPatch = await encryptUserSettings(settings, userId);
+
+    // 기존 설정과 새로운 설정을 병합 (암호화된 값은 덮어쓰기됨)
     const mergedSettings = {
       ...existingSettings,
-      ...settings
+      ...settings,
+      ...encryptedPatch
     };
 
-    // 암호화 없이 직접 저장
+    // 저장
     const success = await writeData(settingsPath, mergedSettings);
 
     // IndexedDB에도 회사/베이스를 저장
@@ -890,7 +896,7 @@ export const saveUserSettings = async (userId: string, settings: { airline?: str
   }
 };
 
-// 사용자 설정 정보 가져오기 (암호화 없음)
+// 사용자 설정 정보 가져오기
 export const getUserSettings = async (userId: string) => {
   try {
     // 오프라인이거나 Firebase 연결이 끊긴 경우 IndexedDB에서 먼저 시도
@@ -919,31 +925,24 @@ export const getUserSettings = async (userId: string) => {
       return { airline: 'OZ' }; // 기본값 설정
     }
 
-    let normalizedSettings = {
-      ...settings,
-      base: settings.base ? String(settings.base).toUpperCase() : settings.base
-    };
+    let dbSettings = settings;
 
     // [마이그레이션] 업그레이드 필요성 확인 및 자동 업그레이드
     if (!isFirebaseOffline()) {
       const oldUid = localStorage.getItem('migration_old_uid');
 
-      // 암호화된 필드(airline, empl, userName)가 있는지 확인
+      // 암호화 대상 필드가 있는지 (Legacy든 New든 일단 존재하면)
       const hasEncryptedFields = settings.airline || settings.empl || settings.userName;
 
       if (hasEncryptedFields) {
         try {
-          // upgradeUserSettings가 내부적으로 AES-GCM 복호화 실패 여부를 판단함
+          // upgradeUserSettings가 내부적으로 AES-GCM 복호화 및 재암호화를 수행 (결과는 AES-GCM 암호화된 상태)
           const upgradedSettings = await upgradeUserSettings(settings, userId, oldUid || undefined);
 
-          // 단순 비교를 통해 변경사항이 있는지 확인 (JSON 문자열 비교)
+          // 변경사항이 있으면 DB에 직접 덮어쓰기 (saveUserSettings는 이중 암호화 되므로 writeData 직접 호출)
           if (JSON.stringify(upgradedSettings) !== JSON.stringify(settings)) {
-            // console.log('🔄 사용자 설정 자동 업그레이드 실행');
-            await saveUserSettings(userId, upgradedSettings);
-            normalizedSettings = {
-              ...upgradedSettings,
-              base: upgradedSettings.base ? String(upgradedSettings.base).toUpperCase() : upgradedSettings.base
-            };
+            await writeData(settingsPath, upgradedSettings);
+            dbSettings = upgradedSettings;
           }
 
           // 마이그레이션 단계 완료 표시
@@ -953,6 +952,15 @@ export const getUserSettings = async (userId: string) => {
         }
       }
     }
+
+    // DB에서 가져온 (혹은 방금 업그레이드된) 설정을 앱 UI에서 사용할 수 있도록 평문(plaintext)으로 복호화합니다.
+    const plaintextSettings = await decryptUserSettings(dbSettings, userId);
+
+    let normalizedSettings = {
+      ...dbSettings, // base 및 다른 비암호화 속성들 유지
+      ...plaintextSettings, // 복호화된 이름, 항공사, 사번으로 오버라이드
+      base: dbSettings.base ? String(dbSettings.base).toUpperCase() : dbSettings.base
+    };
 
     // 최신 설정을 IndexedDB에 동기화 (오프라인 대비)
     try {
@@ -1855,26 +1863,33 @@ export const getUserInfoByUid = async (userId: string): Promise<any | null> => {
     if (isFirebaseOffline()) return null;
     const basePath = `users/${userId}`;
 
-    // settings 하위 필드와 직접 필드를 모두 시도
+    // 전체 settings 객체와 displayName을 가져옴
     const [
-      settingsUserNameSnap,
-      settingsCompanySnap,
-      settingsAirlineSnap,
-      settingsBaseSnap,
+      settingsSnap,
       displayNameSnap,
     ] = await Promise.all([
-      get(ref(database, `${basePath}/settings/userName`)),
-      get(ref(database, `${basePath}/settings/company`)),
-      get(ref(database, `${basePath}/settings/airline`)),
-      get(ref(database, `${basePath}/settings/base`)),
+      get(ref(database, `${basePath}/settings`)),
       get(ref(database, `${basePath}/displayName`)),
     ]);
 
-    const settingsUserName = settingsUserNameSnap.exists() ? settingsUserNameSnap.val() : null;
     const displayName = displayNameSnap.exists() ? displayNameSnap.val() : null;
-    const company = settingsCompanySnap.exists() ? settingsCompanySnap.val() :
-      (settingsAirlineSnap.exists() ? settingsAirlineSnap.val() : '');
-    const base = settingsBaseSnap.exists() ? settingsBaseSnap.val() : '';
+    let settingsData: any = {};
+
+    if (settingsSnap.exists()) {
+      const rawSettings = settingsSnap.val();
+      // 읽어온 설정을 평문으로 복호화
+      try {
+        const decryptedSettings = await decryptUserSettings(rawSettings, userId);
+        settingsData = { ...rawSettings, ...decryptedSettings };
+      } catch (e) {
+        console.error('친구 설정 복호화 실패:', e);
+        settingsData = rawSettings;
+      }
+    }
+
+    const settingsUserName = settingsData.userName || null;
+    const company = settingsData.company || settingsData.airline || '';
+    const base = settingsData.base || '';
 
     const name = displayName || settingsUserName;
     if (!name) return null;
