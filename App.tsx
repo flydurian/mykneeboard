@@ -2256,7 +2256,7 @@ const App: React.FC = () => {
               const canvas = document.createElement('canvas');
               let width = img.width;
               let height = img.height;
-              const MAX_SIZE = 2400; // OCR 품질 향상을 위해 2400px로 증가
+              const MAX_SIZE = 1600; // Vercel 4.5MB payload 에러 방지용 최대 해상도 원복
 
               if (width > height) {
                 if (width > MAX_SIZE) {
@@ -2278,8 +2278,8 @@ const App: React.FC = () => {
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, width, height);
-                // JPEG, 90% 퀄리티로 압축 (용량 2~3MB 내외로 유지됨)
-                const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+                // JPEG, 80% 퀄리티로 압축 (용량 1~2MB 내외로 유지됨)
+                const dataURL = canvas.toDataURL('image/jpeg', 0.8);
                 resolve(dataURL.split(',')[1]);
               } else {
                 reject(new Error("Canvas 2D context not available"));
