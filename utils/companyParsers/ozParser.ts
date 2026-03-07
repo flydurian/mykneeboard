@@ -369,6 +369,10 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
     const cabinColumnIndices = { ...defaultCabinColumnIndices };
     let cabinHeaderProcessed = false;
 
+    const defaultCockpitColumnIndices = { empl: -1, name: -1, rank: -1, duty: -1, posn: -1 };
+    const cockpitColumnIndices = { ...defaultCockpitColumnIndices };
+    let cockpitHeaderProcessed = false;
+
     jsonData.forEach((row, rowIndex) => {
       if (!Array.isArray(row)) return;
 
@@ -457,12 +461,71 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
         return;
       }
 
-      if (isInCockpitSchedule && row.length > 30) {
-        const empno = row[4] ? String(row[4]).trim() : '';
-        const name = row[9] ? String(row[9]).trim() : '';
-        const rank = row[19] ? String(row[19]).trim() : '';
-        const duty = row[29] ? String(row[29]).trim() : '';
-        const position = row[33] ? String(row[33]).trim() : '';
+      if (isInCockpitSchedule) {
+        // 동적으로 헤더 찾기 (단순화: 두 번째 칸이 NAME이거나 5번째 칸 안에 NAME이 있다고 가정)
+        // 하지만 Gemini 출력이 [ EMPL, NAME, RANK, DUTY, POSN ] 형태일 가능성이 높음.
+        // 또는 row 배열에서 값이 있는 위치들을 찾아 대입.
+        const headerEntries = normalizedRowNoSpace
+          .map((value, index) => ({ value, index }))
+          .filter(({ value }) => typeof value === 'string' && value.length > 0);
+
+        const hasHeader = headerEntries.some(({ value }) =>
+          value === 'EMPL' || value === 'NAME' || value === 'RANK'
+        );
+
+        if (hasHeader && !cockpitHeaderProcessed) {
+          const findIndex = (labels: string[]) => {
+            const entry = headerEntries.find(({ value }) =>
+              labels.some((label) => value === label || value.includes(label))
+            );
+            return entry ? entry.index : -1;
+          };
+
+          const emplIndex = findIndex(['EMPL', 'EMPNO', 'EMP#', 'EMP']);
+          if (emplIndex !== -1) cockpitColumnIndices.empl = emplIndex;
+
+          const nameIndex = findIndex(['NAME']);
+          if (nameIndex !== -1) cockpitColumnIndices.name = nameIndex;
+
+          const rankIndex = findIndex(['RANK']);
+          if (rankIndex !== -1) cockpitColumnIndices.rank = rankIndex;
+
+          const dutyIndex = findIndex(['DUTY', 'POSNTYPE', 'POSNTYP']);
+          if (dutyIndex !== -1) cockpitColumnIndices.duty = dutyIndex;
+
+          const posnIndex = findIndex(['POSN', 'POSITION']);
+          if (posnIndex !== -1) cockpitColumnIndices.posn = posnIndex;
+
+          cockpitHeaderProcessed = true;
+          return;
+        }
+
+        const empIndex = cockpitColumnIndices.empl !== -1 ? cockpitColumnIndices.empl : 0;
+        const nameIndex = cockpitColumnIndices.name !== -1 ? cockpitColumnIndices.name : 1;
+        const rankIndex = cockpitColumnIndices.rank !== -1 ? cockpitColumnIndices.rank : 2;
+        const dutyIndex = cockpitColumnIndices.duty !== -1 ? cockpitColumnIndices.duty : 3;
+        const posnIndex = cockpitColumnIndices.posn !== -1 ? cockpitColumnIndices.posn : 4;
+
+        // 원본 배열이 길고 빈칸이 많은 경우 (기존 파서 로직 지원)
+        let actualEmpIndex = empIndex;
+        let actualNameIndex = nameIndex;
+        let actualRankIndex = rankIndex;
+        let actualDutyIndex = dutyIndex;
+        let actualPosnIndex = posnIndex;
+
+        if (row.length > 15 && cockpitColumnIndices.empl === -1) {
+          actualEmpIndex = 4;
+          actualNameIndex = 9;
+          actualRankIndex = 19;
+          actualDutyIndex = 29;
+          actualPosnIndex = 33;
+        }
+
+        const empno = row[actualEmpIndex] ? String(row[actualEmpIndex]).trim() : '';
+        const name = row[actualNameIndex] ? String(row[actualNameIndex]).trim() : '';
+        const rank = row[actualRankIndex] ? String(row[actualRankIndex]).trim() : '';
+        const duty = row[actualDutyIndex] ? String(row[actualDutyIndex]).trim() : '';
+        const position = row[actualPosnIndex] ? String(row[actualPosnIndex]).trim() : '';
 
         if (empno && name && rank && empno.match(/^\d+$/)) {
           const cockpitCrewMember: CrewMember = {

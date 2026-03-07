@@ -73,28 +73,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     contents: [{
                         parts: [
                             {
-                                text: `This is a flight schedule image (Monthly SKD) from an airline. Extract ALL data from the table and return it as a JSON 2D array.
+                                text: `This image is EITHER a "Monthly SKD" (flight schedule) OR a "Briefing Info" (crew roster for a specific flight) from an airline. Extract ALL data from the tables and return it as a JSON 2D array.
 
-CRITICAL RULES:
-1. The first 4 rows should contain header information:
-   - Row 0: ["MONTHLY SKD"] or similar title
-   - Row 1: ["EMPL : XXXXXX", "MONTH : YYYYMM"] - extract the actual EMPL number and MONTH value
-   - Row 2: ["Total Block Time : HH:MM"] - extract actual block time
-   - Row 3: ["DATE", "FLIGHT", "SHOW UP", "SECTOR", "STD", "STA", "", "", "EMPL", "NAME", "RANK", "DUTY", "POSN"] - column headers
+CRITICAL RULES FOR "Monthly SKD":
+1. If the image is a Monthly Schedule (has "Monthly SKD", "Total Block Time", a list of days):
+   - Row 0: ["MONTHLY SKD"]
+   - Row 1: ["EMPL : XXXXXX", "MONTH : YYYYMM"] - extract actual EMPL and MONTH
+   - Row 2: ["Total Block Time : HH:MM"]
+   - Row 3: ["DATE", "FLIGHT", "SHOW UP", "SECTOR", "STD", "STA", "", "", "EMPL", "NAME", "RANK", "DUTY", "POSN"]
+   - Row 4+: Extracted data matching columns.
+   - Format times as HH:MM, SECTOR as ICN/SFO.
+   - For crew members on the same flight, each crew should be a separate row with empty flight data.
 
-2. From row 4 onwards, extract each data row following the column order above.
-3. For dates like "06 FRI", output just the date part: "06 FRI"
-4. For flight numbers, output just the number: "212"
-5. For STANDBY entries like "A350 A-TYPE STANDBY", output as: "A350 A-TYPE STANDBY"
-6. For "DAY OFF" entries, output: "DAY OFF"
-7. For SHOW UP times like "06 19:15", output as: "06 19:15"
-8. For SECTOR like "ICN / SFO", output as: "ICN/SFO" (no spaces around /)
-9. For STD/STA times like "06 20:50", output as: "06 20:50"
-10. If a cell has no data, output empty string ""
-11. For crew members on the same flight, each crew member should be a separate row with the same flight date but empty DATE/FLIGHT/SECTOR/STD/STA fields (they inherit from the flight row above them)
-12. Make sure the MONTH value in row 1 is in YYYYMM format (e.g., "202603")
+CRITICAL RULES FOR "Briefing Info":
+1. If the image is for a specific flight (has "Briefing Info", "Flight Schedule", "Cockpit Schedule", "Cabin Schedule"):
+   - Row 0 MUST BE EXACTLY: ["BRIEFING INFO"]
+   - Include section headers exactly on their own rows, e.g., ["FLIGHT SCHEDULE"], ["COCKPIT SCHEDULE"], ["CABIN SCHEDULE"].
+   - Include column headers beneath the section headers exactly as they appear (e.g. DEP, ARR, STD, STA, EMPL, NAME, RANK, POSN).
+   - Extract dates (e.g., 2026-03-07), flight numbers (e.g., OZ713), aircraft registration / HLNO (e.g. HL8251), EMPL, NAME, RANK, POSITION accurately.
+   - Maintain the grid layout logically so the parser can read it.
 
-Return ONLY the JSON array, no markdown formatting, no code blocks, just the raw JSON array.`
+GENERAL RULES:
+1. Always output a 2D JSON array (an array of string arrays).
+2. If a cell has no relevant data, output "".
+3. Return ONLY the JSON array, no markdown formatting, no code blocks, just the raw JSON array.`
                             },
                             {
                                 inlineData: {
