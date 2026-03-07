@@ -498,11 +498,12 @@ export const mergeFlightDataWithStatusPreservation = (
           finalCrew = newFlight.crew.map(newCrewMember => {
             const existingMember = (existingFlight.crew || []).find(c => c.empl === newCrewMember.empl);
             if (existingMember) {
-              // Monthly SKD에서 C2, F2 등으로 상세하게 적혀있고, Briefing에는 C, F로만 적혀있다면 기존(C2/F2)을 유지
+              // Monthly SKD에서 C1, C2, F1, F2 등으로 상세하게 적혀있고, Briefing에는 C, F로만 적혀있다면 기존 값을 유지
               let mergedPosn = newCrewMember.posn;
               if (
-                (existingMember.posn === 'C2' || existingMember.posn === 'F2') &&
-                (newCrewMember.posn === 'C' || newCrewMember.posn === 'F')
+                existingMember.posn && newCrewMember.posn &&
+                existingMember.posn.startsWith(newCrewMember.posn) &&
+                existingMember.posn.length > newCrewMember.posn.length
               ) {
                 mergedPosn = existingMember.posn;
               }
