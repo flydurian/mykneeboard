@@ -495,10 +495,21 @@ export const mergeFlightDataWithStatusPreservation = (
 
         // COCKPIT CREW 업데이트 (BRIEFING INFO에 있고 기존과 다를 경우)
         if (newFlight.crew && newFlight.crew.length > 0) {
-          const cockpitCrewChanged = JSON.stringify(existingFlight.crew || []) !== JSON.stringify(newFlight.crew);
-          if (cockpitCrewChanged) {
-            finalCrew = newFlight.crew;
-          }
+          finalCrew = newFlight.crew.map(newCrewMember => {
+            const existingMember = (existingFlight.crew || []).find(c => c.empl === newCrewMember.empl);
+            if (existingMember) {
+              // Monthly SKD에서 C2, F2 등으로 상세하게 적혀있고, Briefing에는 C, F로만 적혀있다면 기존(C2/F2)을 유지
+              let mergedPosn = newCrewMember.posn;
+              if (
+                (existingMember.posn === 'C2' || existingMember.posn === 'F2') &&
+                (newCrewMember.posn === 'C' || newCrewMember.posn === 'F')
+              ) {
+                mergedPosn = existingMember.posn;
+              }
+              return { ...newCrewMember, posn: mergedPosn };
+            }
+            return newCrewMember;
+          });
         }
 
         // 실제 변경사항이 있는지 확인

@@ -96,7 +96,7 @@ CRITICAL RULES FOR "Monthly SKD":
 CRITICAL RULES FOR "Briefing Info":
 1. If the image is for a specific flight (has "Briefing Info", "Flight Schedule", "Cockpit Schedule", "Cabin Schedule"):
    - Row 0 MUST BE EXACTLY: ["BRIEFING INFO"]
-   - Include section headers exactly on their own rows, e.g., ["FLIGHT SCHEDULE"], ["COCKPIT SCHEDULE"], ["CABIN SCHEDULE"].
+   - Include section headers exactly on their own rows as they appear in the image, e.g., ["FLIGHT CREW LIST"], ["CABIN CREW LIST"] OR ["COCKPIT SCHEDULE"], ["CABIN SCHEDULE"].
    - Include column headers beneath the section headers exactly as they appear (e.g. DEP, ARR, STD, STA, EMPL, NAME, RANK, POSN).
    - Extract dates (e.g., 2026-03-07), flight numbers (e.g., OZ713), aircraft registration / HLNO (e.g. HL8251), EMPL, NAME, RANK, POSITION accurately.
    - Maintain the grid layout logically so the parser can read it.

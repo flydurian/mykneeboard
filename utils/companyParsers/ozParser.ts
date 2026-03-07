@@ -383,15 +383,16 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
         ? cell.toUpperCase().replace(/\s+/g, '')
         : '');
 
-      if (normalizedRow.some((value) => typeof value === 'string' && value.includes('CABIN SCHEDULE'))) {
+      if (normalizedRow.some((value) => typeof value === 'string' && (value.includes('CABIN SCHEDULE') || value.includes('CABIN CREW')))) {
         isInCabinSchedule = true;
         isInCockpitSchedule = false;
         cabinHeaderProcessed = false;
       }
 
-      if (normalizedRow.some((value) => typeof value === 'string' && value.includes('COCKPIT SCHEDULE'))) {
+      if (normalizedRow.some((value) => typeof value === 'string' && (value.includes('COCKPIT SCHEDULE') || value.includes('FLIGHT CREW') || value.includes('COCKPIT CREW')))) {
         isInCockpitSchedule = true;
         isInCabinSchedule = false;
+        cockpitHeaderProcessed = false;
       }
 
       if (isInCabinSchedule && !cabinHeaderProcessed) {
