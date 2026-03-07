@@ -416,8 +416,8 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
           const emplIndex = findIndex(['EMPL', 'EMPNO', 'EMP#', 'EMP']);
           if (emplIndex !== -1) cabinColumnIndices.empl = emplIndex;
 
-          let nameIndex = findIndex(['ENGLISH', 'ENG', 'ENGNAME']);
-          if (nameIndex === -1) nameIndex = findIndex(['NAME']);
+          // 한국어 이름(NAME 열)을 우선적으로 추출하도록 수정 (사용자 요청)
+          const nameIndex = findIndex(['NAME']);
           if (nameIndex !== -1) cabinColumnIndices.name = nameIndex;
 
           const rankIndex = findIndex(['RANK']);
@@ -486,8 +486,8 @@ export const parseOZExcel = (jsonData: any[][], userId?: string): Flight[] => {
           const emplIndex = findIndex(['EMPL', 'EMPNO', 'EMP#', 'EMP']);
           if (emplIndex !== -1) cockpitColumnIndices.empl = emplIndex;
 
-          let nameIndex = findIndex(['ENGLISH', 'ENG', 'ENGNAME']);
-          if (nameIndex === -1) nameIndex = findIndex(['NAME']);
+          // 한국어 이름(NAME 열)을 우선적으로 추출하도록 수정 (사용자 요청)
+          const nameIndex = findIndex(['NAME']);
           if (nameIndex !== -1) cockpitColumnIndices.name = nameIndex;
 
           const rankIndex = findIndex(['RANK']);
