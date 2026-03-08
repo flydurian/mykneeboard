@@ -2281,6 +2281,36 @@ const App: React.FC = () => {
                 ctx.imageSmoothingQuality = 'high';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, width, height);
+
+                // --- 👑 OCR 인식률 극대화를 위한 전처리 (Grayscale + High Contrast) ---
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                const contrast = 50; // 대비 강화 수치 (-255 ~ 255)
+                const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+
+                for (let i = 0; i < data.length; i += 4) {
+                  // 1. Grayscale 변환 (Luminosity 방식)
+                  const r = data[i];
+                  const g = data[i + 1];
+                  const b = data[i + 2];
+                  // 흑백 값 계산
+                  const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                  // 2. 대비(Contrast) 극대화 (글씨는 더 까맣게, 배경은 더 하얗게)
+                  let newColor = factor * (gray - 128) + 128;
+                  // 색상 한계점 보정
+                  if (newColor > 255) newColor = 255;
+                  else if (newColor < 0) newColor = 0;
+
+                  // RGB에 각각 흑백대비 적용값 부여
+                  data[i] = newColor;
+                  data[i + 1] = newColor;
+                  data[i + 2] = newColor;
+                  // alpha(투명도)는 255 (불투명) 유지
+                }
+                ctx.putImageData(imageData, 0, 0);
+                // -----------------------------------------------------------------
+
                 // JPEG, 75% 퀄리티로 압축 (용량 2MB 내외로 유지되면서 텍스트 선명도 보존)
                 const dataURL = canvas.toDataURL('image/jpeg', 0.75);
                 resolve(dataURL.split(',')[1]);
