@@ -2256,7 +2256,7 @@ const App: React.FC = () => {
               const canvas = document.createElement('canvas');
               let width = img.width;
               let height = img.height;
-              const MAX_SIZE = 1600; // Vercel 4.5MB payload 에러 방지용 최대 해상도 원복
+              const MAX_SIZE = 2200; // Vercel 4.5MB 제한을 피하면서 화질을 최대로 끌어올리는 스윗스팟
 
               if (width > height) {
                 if (width > MAX_SIZE) {
@@ -2276,10 +2276,13 @@ const App: React.FC = () => {
               if (ctx) {
                 // 검은 배경 채우기 (투명도 방지)
                 ctx.fillStyle = '#FFFFFF';
+                // 약간의 샤프닝 효과를 위해 imageSmoothingQuality 설정
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, width, height);
-                // JPEG, 80% 퀄리티로 압축 (용량 1~2MB 내외로 유지됨)
-                const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+                // JPEG, 75% 퀄리티로 압축 (용량 2MB 내외로 유지되면서 텍스트 선명도 보존)
+                const dataURL = canvas.toDataURL('image/jpeg', 0.75);
                 resolve(dataURL.split(',')[1]);
               } else {
                 reject(new Error("Canvas 2D context not available"));
